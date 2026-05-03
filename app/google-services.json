@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "991457684705",
+    "project_id": "petscue-bac0c",
+    "storage_bucket": "petscue-bac0c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:991457684705:android:972e37a5935307b7515ba0",
+        "android_client_info": {
+          "package_name": "com.example.petscue"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOIFz0czrS5FSr8FSnx1TdDQRHKR0Lonk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
