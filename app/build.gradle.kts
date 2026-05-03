@@ -4,7 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 
     alias(libs.plugins.googleService)  //SERVICES
-    alias(libs.plugins.crashlytics)
+    alias(libs.plugins.crashlytics) // CRASHLYTICS
+    alias(libs.plugins.kotlin.ksp)// ROOM
 }
 
 android {
@@ -34,8 +35,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+        }
     }
     buildFeatures {
         compose = true
@@ -43,9 +46,16 @@ android {
 }
 
 dependencies {
-    // Firebase
     implementation(platform(libs.firebase.bom)) // BOOM FIREBASE
     implementation(libs.firebase.crashlytics)  // CRASHLYTICS
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.androidx.navigation.compose)// Jetpack Compose
+    implementation(libs.androidx.core.splashscreen)// Splash Screen
+    implementation(libs.room.runtime) //ROOM
+    implementation(libs.room.ktx) //ROOM
+    ksp(libs.room.compiler) //ROOM
+    implementation(libs.androidx.material.icons) // ICONOS
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
