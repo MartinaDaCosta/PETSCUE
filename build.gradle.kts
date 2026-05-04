@@ -6,4 +6,6 @@ plugins {
 
     alias(libs.plugins.googleService) apply false //firebase
     alias(libs.plugins.crashlytics) apply false  //crashlytics
+    alias(libs.plugins.hilt.android) apply false
+    alias(libs.plugins.ksp) apply false
 }

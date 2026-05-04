@@ -1,0 +1,13 @@
+package com.example.petscue.domain.usecase
+
+import com.example.petscue.data.model.Post
+import com.example.petscue.data.repository.PostRepository
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+
+class GetPostsUseCase @Inject constructor(
+    private val repository: PostRepository
+) {
+    operator fun invoke(): Flow<List<Post>> =
+        repository.getAll()
+}

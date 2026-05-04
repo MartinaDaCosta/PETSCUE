@@ -17,7 +17,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.petscue.ui.home.HomeScreen
 import com.example.petscue.ui.mapa.MapaScreen
+import com.example.petscue.ui.mascotas.MascotasScreen
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 sealed class BottomTab(
@@ -54,10 +56,10 @@ fun MainScreen(onLogout: () -> Unit = {}) {
         Box(modifier = Modifier.padding(padding)) {
             when (currentTab) {
                 BottomTab.Mapa      -> MapaScreen()
-                BottomTab.Novedades -> PlaceholderScreen("📰 Novedades")
+                BottomTab.Novedades -> HomeScreen()
                 BottomTab.Sos       -> PlaceholderScreen("🆘 SOS")
-                BottomTab.Mascotas  -> PlaceholderScreen("🐾 Mascotas")
-                BottomTab.Perfil    -> PlaceholderScreen("👤 Perfil")
+                BottomTab.Mascotas  -> MascotasScreen()
+                BottomTab.Perfil    -> PlaceholderScreen("👤 Perfil — Sprint 3")
             }
         }
     }
@@ -87,19 +89,23 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
         },
         navigationIcon = {
             IconButton(onClick = { }) {
-                Icon(Icons.Default.Notifications,
+                Icon(
+                    Icons.Default.Notifications,
                     contentDescription = "Notificaciones",
-                    tint = Color(0xFF1565C0))
+                    tint = Color(0xFF1565C0)
+                )
             }
         },
         actions = {
             IconButton(onClick = { showMenu = true }) {
-                Icon(Icons.Default.Settings,
+                Icon(
+                    Icons.Default.Settings,
                     contentDescription = "Ajustes",
-                    tint = Color(0xFF1565C0))
+                    tint = Color(0xFF1565C0)
+                )
             }
             DropdownMenu(
-                expanded        = showMenu,
+                expanded         = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
@@ -141,23 +147,29 @@ fun PetscueBottomBar(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("SOS", color = Color.White,
+                            Text(
+                                "SOS",
+                                color      = Color.White,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize   = 14.sp)
+                                fontSize   = 14.sp
+                            )
                         }
                     },
                     label  = null,
                     colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = Color.Transparent)
+                        indicatorColor = Color.Transparent
+                    )
                 )
             } else {
                 NavigationBarItem(
                     selected = currentTab == tab,
                     onClick  = { onTabSelected(tab) },
                     icon = {
-                        Icon(tab.icon,
+                        Icon(
+                            tab.icon,
                             contentDescription = tab.label,
-                            modifier = Modifier.size(24.dp))
+                            modifier = Modifier.size(24.dp)
+                        )
                     },
                     label  = { Text(tab.label, fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
@@ -177,7 +189,11 @@ fun PetscueBottomBar(
 @Composable
 private fun PlaceholderScreen(label: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(label, fontWeight = FontWeight.Bold,
-            color = Color(0xFF1565C0), fontSize = 18.sp)
+        Text(
+            label,
+            fontWeight = FontWeight.Bold,
+            color      = Color(0xFF1565C0),
+            fontSize   = 18.sp
+        )
     }
 }

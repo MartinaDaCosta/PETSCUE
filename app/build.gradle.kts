@@ -5,7 +5,8 @@ plugins {
 
     alias(libs.plugins.googleService)  //SERVICES
     alias(libs.plugins.crashlytics) // CRASHLYTICS
-    alias(libs.plugins.kotlin.ksp)// ROOM
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -56,6 +57,12 @@ dependencies {
     implementation(libs.room.ktx) //ROOM
     ksp(libs.room.compiler) //ROOM
     implementation(libs.androidx.material.icons) // ICONOS
+    // Hilt
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
