@@ -1,6 +1,6 @@
 package com.example.petscue.domain.usecase
 
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 
 class LoginUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke(email: String, password: String): Result<Unit> {

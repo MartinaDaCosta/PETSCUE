@@ -3,7 +3,7 @@ package com.example.petscue.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.petscue.data.model.User
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 import kotlinx.coroutines.tasks.await
 
 class AuthRepositoryImpl(
@@ -25,6 +25,10 @@ class AuthRepositoryImpl(
             auth.currentUser!!.sendEmailVerification().await()
         }
 
+    override suspend fun resetPassword(email: String): Result<Unit> = runCatching {
+        auth.sendPasswordResetEmail(email).await()
+    }
+
     override suspend fun sendVerificationEmail(): Result<Unit> =
         runCatching {
             auth.currentUser!!.sendEmailVerification().await()
@@ -37,4 +41,6 @@ class AuthRepositoryImpl(
         auth.currentUser != null && isEmailVerified()
 
     override fun logout() = auth.signOut()
+
+
 }

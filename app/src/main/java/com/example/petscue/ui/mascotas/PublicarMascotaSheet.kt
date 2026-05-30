@@ -8,21 +8,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.petscue.data.model.Pet
+import com.example.petscue.ui.location.LocationButton
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PublicarMascotaSheet(
-    onDismiss: () -> Unit,
+    onDismiss:  () -> Unit,
     onPublicar: (Pet) -> Unit
 ) {
-    var nombre    by remember { mutableStateOf("") }
-    var especie   by remember { mutableStateOf("Perro") }
-    var raza      by remember { mutableStateOf("") }
-    var genero    by remember { mutableStateOf("Macho") }
-    var edad      by remember { mutableStateOf("") }
-    var ubicacion by remember { mutableStateOf("") }
+    var nombre      by remember { mutableStateOf("") }
+    var especie     by remember { mutableStateOf("Perro") }
+    var raza        by remember { mutableStateOf("") }
+    var genero      by remember { mutableStateOf("Macho") }
+    var edad        by remember { mutableStateOf("") }
+    var ubicacion   by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
+    var latitud     by remember { mutableDoubleStateOf(0.0) }  // ← fix
+    var longitud    by remember { mutableDoubleStateOf(0.0) }  // ← fix
 
     val especies = listOf("Perro", "Gato", "Conejo", "Otro")
     val generos  = listOf("Macho", "Hembra")
@@ -49,7 +52,6 @@ fun PublicarMascotaSheet(
                 modifier      = Modifier.fillMaxWidth()
             )
 
-            // Selector de especie
             Text("Especie", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 especies.forEach { op ->
@@ -68,7 +70,6 @@ fun PublicarMascotaSheet(
                 modifier      = Modifier.fillMaxWidth()
             )
 
-            // Selector de género
             Text("Género", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 generos.forEach { op ->
@@ -87,11 +88,13 @@ fun PublicarMascotaSheet(
                 modifier      = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value         = ubicacion,
-                onValueChange = { ubicacion = it },
-                label         = { Text("Última ubicación conocida") },
-                modifier      = Modifier.fillMaxWidth()
+            LocationButton(
+                ubicacion            = ubicacion,
+                onUbicacionDetectada = { texto, lat, lng ->
+                    ubicacion = texto
+                    latitud   = lat
+                    longitud  = lng
+                }
             )
 
             OutlinedTextField(
@@ -114,6 +117,8 @@ fun PublicarMascotaSheet(
                                 genero      = genero,
                                 edad        = edad,
                                 ubicacion   = ubicacion,
+                                latitud     = latitud,    // ← ahora se usa
+                                longitud    = longitud,   // ← ahora se usa
                                 descripcion = descripcion,
                                 estado      = "perdido",
                                 timestamp   = System.currentTimeMillis()

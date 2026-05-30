@@ -21,9 +21,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess:     () -> Unit = {},
-    onNavigateToSignup: () -> Unit = {},
-    vm: LoginViewModel  = viewModel()
+    onLoginSuccess: () -> Unit,
+    onNavigateToSignup: () -> Unit,
+    vm: LoginViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsState()
 
@@ -31,90 +31,176 @@ fun LoginScreen(
         if (state.isSuccess) onLoginSuccess()
     }
 
+    if (state.showForgotPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { vm.hideForgotPasswordDialog() },
+            title = { Text("Recuperar contraseña") },
+            text = {
+                Column {
+                    Text(
+                        "Te enviaremos un correo para restablecer la contraseña a la dirección indicada."
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = state.email,
+                        onValueChange = { vm.onEmailChange(it) },
+                        label = { Text("Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.onForgotPasswordConfirm() }) {
+                    Text("Enviar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { vm.hideForgotPasswordDialog() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(
-                listOf(Color(0xFF64B5F6), Color(0xFF1565C0))))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF64B5F6), Color(0xFF1565C0))
+                )
+            )
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Iniciar Sesión", color = Color.White,
+        Text(
+            text = "Iniciar Sesión",
+            color = Color.White,
             fontWeight = FontWeight.ExtraBold,
-            fontSize = 28.sp)
-        Spacer(Modifier.height(8.dp))
-        Text("Bienvenido de vuelta a Petscue",
-            color = Color.White.copy(alpha = 0.85f))
-        Spacer(Modifier.height(32.dp))
+            fontSize = 28.sp
+        )
 
-        // Email
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Bienvenido de vuelta a Petscue",
+            color = Color.White.copy(alpha = 0.85f)
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         OutlinedTextField(
-            value         = state.email,
+            value = state.email,
             onValueChange = { vm.onEmailChange(it) },
-            label         = { Text("Email", color = Color.White) },
-            modifier      = Modifier.fillMaxWidth(),
-            colors        = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor   = Color.White,
+            label = { Text("Email", color = Color.White) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.White,
                 unfocusedBorderColor = Color.White.copy(alpha = 0.6f),
-                focusedTextColor     = Color.White,
-                unfocusedTextColor   = Color.White
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = Color.White
             )
         )
-        Spacer(Modifier.height(12.dp))
 
-        // Password
+        Spacer(modifier = Modifier.height(12.dp))
+
         OutlinedTextField(
-            value         = state.password,
+            value = state.password,
             onValueChange = { vm.onPasswordChange(it) },
-            label         = { Text("Contraseña", color = Color.White) },
-            modifier      = Modifier.fillMaxWidth(),
-            visualTransformation = if (state.passwordVisible)
-                VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon  = {
+            label = { Text("Contraseña", color = Color.White) },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = if (state.passwordVisible) {
+                VisualTransformation.None
+            } else {
+                PasswordVisualTransformation()
+            },
+            trailingIcon = {
                 IconButton(onClick = { vm.onTogglePasswordVisibility() }) {
                     Icon(
-                        imageVector = if (state.passwordVisible)
-                            Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        imageVector = if (state.passwordVisible) {
+                            Icons.Default.Visibility
+                        } else {
+                            Icons.Default.VisibilityOff
+                        },
                         contentDescription = null,
                         tint = Color.White
                     )
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor   = Color.White,
+                focusedBorderColor = Color.White,
                 unfocusedBorderColor = Color.White.copy(alpha = 0.6f),
-                focusedTextColor     = Color.White,
-                unfocusedTextColor   = Color.White
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = Color.White
             )
         )
-        Spacer(Modifier.height(20.dp))
 
-        // Error
-        state.errorMessage?.let {
-            Text(it, color = Color(0xFFFFCDD2), fontSize = 14.sp)
-            Spacer(Modifier.height(12.dp))
+        TextButton(
+            onClick = { vm.showForgotPasswordDialog() },
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text(
+                text = "¿Has olvidado tu contraseña?",
+                color = Color.White
+            )
         }
 
-        // Botón login
+        state.errorMessage?.let {
+            Text(
+                text = it,
+                color = Color(0xFFFFCDD2),
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        state.successMessage?.let {
+            Text(
+                text = it,
+                color = Color(0xFFC8E6C9),
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         Button(
-            onClick  = { vm.onLoginClick() },
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            enabled  = !state.isLoading,
-            colors   = ButtonDefaults.buttonColors(
+            onClick = { vm.onLoginClick() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            enabled = !state.isLoading,
+            colors = ButtonDefaults.buttonColors(
                 containerColor = Color.White,
-                contentColor   = Color(0xFF1565C0)),
+                contentColor = Color(0xFF1565C0)
+            ),
             shape = RoundedCornerShape(14.dp)
         ) {
-            if (state.isLoading)
-                CircularProgressIndicator(Modifier.size(20.dp), color = Color(0xFF1565C0))
-            else
-                Text("Iniciar Sesión", fontWeight = FontWeight.Bold)
+            if (state.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color(0xFF1565C0)
+                )
+            } else {
+                Text(
+                    text = "Iniciar Sesión",
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
         TextButton(onClick = onNavigateToSignup) {
-            Text("¿No tienes cuenta? Regístrate", color = Color.White)
+            Text(
+                text = "¿No tienes cuenta? Regístrate",
+                color = Color.White
+            )
         }
     }
 }

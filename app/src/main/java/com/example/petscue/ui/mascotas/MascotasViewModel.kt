@@ -3,6 +3,7 @@ package com.example.petscue.ui.mascotas
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.petscue.data.model.Pet
+import com.example.petscue.domain.usecase.GetPetsAllUseCase
 import com.example.petscue.domain.usecase.GetPetsUseCase
 import com.example.petscue.domain.usecase.InsertPetUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,14 +14,18 @@ import javax.inject.Inject
 @HiltViewModel
 class MascotasViewModel @Inject constructor(
     private val getPetsUseCase: GetPetsUseCase,
+    private val getPetsAllUseCase: GetPetsAllUseCase,
     private val insertPetUseCase: InsertPetUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MascotasUiState())
     val uiState: StateFlow<MascotasUiState> = _uiState.asStateFlow()
+    private val _todasLasMascotas = MutableStateFlow<List<Pet>>(emptyList())
+    val todasLasMascotas: StateFlow<List<Pet>> = _todasLasMascotas.asStateFlow()
 
     init {
         cargarPets("perdido")
+        cargarTodasParaMapa()
     }
 
     fun setFiltro(filtro: String) {
@@ -44,6 +49,16 @@ class MascotasViewModel @Inject constructor(
     fun insertPet(pet: Pet) {
         viewModelScope.launch {
             insertPetUseCase(pet)
+        }
+    }
+
+    private fun cargarTodasParaMapa() {
+        viewModelScope.launch {
+            getPetsAllUseCase()
+                .catch { }
+                .collect { pets ->
+                    _todasLasMascotas.value = pets
+                }
         }
     }
 }

@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.crashlytics) // CRASHLYTICS
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -54,15 +55,22 @@ dependencies {
     implementation(libs.androidx.navigation.compose)// Jetpack Compose
     implementation(libs.androidx.core.splashscreen)// Splash Screen
     implementation(libs.room.runtime) //ROOM
-    implementation(libs.room.ktx) //ROOM
+    implementation(libs.room.ktx)
+    implementation(libs.androidx.room.ktx) //ROOM
     ksp(libs.room.compiler) //ROOM
     implementation(libs.androidx.material.icons) // ICONOS
-    // Hilt
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.android.compiler)
-    implementation(libs.hilt.navigation.compose)
-    implementation(libs.maps.compose)
+    implementation(libs.hilt.android) // Hilt
+    ksp(libs.hilt.android.compiler)  // Hilt
+    implementation(libs.hilt.navigation.compose)  // Hilt
+    implementation(libs.maps.compose) // mapa
     implementation(libs.play.services.maps)
+    implementation(libs.play.services.location) // gps
+    implementation(libs.accompanist.permissions) // permisos
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.coil.compose)
+
+
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

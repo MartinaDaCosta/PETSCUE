@@ -20,6 +20,9 @@ import androidx.compose.ui.unit.sp
 import com.example.petscue.ui.home.HomeScreen
 import com.example.petscue.ui.mapa.MapaScreen
 import com.example.petscue.ui.mascotas.MascotasScreen
+import com.example.petscue.ui.sos.SosScreen
+import com.example.petscue.ui.perfil.PerfilScreen
+import com.example.petscue.ui.protectoras.ProtectorasScreen
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 sealed class BottomTab(
@@ -31,7 +34,7 @@ sealed class BottomTab(
     object Mapa      : BottomTab("mapa",      Icons.Default.LocationOn, "Mapa")
     object Novedades : BottomTab("novedades", Icons.Default.Campaign,   "Novedades")
     object Sos       : BottomTab("sos",       Icons.Default.Warning,    "SOS", isSos = true)
-    object Mascotas  : BottomTab("mascotas",  Icons.Default.Pets,       "Mascotas")
+    object Protectoras : BottomTab("protectoras",  Icons.Default.Pets,       "Protectoras")
     object Perfil    : BottomTab("perfil",    Icons.Default.Person,     "Perfil")
 }
 
@@ -39,7 +42,7 @@ private val tabs = listOf(
     BottomTab.Mapa,
     BottomTab.Novedades,
     BottomTab.Sos,
-    BottomTab.Mascotas,
+    BottomTab.Protectoras,
     BottomTab.Perfil
 )
 
@@ -57,9 +60,9 @@ fun MainScreen(onLogout: () -> Unit = {}) {
             when (currentTab) {
                 BottomTab.Mapa      -> MapaScreen()
                 BottomTab.Novedades -> HomeScreen()
-                BottomTab.Sos       -> PlaceholderScreen("🆘 SOS")
-                BottomTab.Mascotas  -> MascotasScreen()
-                BottomTab.Perfil    -> PlaceholderScreen("👤 Perfil — Sprint 3")
+                BottomTab.Sos       -> SosScreen()
+                BottomTab.Protectoras  -> ProtectorasScreen(onProtectoraClick = { protectora ->})
+                BottomTab.Perfil -> PerfilScreen(onLogout = onLogout)
             }
         }
     }

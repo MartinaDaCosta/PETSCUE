@@ -6,8 +6,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,30 +22,52 @@ import com.example.petscue.data.model.Post
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState      by viewModel.uiState.collectAsState()
+    var mostrarSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { /* TODO: publicar post */ }) {
-                Icon(Icons.Default.Add, contentDescription = "Nuevo post")
+            FloatingActionButton(onClick = { mostrarSheet = true }) {
+                Icon(Icons.Default.Add, contentDescription = "Nueva novedad")
             }
         }
     ) { padding ->
         when {
             uiState.isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
             }
+
             uiState.posts.isEmpty() -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No hay novedades aún", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(
+                    Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📰", style = MaterialTheme.typography.displaySmall)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "No hay novedades aún",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "¡Sé el primero en publicar!",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
+
             else -> {
                 LazyColumn(
                     contentPadding = PaddingValues(
-                        top = padding.calculateTopPadding() + 8.dp,
+                        top    = padding.calculateTopPadding() + 8.dp,
                         bottom = padding.calculateBottomPadding() + 8.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -57,6 +79,17 @@ fun HomeScreen(
                 }
             }
         }
+
+        // Sheet
+        if (mostrarSheet) {
+            PublicarPostSheet(
+                onDismiss  = { mostrarSheet = false },
+                onPublicar = { post ->
+                    viewModel.insertPost(post)
+                    mostrarSheet = false
+                }
+            )
+        }
     }
 }
 
@@ -66,55 +99,103 @@ fun PostCard(post: Post) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
-            // Cabecera: avatar + nombre + ubicación
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Cabecera
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Avatar
                 Surface(
-                    modifier = Modifier.size(40.dp).clip(CircleShape),
-                    color = MaterialTheme.colorScheme.primary
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = post.userName.firstOrNull()?.toString() ?: "?",
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            text  = post.userName.firstOrNull()?.toString() ?: "?",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
+
                 Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(post.userName, fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.bodyMedium)
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        post.userName,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                     if (post.ubicacion.isNotBlank()) {
-                        Text(post.ubicacion, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            post.ubicacion,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+                }
+
+                // Badge tipo
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text     = post.tipo,
+                        style    = MaterialTheme.typography.labelSmall,
+                        color    = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
                 }
             }
 
             Spacer(Modifier.height(10.dp))
 
             // Mensaje
-            Text(post.mensaje, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                post.mensaje,
+                style = MaterialTheme.typography.bodyMedium
+            )
 
             Spacer(Modifier.height(10.dp))
 
-            // Acciones: likes + comentarios
-            Row {
-                Icon(Icons.Default.FavoriteBorder, contentDescription = "Like",
-                    modifier = Modifier.size(18.dp))
+            HorizontalDivider()
+
+            Spacer(Modifier.height(8.dp))
+
+            // Acciones
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.FavoriteBorder,
+                    contentDescription = "Like",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.width(4.dp))
-                Text("${post.likes}", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${post.likes}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.width(16.dp))
-                Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comentarios",
-                    modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Default.ChatBubbleOutline,
+                    contentDescription = "Comentarios",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.width(4.dp))
-                Text("${post.comentarios}", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${post.comentarios}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

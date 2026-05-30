@@ -2,7 +2,7 @@ package com.example.petscue.domain.usecase
 
 import android.util.Patterns
 import com.example.petscue.data.model.User
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 
 class RegisterUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke(user: User, password: String): Result<Unit> {

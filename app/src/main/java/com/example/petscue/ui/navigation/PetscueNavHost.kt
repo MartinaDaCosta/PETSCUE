@@ -6,11 +6,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.petscue.data.model.Protectora
 import com.example.petscue.data.repository.AuthRepositoryImpl
 import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
+import com.example.petscue.ui.mapa.MapaScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
+import com.example.petscue.ui.protectoras.ProtectoraDetalleScreen
+import com.example.petscue.ui.protectoras.ProtectorasScreen
 import com.example.petscue.ui.splash.SplashScreen
 
 @Composable
@@ -19,7 +23,7 @@ fun PetscueNavHost(navController: NavHostController) {
     val context       = LocalContext.current
     val prefs         = context.getSharedPreferences("petscue_prefs", Context.MODE_PRIVATE)
     val isFirstLaunch = prefs.getBoolean("first_launch", true)
-    val isLoggedIn    = AuthRepositoryImpl().isLoggedIn()
+    val isLoggedIn = false
 
     NavHost(
         navController    = navController,
@@ -89,5 +93,36 @@ fun PetscueNavHost(navController: NavHostController) {
                 }
             )
         }
+        composable("mapa") {
+            MapaScreen()
+        }
+
+        composable("protectoras") {
+            ProtectorasScreen(
+                onProtectoraClick = { protectora ->
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("protectora_seleccionada", protectora)
+                    navController.navigate("protectora_detalle")
+                }
+            )
+        }
+
+        composable("protectora_detalle") {
+            val protectora = navController
+                .previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<Protectora>("protectora_seleccionada")
+            protectora?.let {
+                ProtectoraDetalleScreen(
+                    protectora = it,
+                    onBack     = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable("perfil")  { /* PerfilScreen() */ }
+        composable("campana") { /* AlertasScreen() */ }
+        composable("sos")     { /* SosScreen() */ }
     }
 }
