@@ -6,123 +6,119 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.petscue.data.model.Protectora
-import com.example.petscue.data.repository.AuthRepositoryImpl
 import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
+import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
-import com.example.petscue.ui.mapa.MapaScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
-import com.example.petscue.ui.protectoras.ProtectoraDetalleScreen
-import com.example.petscue.ui.protectoras.ProtectorasScreen
 import com.example.petscue.ui.splash.SplashScreen
 
 @Composable
-fun PetscueNavHost(navController: NavHostController) {
-
-    val context       = LocalContext.current
-    val prefs         = context.getSharedPreferences("petscue_prefs", Context.MODE_PRIVATE)
+fun PetscueNavHost(
+    navController: NavHostController
+) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("petscue_prefs", Context.MODE_PRIVATE)
     val isFirstLaunch = prefs.getBoolean("first_launch", true)
-    val isLoggedIn = false
 
     NavHost(
-        navController    = navController,
-        startDestination = "splash"
+        navController = navController,
+        startDestination = Routes.SPLASH
     ) {
-
-        composable("splash") {
+        composable(Routes.SPLASH) {
             SplashScreen {
+                val isLoggedIn = false // luego aquí pondremos la comprobación real
+
                 when {
-                    isLoggedIn    -> navController.navigate("main") {
-                        popUpTo("splash") { inclusive = true }
+                    isLoggedIn -> {
+                        navController.navigate(Routes.MAIN) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
                     }
-                    isFirstLaunch -> navController.navigate("onboarding") {
-                        popUpTo("splash") { inclusive = true }
+
+                    isFirstLaunch -> {
+                        navController.navigate(Routes.ONBOARDING) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
                     }
-                    else          -> navController.navigate("auth") {
-                        popUpTo("splash") { inclusive = true }
+
+                    else -> {
+                        navController.navigate(Routes.AUTH) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
                     }
                 }
             }
         }
 
-        composable("onboarding") {
+        composable(Routes.ONBOARDING) {
             OnboardingScreen {
                 prefs.edit().putBoolean("first_launch", false).apply()
-                navController.navigate("auth") {
-                    popUpTo("onboarding") { inclusive = true }
+                navController.navigate(Routes.AUTH) {
+                    popUpTo(Routes.ONBOARDING) { inclusive = true }
                 }
             }
         }
 
-        composable("auth") {
+        composable(Routes.AUTH) {
             AuthScreen(
-                onNavigateToLogin  = { navController.navigate("login") },
-                onNavigateToSignup = { navController.navigate("signup") }
+                onNavigateToLogin = {
+                    navController.navigate(Routes.LOGIN)
+                },
+                onNavigateToSignup = {
+                    navController.navigate(Routes.SIGNUP)
+                }
             )
         }
 
-        composable("login") {
+        composable(Routes.LOGIN) {
             LoginScreen(
-                onLoginSuccess     = {
-                    navController.navigate("main") {
-                        popUpTo("auth") { inclusive = true }
+                onLoginSuccess = { destination ->
+                    navController.navigate(destination) {
+                        popUpTo(Routes.AUTH) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
-                onNavigateToSignup = { navController.navigate("signup") }
+                onNavigateToSignup = {
+                    navController.navigate(Routes.SIGNUP)
+                }
             )
         }
 
-        composable("signup") {
+        composable(Routes.SIGNUP) {
             SignupScreen(
-                onSignupSuccess   = {
-                    navController.navigate("login") {
-                        popUpTo("signup") { inclusive = true }
+                onSignupSuccess = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.SIGNUP) { inclusive = true }
                     }
                 },
-                onNavigateToLogin = { navController.navigate("login") }
+                onNavigateToLogin = {
+                    navController.navigate(Routes.LOGIN)
+                }
             )
         }
 
-        composable("main") {
+        composable(Routes.PENDING_APPROVAL) {
+            PendingApprovalScreen(
+                onLogout = {
+                    navController.navigate(Routes.AUTH) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                        popUpTo(Routes.PENDING_APPROVAL) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(Routes.MAIN) {
             MainScreen(
                 onLogout = {
-                    navController.navigate("auth") {
-                        popUpTo("main") { inclusive = true }
+                    navController.navigate(Routes.AUTH) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
         }
-        composable("mapa") {
-            MapaScreen()
-        }
-
-        composable("protectoras") {
-            ProtectorasScreen(
-                onProtectoraClick = { protectora ->
-                    navController.currentBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("protectora_seleccionada", protectora)
-                    navController.navigate("protectora_detalle")
-                }
-            )
-        }
-
-        composable("protectora_detalle") {
-            val protectora = navController
-                .previousBackStackEntry
-                ?.savedStateHandle
-                ?.get<Protectora>("protectora_seleccionada")
-            protectora?.let {
-                ProtectoraDetalleScreen(
-                    protectora = it,
-                    onBack     = { navController.popBackStack() }
-                )
-            }
-        }
-
-        composable("perfil")  { /* PerfilScreen() */ }
-        composable("campana") { /* AlertasScreen() */ }
-        composable("sos")     { /* SosScreen() */ }
     }
 }

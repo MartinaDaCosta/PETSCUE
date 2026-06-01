@@ -2,18 +2,21 @@ package com.example.petscue.ui.auth.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.petscue.data.repository.AuthRepositoryImpl
+import com.example.petscue.domain.AuthRepository
 import com.example.petscue.domain.usecase.LoginUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LoginViewModel : ViewModel() {
-
-    private val repository = AuthRepositoryImpl()
-    private val loginUseCase = LoginUseCase(repository)
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val repository: AuthRepository,
+    private val loginUseCase: LoginUseCase
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -37,26 +40,30 @@ class LoginViewModel : ViewModel() {
     }
 
     fun showForgotPasswordDialog() {
-        _uiState.update { it.copy(showForgotPasswordDialog = true) }
+        _uiState.update {
+            it.copy(showForgotPasswordDialog = true, errorMessage = null, successMessage = null)
+        }
     }
 
     fun hideForgotPasswordDialog() {
-        _uiState.update { it.copy(showForgotPasswordDialog = false) }
+        _uiState.update {
+            it.copy(showForgotPasswordDialog = false)
+        }
     }
 
     fun onLoginClick() {
         viewModelScope.launch {
             _uiState.update {
-                it.copy(isLoading = true, errorMessage = null, successMessage = null)
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    successMessage = null
+                )
             }
 
             loginUseCase(_uiState.value.email, _uiState.value.password)
                 .onSuccess {
-                    if (repository.isEmailVerified()) {
-                        _uiState.update {
-                            it.copy(isLoading = false, isSuccess = true)
-                        }
-                    } else {
+                    if (!repository.isEmailVerified()) {
                         repository.logout()
                         _uiState.update {
                             it.copy(
@@ -64,7 +71,30 @@ class LoginViewModel : ViewModel() {
                                 errorMessage = "Verifica tu email antes de continuar."
                             )
                         }
+                        return@onSuccess
                     }
+
+                    repository.getCurrentUserProfile()
+                        .onSuccess { user ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSuccess = true,
+                                    userRole = user.role,
+                                    approvalStatus = user.approvalStatus
+                                )
+                            }
+                        }
+                        .onFailure { e ->
+                            repository.logout()
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = e.message
+                                        ?: "No se pudo cargar el perfil del usuario."
+                                )
+                            }
+                        }
                 }
                 .onFailure { e ->
                     _uiState.update {
@@ -109,7 +139,8 @@ class LoginViewModel : ViewModel() {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "No se pudo enviar el correo de recuperación."
+                            errorMessage = e.message
+                                ?: "No se pudo enviar el correo de recuperación."
                         )
                     }
                 }

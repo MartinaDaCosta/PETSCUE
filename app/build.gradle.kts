@@ -68,6 +68,8 @@ dependencies {
     implementation(libs.accompanist.permissions) // permisos
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
+    implementation(libs.firebase.storage)
+
 
 
 

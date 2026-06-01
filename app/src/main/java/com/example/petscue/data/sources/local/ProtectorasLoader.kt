@@ -1,9 +1,8 @@
 package com.example.petscue.data.sources.local
 
 import android.content.Context
-import com.example.petscue.data.model.Protectora
 import kotlinx.serialization.json.Json
-
+/*
 object ProtectorasLoader {
 
     private val json = Json {
@@ -23,3 +22,4 @@ object ProtectorasLoader {
         }
     }
 }
+*/

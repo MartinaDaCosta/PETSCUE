@@ -1,19 +1,70 @@
 package com.example.petscue.data.repository
 
 import com.example.petscue.data.model.Pet
-import com.example.petscue.data.sources.local.PetDao
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class PetRepositoryImpl @Inject constructor(
-    private val petDao: PetDao
+    private val firestore: FirebaseFirestore
 ) : PetRepository {
 
-    override fun getAll(): Flow<List<Pet>> = petDao.getAll()
+    private val petsRef = firestore.collection("pets")
 
-    override fun getByEstado(estado: String): Flow<List<Pet>> = petDao.getByEstado(estado)
+    override fun getAll(): Flow<List<Pet>> = callbackFlow {
+        val listener = petsRef
+            .orderBy("timestamp")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
 
-    override suspend fun insert(pet: Pet) = petDao.insert(pet)
+                val pets = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
 
-    override suspend fun delete(pet: Pet) = petDao.delete(pet)
+                trySend(pets)
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    override fun getByEstado(estado: String): Flow<List<Pet>> = callbackFlow {
+        val listener = petsRef
+            .whereEqualTo("estado", estado)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val pets = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
+                trySend(pets)
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun insert(pet: Pet) {
+        val docRef = if (pet.id.isBlank()) {
+            petsRef.document()
+        } else {
+            petsRef.document(pet.id)
+        }
+
+        docRef.set(pet.copy(id = docRef.id)).await()
+    }
+
+    override suspend fun delete(pet: Pet) {
+        if (pet.id.isNotBlank()) {
+            petsRef.document(pet.id).delete().await()
+        }
+    }
 }

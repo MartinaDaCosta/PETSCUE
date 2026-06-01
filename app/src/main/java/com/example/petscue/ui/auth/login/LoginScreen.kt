@@ -17,20 +17,33 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.petscue.data.model.ApprovalStatus
+import com.example.petscue.data.model.UserRole
+import com.example.petscue.ui.navigation.Routes
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    onNavigateToSignup: () -> Unit,
-    vm: LoginViewModel = viewModel()
-) {
+    onLoginSuccess: (String) -> Unit = {},
+    onNavigateToSignup: () -> Unit = {},
+    vm: LoginViewModel = hiltViewModel()
+){
     val state by vm.uiState.collectAsState()
 
-    LaunchedEffect(state.isSuccess) {
-        if (state.isSuccess) onLoginSuccess()
-    }
+    LaunchedEffect(state.isSuccess, state.userRole, state.approvalStatus) {
+        if (state.isSuccess) {
+            val destination = if (
+                state.userRole == UserRole.PROTECTORA &&
+                state.approvalStatus == ApprovalStatus.PENDING
+            ) {
+                Routes.PENDING_APPROVAL
+            } else {
+                Routes.MAIN
+            }
 
+            onLoginSuccess(destination)
+        }
+    }
     if (state.showForgotPasswordDialog) {
         AlertDialog(
             onDismissRequest = { vm.hideForgotPasswordDialog() },

@@ -1,4 +1,4 @@
-package com.example.petscue.ui.home
+package com.example.petscue.ui.novedades
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,13 +14,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
+class NovedadesViewModel @Inject constructor(
     private val getPostsUseCase: GetPostsUseCase,
     private val insertPostUseCase: InsertPostUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState
+    private val _uiState = MutableStateFlow(NovedadesUiState())
+    val uiState: StateFlow<NovedadesUiState> = _uiState
 
     init {
         loadPosts()

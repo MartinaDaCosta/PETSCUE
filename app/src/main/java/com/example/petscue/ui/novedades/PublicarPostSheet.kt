@@ -1,4 +1,4 @@
-package com.example.petscue.ui.home
+package com.example.petscue.ui.novedades
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState

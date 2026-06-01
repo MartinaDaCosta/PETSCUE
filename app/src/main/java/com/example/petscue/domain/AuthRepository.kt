@@ -1,5 +1,6 @@
-package com.example.petscue.data.repository
+package com.example.petscue.domain
 
+import android.net.Uri
 import com.example.petscue.data.model.User
 
 interface AuthRepository {
@@ -10,4 +11,11 @@ interface AuthRepository {
     fun isEmailVerified(): Boolean
     fun isLoggedIn(): Boolean
     fun logout()
+
+    suspend fun getCurrentUserProfile(): Result<User>
+    suspend fun uploadProtectoraDocument(fileUri: Uri): Result<String>
+    suspend fun submitProtectoraDocuments(
+        documentUrl: String,
+        notes: String
+    ): Result<Unit>
 }
