@@ -20,5 +20,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "PETSCUE"
-include(":app")
- 
+include(":petscue")
+include(":admin")
