@@ -1,6 +1,6 @@
 package com.example.petscue.domain.usecase
 
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 import javax.inject.Inject
 
 class LoginUseCase @Inject constructor(

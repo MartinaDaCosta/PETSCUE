@@ -4,7 +4,7 @@ import android.net.Uri
 import com.example.petscue.data.model.ApprovalStatus
 import com.example.petscue.data.model.User
 import com.example.petscue.data.model.UserRole
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.toObject
@@ -28,9 +28,16 @@ class AuthRepositoryImpl @Inject constructor(
         val firebaseUser = result.user
             ?: error("La cuenta se creó, pero no se pudo obtener el usuario autenticado.")
 
+        val createdAt = System.currentTimeMillis()
+
         val userToSave = user.copy(
             uid = firebaseUser.uid,
-            createdAt = System.currentTimeMillis()
+            createdAt = createdAt,
+            approvalStatus = if (user.role == UserRole.PROTECTORA) {
+                ApprovalStatus.PENDING
+            } else {
+                ApprovalStatus.APPROVED
+            }
         )
 
         db.collection("users")
@@ -94,7 +101,8 @@ class AuthRepositoryImpl @Inject constructor(
                 mapOf(
                     "documentacionEnviada" to true,
                     "documentosUrls" to listOf(documentUrl),
-                    "motivoRevision" to notes
+                    "motivoRevision" to notes,
+                    "approvalStatus" to ApprovalStatus.PENDING.name
                 )
             )
             .await()

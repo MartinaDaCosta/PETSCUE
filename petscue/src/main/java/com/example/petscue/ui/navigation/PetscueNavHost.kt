@@ -101,9 +101,14 @@ fun PetscueNavHost(
 
         composable(Routes.PENDING_APPROVAL) {
             PendingApprovalScreen(
+                onApproved = {
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.PENDING_APPROVAL) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onLogout = {
                     navController.navigate(Routes.AUTH) {
-                        popUpTo(Routes.MAIN) { inclusive = true }
                         popUpTo(Routes.PENDING_APPROVAL) { inclusive = true }
                         launchSingleTop = true
                     }

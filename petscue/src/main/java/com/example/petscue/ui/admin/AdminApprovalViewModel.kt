@@ -3,7 +3,7 @@ package com.example.petscue.ui.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.petscue.data.model.User
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

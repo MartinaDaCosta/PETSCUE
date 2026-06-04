@@ -1,7 +1,7 @@
 package com.example.petscue.data.db
 
 import com.example.petscue.data.repository.AuthRepositoryImpl
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

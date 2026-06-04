@@ -3,7 +3,7 @@ package com.example.petscue.data.model
 data class User(
     val uid: String = "",
     val role: UserRole = UserRole.USER,
-    val approvalStatus: ApprovalStatus = ApprovalStatus.APPROVED,
+    val approvalStatus: ApprovalStatus = ApprovalStatus.PENDING,
 
     val nombre: String = "",
     val apellido: String = "",
@@ -19,6 +19,10 @@ data class User(
     val instagram: String = "",
     val provincia: String = "",
     val ciudad: String = "",
+
+    val documentacionEnviada: Boolean = false,
+    val documentosUrls: List<String> = emptyList(),
+    val motivoRevision: String = "",
 
     val createdAt: Long = 0L,
     val isAdmin: Boolean = false

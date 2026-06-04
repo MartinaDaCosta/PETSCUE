@@ -3,7 +3,7 @@ package com.example.petscue.domain.usecase
 import android.util.Patterns
 import com.example.petscue.data.model.User
 import com.example.petscue.data.model.UserRole
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.repository.AuthRepository
 import javax.inject.Inject
 
 class RegisterUseCase @Inject constructor(

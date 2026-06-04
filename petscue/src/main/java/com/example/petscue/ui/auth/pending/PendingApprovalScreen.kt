@@ -22,9 +22,9 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -35,10 +35,17 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @Composable
 fun PendingApprovalScreen(
+    onApproved: () -> Unit,
     onLogout: () -> Unit = {},
     vm: PendingApprovalViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
+
+    LaunchedEffect(state.isApproved) {
+        if (state.isApproved) {
+            onApproved()
+        }
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -97,9 +104,7 @@ fun PendingApprovalScreen(
 
         Button(
             onClick = {
-                launcher.launch(
-                    arrayOf("application/pdf", "image/*")
-                )
+                launcher.launch(arrayOf("application/pdf", "image/*"))
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),

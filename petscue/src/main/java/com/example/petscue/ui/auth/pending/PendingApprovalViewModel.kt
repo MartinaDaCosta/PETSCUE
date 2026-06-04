@@ -3,7 +3,10 @@ package com.example.petscue.ui.auth.pending
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.petscue.domain.AuthRepository
+import com.example.petscue.data.model.ApprovalStatus
+import com.example.petscue.data.repository.AuthRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,24 +15,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class PendingApprovalUiState(
-    val isLoading: Boolean = false,
-    val isUploading: Boolean = false,
-    val notes: String = "",
-    val selectedFileUri: Uri? = null,
-    val selectedFileName: String = "",
-    val infoMessage: String? = null,
-    val errorMessage: String? = null,
-    val documentSubmitted: Boolean = false
-)
-
 @HiltViewModel
 class PendingApprovalViewModel @Inject constructor(
-    private val repository: AuthRepository
+    private val repository: AuthRepository,
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PendingApprovalUiState())
     val uiState: StateFlow<PendingApprovalUiState> = _uiState.asStateFlow()
+
+    init {
+        observeApprovalStatus()
+    }
 
     fun onNotesChange(value: String) {
         _uiState.update { it.copy(notes = value, errorMessage = null) }
@@ -43,6 +41,26 @@ class PendingApprovalViewModel @Inject constructor(
                 errorMessage = null
             )
         }
+    }
+
+    private fun observeApprovalStatus() {
+        val uid = auth.currentUser?.uid ?: return
+
+        db.collection("users")
+            .document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _uiState.update {
+                        it.copy(errorMessage = error.message ?: "Error al comprobar el estado.")
+                    }
+                    return@addSnapshotListener
+                }
+
+                val approvalStatus = snapshot?.getString("approvalStatus")
+                if (approvalStatus == ApprovalStatus.APPROVED.name) {
+                    _uiState.update { it.copy(isApproved = true) }
+                }
+            }
     }
 
     fun submitDocuments() {
