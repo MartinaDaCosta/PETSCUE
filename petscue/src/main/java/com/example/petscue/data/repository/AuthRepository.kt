@@ -5,13 +5,31 @@ import com.example.petscue.data.model.User
 
 interface AuthRepository {
     suspend fun login(email: String, password: String): Result<Unit>
-    suspend fun register(user: User, password: String): Result<Unit>
+
+    suspend fun register(
+        user: User,
+        password: String,
+        profileImageUri: Uri?
+    ): Result<Unit>
+
+    suspend fun isUsernameAvailable(username: String): Result<Boolean>
+
+    suspend fun updateProfile(
+        nombre: String,
+        apellido: String,
+        username: String,
+        telefono: String,
+        direccion: String,
+        profileImageUri: Uri?
+    ): Result<Unit>
+
     suspend fun sendVerificationEmail(): Result<Unit>
     suspend fun resetPassword(email: String): Result<Unit>
     fun isEmailVerified(): Boolean
     fun isLoggedIn(): Boolean
     fun logout()
 
+    fun getCurrentUserId(): String?
     suspend fun getCurrentUserProfile(): Result<User>
     suspend fun uploadProtectoraDocument(fileUri: Uri): Result<String>
     suspend fun submitProtectoraDocuments(

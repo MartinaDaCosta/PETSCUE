@@ -1,0 +1,69 @@
+package com.example.petscue.ui.profile
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.petscue.data.model.UserRole
+import com.example.petscue.data.repository.ProfileRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val repository: ProfileRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ProfileUiState(isLoading = true))
+    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    init {
+        loadProfile()
+    }
+
+    fun onTabSelected(tab: ProfileTab) {
+        _uiState.update { it.copy(selectedTab = tab) }
+    }
+
+    private fun loadProfile() {
+        viewModelScope.launch {
+            runCatching {
+                val user = repository.getCurrentUserProfile()
+                val pets = repository.getPetsByUser(user.uid)
+                val posts = repository.getPostsByUser(user.uid)
+
+                val mediaPosts = posts.filter { it.fotos.isNotEmpty() }
+                val adoptionPets = if (user.role == UserRole.PROTECTORA) {
+                    pets.filter { pet ->
+                        pet.estado.toString().contains("adop", ignoreCase = true)
+                    }
+                } else {
+                    emptyList()
+                }
+
+                ProfileUiState(
+                    isLoading = false,
+                    user = user,
+                    pets = pets,
+                    posts = posts,
+                    replies = emptyList(),
+                    mediaPosts = mediaPosts,
+                    likedPosts = emptyList(),
+                    adoptionPets = adoptionPets,
+                    followersCount = user.followers,
+                    followingCount = user.following,
+                    selectedTab = ProfileTab.PETS_OR_ADOPTION
+                )
+            }.onSuccess { loadedState ->
+                _uiState.value = loadedState
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(isLoading = false)
+                }
+            }
+        }
+    }
+}

@@ -52,6 +52,45 @@ class PetRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    override fun getByUserId(userId: String): Flow<List<Pet>> = callbackFlow {
+        val listener = petsRef
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val pets = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
+                trySend(pets)
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    override fun getAdoptionPetsByUserId(userId: String): Flow<List<Pet>> = callbackFlow {
+        val listener = petsRef
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("estado", "en adopción")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val pets = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
+                trySend(pets)
+            }
+
+        awaitClose { listener.remove() }
+    }
+
     override suspend fun insert(pet: Pet) {
         val docRef = if (pet.id.isBlank()) {
             petsRef.document()

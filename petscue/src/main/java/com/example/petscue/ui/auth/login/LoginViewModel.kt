@@ -91,7 +91,7 @@ class LoginViewModel @Inject constructor(
                                 it.copy(
                                     isLoading = false,
                                     errorMessage = e.message
-                                        ?: "No se pudo cargar el perfil del usuario."
+                                        ?: "No se pudo cargar el profile del usuario."
                                 )
                             }
                         }

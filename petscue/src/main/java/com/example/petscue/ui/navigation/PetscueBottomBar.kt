@@ -34,7 +34,7 @@ val bottomNavItems = listOf(
     BottomNavItem("campana",     Icons.Filled.Notifications,"Alertas"),
     BottomNavItem("sos",         Icons.Filled.Warning,      "SOS"),
     BottomNavItem("protectoras", Icons.Filled.Favorite,     "Protectoras"),
-    BottomNavItem("perfil",      Icons.Filled.Person,       "Perfil")
+    BottomNavItem("profile",      Icons.Filled.Person,       "Perfil")
 )
 
 @Composable

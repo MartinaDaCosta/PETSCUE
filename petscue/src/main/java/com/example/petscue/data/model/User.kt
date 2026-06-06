@@ -7,10 +7,14 @@ data class User(
 
     val nombre: String = "",
     val apellido: String = "",
+    val username: String = "",
     val email: String = "",
     val telefono: String = "",
     val direccion: String = "",
     val photoUrl: String = "",
+
+    val followers: Int = 0,
+    val following: Int = 0,
 
     val nombreProtectora: String = "",
     val descripcionProtectora: String = "",
@@ -25,5 +29,6 @@ data class User(
     val motivoRevision: String = "",
 
     val createdAt: Long = 0L,
-    val isAdmin: Boolean = false
+
+    val admin: Boolean = false
 )

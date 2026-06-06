@@ -17,7 +17,7 @@ import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.mapa.MapaScreen
 import com.example.petscue.ui.mascotas.MascotasScreen
 import com.example.petscue.ui.sos.SosScreen
-import com.example.petscue.ui.perfil.PerfilScreen
+import com.example.petscue.ui.profile.ProfileScreen
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 sealed class BottomTab(
@@ -29,7 +29,7 @@ sealed class BottomTab(
     object Novedades : BottomTab("novedades", Icons.Default.Campaign, "Novedades")
     object Mascotas : BottomTab("mascotas", Icons.Default.Pets, "Mascotas")
     object Protectoras : BottomTab("protectoras", Icons.Default.Home, "Protectoras")
-    object Perfil : BottomTab("perfil", Icons.Default.Person, "Perfil")
+    object Perfil : BottomTab("profile", Icons.Default.Person, "Perfil")
 
     // Esta no va en bottom bar, pero sí la usamos como estado de pantalla actual
     object Sos : BottomTab("sos", Icons.Default.Warning, "SOS")
@@ -76,7 +76,7 @@ fun MainScreen(onLogout: () -> Unit = {}) {
                 BottomTab.Novedades -> NovedadesScreen()
                 BottomTab.Mascotas -> MascotasScreen()
                 BottomTab.Protectoras -> PlaceholderScreen("Protectoras")
-                BottomTab.Perfil -> PerfilScreen(onLogout = onLogout)
+                BottomTab.Perfil -> ProfileScreen()
                 BottomTab.Sos -> SosScreen()
             }
         }

@@ -50,8 +50,12 @@ class AdminLoginViewModel : ViewModel() {
                     .get()
                     .await()
 
-                val isAdmin = snapshot.getBoolean("admin") == true
+                if (!snapshot.exists()) {
+                    auth.signOut()
+                    error("Tu usuario no tiene profile en users/$uid.")
+                }
 
+                val isAdmin = snapshot.getBoolean("admin") == true
                 if (!isAdmin) {
                     auth.signOut()
                     error("No tienes permisos de administrador.")

@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun AdminLoginScreen(
     onLoginSuccess: () -> Unit,
+    startupError: String? = null,
     vm: AdminLoginViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsState()
@@ -31,6 +32,8 @@ fun AdminLoginScreen(
             onLoginSuccess()
         }
     }
+
+    val errorToShow = state.errorMessage ?: startupError
 
     Column(
         modifier = Modifier
@@ -62,9 +65,9 @@ fun AdminLoginScreen(
                 .padding(top = 12.dp)
         )
 
-        if (state.errorMessage != null) {
+        if (errorToShow != null) {
             Text(
-                text = state.errorMessage.orEmpty(),
+                text = errorToShow,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 12.dp)
             )

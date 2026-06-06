@@ -6,6 +6,5 @@ package com.example.petscue.data.model
 // ADMIN: administrador que valida protectoras.
 enum class UserRole {
     USER,
-    PROTECTORA,
-    ADMIN
+    PROTECTORA
 }

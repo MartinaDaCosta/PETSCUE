@@ -13,6 +13,7 @@ import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
 import com.example.petscue.ui.splash.SplashScreen
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun PetscueNavHost(
@@ -28,7 +29,7 @@ fun PetscueNavHost(
     ) {
         composable(Routes.SPLASH) {
             SplashScreen {
-                val isLoggedIn = false // luego aquí pondremos la comprobación real
+                val isLoggedIn = FirebaseAuth.getInstance().currentUser != null
 
                 when {
                     isLoggedIn -> {

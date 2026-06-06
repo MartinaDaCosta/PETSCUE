@@ -1,5 +1,6 @@
 package com.example.petscue.domain.usecase
 
+import android.net.Uri
 import android.util.Patterns
 import com.example.petscue.data.model.User
 import com.example.petscue.data.model.UserRole
@@ -9,10 +10,15 @@ import javax.inject.Inject
 class RegisterUseCase @Inject constructor(
     private val repository: AuthRepository
 ) {
-    suspend operator fun invoke(user: User, password: String): Result<Unit> {
+    suspend operator fun invoke(
+        user: User,
+        password: String,
+        profileImageUri: Uri?
+    ): Result<Unit> {
         if (
             user.nombre.isBlank() ||
             user.apellido.isBlank() ||
+            user.username.isBlank() ||
             user.email.isBlank() ||
             password.isBlank()
         ) {
@@ -27,6 +33,18 @@ class RegisterUseCase @Inject constructor(
             return Result.failure(Exception("La contraseña debe tener al menos 6 caracteres."))
         }
 
+        val username = user.username.trim().lowercase()
+
+        if (username.length < 3) {
+            return Result.failure(Exception("El nombre de usuario debe tener al menos 3 caracteres."))
+        }
+
+        if (!username.matches(Regex("^[a-z0-9._]+$"))) {
+            return Result.failure(
+                Exception("El nombre de usuario solo puede contener letras minúsculas, números, puntos y guion bajo.")
+            )
+        }
+
         if (user.role == UserRole.PROTECTORA) {
             if (user.nombreProtectora.isBlank()) {
                 return Result.failure(Exception("Introduce el nombre de la protectora."))
@@ -37,6 +55,10 @@ class RegisterUseCase @Inject constructor(
             }
         }
 
-        return repository.register(user, password)
+        return repository.register(
+            user = user.copy(username = username),
+            password = password,
+            profileImageUri = profileImageUri
+        )
     }
 }
