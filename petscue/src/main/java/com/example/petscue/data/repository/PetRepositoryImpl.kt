@@ -1,15 +1,19 @@
 package com.example.petscue.data.repository
 
+import android.net.Uri
 import com.example.petscue.data.model.Pet
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 
 class PetRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage
 ) : PetRepository {
 
     private val petsRef = firestore.collection("pets")
@@ -104,6 +108,23 @@ class PetRepositoryImpl @Inject constructor(
     override suspend fun delete(pet: Pet) {
         if (pet.id.isNotBlank()) {
             petsRef.document(pet.id).delete().await()
+        }
+    }
+
+    override suspend fun uploadPetImages(
+        petId: String,
+        imageUris: List<Uri>
+    ): List<String> {
+        if (imageUris.isEmpty()) return emptyList()
+
+        return imageUris.mapIndexed { index, uri ->
+            val imageRef = storage.reference
+                .child("pets")
+                .child(petId)
+                .child("${index}_${UUID.randomUUID()}.jpg")
+
+            imageRef.putFile(uri).await()
+            imageRef.downloadUrl.await().toString()
         }
     }
 }

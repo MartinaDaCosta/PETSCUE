@@ -12,6 +12,7 @@ import com.example.petscue.ui.auth.login.LoginScreen
 import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
+import com.example.petscue.ui.pet.AddPetScreen
 import com.example.petscue.ui.splash.SplashScreen
 import com.google.firebase.auth.FirebaseAuth
 
@@ -119,11 +120,23 @@ fun PetscueNavHost(
 
         composable(Routes.MAIN) {
             MainScreen(
+                navController = navController,
                 onLogout = {
                     navController.navigate(Routes.AUTH) {
                         popUpTo(Routes.MAIN) { inclusive = true }
                         launchSingleTop = true
                     }
+                }
+            )
+        }
+
+        composable(Routes.ADD_PET) {
+            AddPetScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onPetSaved = {
+                    navController.popBackStack()
                 }
             )
         }

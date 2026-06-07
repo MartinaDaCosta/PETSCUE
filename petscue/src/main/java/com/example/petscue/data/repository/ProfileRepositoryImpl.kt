@@ -5,6 +5,9 @@ import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -26,13 +29,23 @@ class ProfileRepositoryImpl @Inject constructor(
             ?: error("No se pudo cargar el perfil.")
     }
 
-    override suspend fun getPetsByUser(userId: String): List<Pet> {
-        val snapshot = db.collection("pets")
+    override fun getPetsByUser(userId: String): Flow<List<Pet>> = callbackFlow {
+        val listener = db.collection("pets")
             .whereEqualTo("userId", userId)
-            .get()
-            .await()
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
 
-        return snapshot.documents.mapNotNull { it.toObject(Pet::class.java) }
+                val pets = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
+                trySend(pets)
+            }
+
+        awaitClose { listener.remove() }
     }
 
     override suspend fun getPostsByUser(userId: String): List<Post> {

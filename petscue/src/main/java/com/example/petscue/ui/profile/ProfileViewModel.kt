@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -32,36 +33,36 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 val user = repository.getCurrentUserProfile()
-                val pets = repository.getPetsByUser(user.uid)
                 val posts = repository.getPostsByUser(user.uid)
 
                 val mediaPosts = posts.filter { it.fotos.isNotEmpty() }
-                val adoptionPets = if (user.role == UserRole.PROTECTORA) {
-                    pets.filter { pet ->
-                        pet.estado.toString().contains("adop", ignoreCase = true)
-                    }
-                } else {
-                    emptyList()
-                }
 
-                ProfileUiState(
-                    isLoading = false,
-                    user = user,
-                    pets = pets,
-                    posts = posts,
-                    replies = emptyList(),
-                    mediaPosts = mediaPosts,
-                    likedPosts = emptyList(),
-                    adoptionPets = adoptionPets,
-                    followersCount = user.followers,
-                    followingCount = user.following,
-                    selectedTab = ProfileTab.PETS_OR_ADOPTION
-                )
-            }.onSuccess { loadedState ->
-                _uiState.value = loadedState
-            }.onFailure { e ->
-                _uiState.update {
-                    it.copy(isLoading = false)
+                repository.getPetsByUser(user.uid).collectLatest { pets ->
+                    val adoptionPets = if (user.role == UserRole.PROTECTORA) {
+                        pets.filter { pet ->
+                            pet.estado.contains("adop", ignoreCase = true)
+                        }
+                    } else {
+                        emptyList()
+                    }
+
+                    _uiState.value = ProfileUiState(
+                        isLoading = false,
+                        user = user,
+                        pets = pets,
+                        posts = posts,
+                        replies = emptyList(),
+                        mediaPosts = mediaPosts,
+                        likedPosts = emptyList(),
+                        adoptionPets = adoptionPets,
+                        followersCount = user.followers,
+                        followingCount = user.following,
+                        selectedTab = _uiState.value.selectedTab
+                    )
+                }
+            }.onFailure {
+                _uiState.update { state ->
+                    state.copy(isLoading = false)
                 }
             }
         }

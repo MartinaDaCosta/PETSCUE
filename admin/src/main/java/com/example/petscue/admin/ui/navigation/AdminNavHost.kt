@@ -25,17 +25,23 @@ fun AdminNavHost() {
     val sessionState by gateVm.sessionState.collectAsState()
 
     val requestsVm = remember { AdminRequestsViewModel() }
+    val currentState = sessionState
 
-    when (sessionState) {
+    when (currentState) {
         is AdminSessionState.Loading -> {
             AdminLoadingScreen()
         }
 
-        is AdminSessionState.LoggedOut,
-        is AdminSessionState.Error -> {
-            val message = (sessionState as AdminSessionState.Error).message
+        is AdminSessionState.LoggedOut -> {
             AdminLoginScreen(
-                startupError = message,
+                startupError = null,
+                onLoginSuccess = { gateVm.checkSession() }
+            )
+        }
+
+        is AdminSessionState.Error -> {
+            AdminLoginScreen(
+                startupError = currentState.message,
                 onLoginSuccess = { gateVm.checkSession() }
             )
         }
@@ -61,9 +67,13 @@ fun AdminNavHost() {
 
                 composable(
                     route = AdminDestinations.RequestDetail.route,
-                    arguments = listOf(navArgument("requestId") { type = NavType.StringType })
+                    arguments = listOf(
+                        navArgument("requestId") { type = NavType.StringType }
+                    )
                 ) { backStackEntry ->
-                    val requestId = backStackEntry.arguments?.getString("requestId").orEmpty()
+                    val requestId = backStackEntry.arguments
+                        ?.getString("requestId")
+                        .orEmpty()
 
                     AdminRequestDetailScreen(
                         vm = requestsVm,

@@ -1,7 +1,7 @@
 package com.example.petscue.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,41 +16,60 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.petscue.data.model.Pet
 import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.UserRole
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.unit.Dp
+
+private val BluePrimary = Color(0xFF1565C0)
+private val BlueDark = Color(0xFF0D47A1)
+private val BlueSoft = Color(0xFFEFF4FF)
+private val BlueBorder = Color(0xFFB8D3FF)
+private val BlueTextSoft = Color(0xFF5E7FAE)
 
 @Composable
 fun ProfileScreen(
+    onAddPetClick: () -> Unit,
     vm: ProfileViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
     val isProtectora = state.user.role == UserRole.PROTECTORA
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BlueSoft),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
@@ -83,25 +102,17 @@ fun ProfileScreen(
                     if (isProtectora) {
                         AdoptionPanel(state.adoptionPets)
                     } else {
-                        PetsPanel(state.pets)
+                        PetsPanel(
+                            pets = state.pets,
+                            onAddPet = onAddPetClick
+                        )
                     }
                 }
 
-                ProfileTab.POSTS -> {
-                    PostsPanel(state.posts)
-                }
-
-                ProfileTab.REPLIES -> {
-                    PostsPanel(state.replies)
-                }
-
-                ProfileTab.MEDIA -> {
-                    PostsPanel(state.mediaPosts)
-                }
-
-                ProfileTab.LIKES -> {
-                    PostsPanel(state.likedPosts)
-                }
+                ProfileTab.POSTS -> PostsPanel(state.posts)
+                ProfileTab.REPLIES -> PostsPanel(state.replies)
+                ProfileTab.MEDIA -> PostsPanel(state.mediaPosts)
+                ProfileTab.LIKES -> PostsPanel(state.likedPosts)
             }
         }
     }
@@ -117,70 +128,87 @@ private fun ProfileHeader(
     followingCount: Int,
     onEditProfile: () -> Unit
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(16.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, BlueBorder)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (photoUrl.isNotBlank()) {
-                AsyncImage(
-                    model = photoUrl,
-                    contentDescription = "Foto de perfil",
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = fullName.firstOrNull()?.uppercase() ?: "?",
-                        style = MaterialTheme.typography.headlineMedium
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = photoUrl,
+                        contentDescription = "Foto de perfil",
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape)
+                            .background(BluePrimary.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = fullName.firstOrNull()?.uppercase() ?: "?",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = BluePrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    ProfileStat(postsCount.toString(), "Publicaciones")
+                    ProfileStat(followersCount.toString(), "Seguidores")
+                    ProfileStat(followingCount.toString(), "Seguidos")
                 }
             }
 
-            Spacer(modifier = Modifier.width(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                ProfileStat(postsCount.toString(), "Publicaciones")
-                ProfileStat(followersCount.toString(), "Seguidores")
-                ProfileStat(followingCount.toString(), "Seguidos")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = fullName.ifBlank { "Usuario" },
-            style = MaterialTheme.typography.titleLarge
-        )
-
-        if (username.isNotBlank()) {
             Text(
-                text = username,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = fullName.ifBlank { "Usuario" },
+                style = MaterialTheme.typography.headlineSmall,
+                color = BlueDark,
+                fontWeight = FontWeight.Bold
             )
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            if (username.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = username,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BluePrimary
+                )
+            }
 
-        Button(
-            onClick = onEditProfile,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Editar perfil")
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Button(
+                onClick = onEditProfile,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BluePrimary,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("Editar perfil")
+            }
         }
     }
 }
@@ -190,12 +218,15 @@ private fun ProfileStat(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium
+            style = MaterialTheme.typography.titleMedium,
+            color = BluePrimary,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = BlueTextSoft,
+            fontSize = 11.sp
         )
     }
 }
@@ -216,40 +247,88 @@ private fun ProfileTabsRow(
         ProfileTab.LIKES to "Me gusta"
     )
 
+    val selectedIndex = tabs.indexOfFirst { it.first == selectedTab }.coerceAtLeast(0)
+
     PrimaryScrollableTabRow(
-        selectedTabIndex = tabs.indexOfFirst { it.first == selectedTab }.coerceAtLeast(0),
-        edgePadding = 0.dp
+        selectedTabIndex = selectedIndex,
+        edgePadding = 0.dp,
+        containerColor = Color.White,
+        contentColor = BluePrimary,
+        indicator = {
+            TabRowDefaults.PrimaryIndicator(
+                modifier = Modifier.tabIndicatorOffset(
+                    selectedTabIndex = selectedIndex,
+                    matchContentSize = true
+                ),
+                width = Dp.Unspecified,
+                color = BluePrimary
+            )
+        },
+        divider = {
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = BlueBorder
+            )
+        }
     ) {
         tabs.forEach { (tab, label) ->
             Tab(
                 selected = selectedTab == tab,
                 onClick = { onTabSelected(tab) },
-                text = { Text(label) }
+                text = {
+                    Text(
+                        text = label,
+                        color = if (selectedTab == tab) BluePrimary else BlueTextSoft,
+                        fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
             )
         }
     }
 }
 
 @Composable
-private fun PetsPanel(pets: List<Pet>) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Tus mascotas",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        )
+private fun PetsPanel(
+    pets: List<Pet>,
+    onAddPet: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Tus mascotas",
+                style = MaterialTheme.typography.titleLarge,
+                color = BlueDark,
+                fontWeight = FontWeight.Bold
+            )
 
-        if (pets.isEmpty()) {
-            EmptyPanel("Todavía no has añadido mascotas.")
-            return
+            TextButton(onClick = onAddPet) {
+                Text(
+                    text = "Añadir",
+                    color = BluePrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(pets) { pet ->
-                PetCard(pet)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (pets.isEmpty()) {
+            EmptyPanel("Todavía no has añadido ninguna mascota.")
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                pets.forEach { pet ->
+                    PetHorizontalCard(pet = pet)
+                }
             }
         }
     }
@@ -260,8 +339,10 @@ private fun AdoptionPanel(pets: List<Pet>) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "Animales en adopción",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            style = MaterialTheme.typography.titleLarge,
+            color = BlueDark,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
         )
 
         if (pets.isEmpty()) {
@@ -279,19 +360,30 @@ private fun AdoptionPanel(pets: List<Pet>) {
         ) {
             items(pets.size) { index ->
                 val pet = pets[index]
-                Box(
+                Card(
                     modifier = Modifier
                         .padding(4.dp)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.tertiaryContainer),
-                    contentAlignment = Alignment.BottomStart
+                        .aspectRatio(1f),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    border = BorderStroke(1.dp, BlueBorder)
                 ) {
-                    Text(
-                        text = pet.nombre,
-                        modifier = Modifier.padding(8.dp),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(BlueSoft),
+                        contentAlignment = Alignment.BottomStart
+                    ) {
+                        Text(
+                            text = pet.nombre,
+                            modifier = Modifier.padding(10.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = BlueDark,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
@@ -314,48 +406,26 @@ private fun PostsPanel(posts: List<Post>) {
 
 @Composable
 private fun EmptyPanel(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun PetCard(pet: Pet) {
     Card(
         modifier = Modifier
-            .width(180.dp)
-            .clickable { }
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(1.dp, BlueBorder)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = pet.nombre,
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = "${pet.especie} · ${pet.raza}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = pet.estado.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
+                text = message,
+                color = BlueTextSoft,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
@@ -366,31 +436,131 @@ private fun PostCard(post: Post) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(1.dp, BlueBorder)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = post.userName,
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleMedium,
+                color = BlueDark,
+                fontWeight = FontWeight.Bold
             )
             Text(
                 text = post.ubicacion,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = BluePrimary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = post.mensaje,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = BlueDark
             )
             Spacer(modifier = Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("💬 ${post.comentarios}")
-                Text("❤ ${post.likes}")
+                Text(
+                    text = "💬 ${post.comentarios}",
+                    color = BluePrimary
+                )
+                Text(
+                    text = "❤ ${post.likes}",
+                    color = BluePrimary
+                )
                 if (post.fotos.isNotEmpty()) {
-                    Text("📷 Multimedia")
+                    Text(
+                        text = "📷 Multimedia",
+                        color = BlueDark
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PetHorizontalCard(
+    pet: Pet
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = BlueBorder
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val petImage = pet.fotos.firstOrNull()
+
+            if (!petImage.isNullOrBlank()) {
+                AsyncImage(
+                    model = petImage,
+                    contentDescription = "Foto de ${pet.nombre}",
+                    modifier = Modifier
+                        .size(width = 132.dp, height = 132.dp)
+                        .clip(RoundedCornerShape(22.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(width = 132.dp, height = 132.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(BlueSoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Pets,
+                        contentDescription = null,
+                        tint = BluePrimary,
+                        modifier = Modifier.size(42.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = pet.nombre.ifBlank { "Sin nombre" },
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = BluePrimary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                PetInfoLine("Género", pet.genero.ifBlank { "-" })
+                PetInfoLine("Raza", pet.raza.ifBlank { "-" })
+                PetInfoLine("Edad", pet.edad.ifBlank { "-" })
+                PetInfoLine("Estado", pet.estado.ifBlank { "-" })
+            }
+        }
+    }
+}
+
+@Composable
+private fun PetInfoLine(
+    label: String,
+    value: String
+) {
+    Text(
+        text = "$label: $value",
+        style = MaterialTheme.typography.bodyLarge,
+        color = BluePrimary
+    )
 }

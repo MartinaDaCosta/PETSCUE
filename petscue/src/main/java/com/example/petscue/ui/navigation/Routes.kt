@@ -9,5 +9,5 @@ object Routes {
     const val PENDING_APPROVAL = "pending_approval"
     const val MAIN = "main"
     const val ADMIN_APPROVAL = "admin_approval"
-
+    const val ADD_PET = "add_pet"
 }

@@ -1,5 +1,6 @@
 package com.example.petscue.data.repository
 
+import android.net.Uri
 import com.example.petscue.data.model.Pet
 import kotlinx.coroutines.flow.Flow
 
@@ -10,4 +11,5 @@ interface PetRepository {
     fun getAdoptionPetsByUserId(userId: String): Flow<List<Pet>>
     suspend fun insert(pet: Pet)
     suspend fun delete(pet: Pet)
+    suspend fun uploadPetImages(petId: String, imageUris: List<Uri>): List<String>
 }

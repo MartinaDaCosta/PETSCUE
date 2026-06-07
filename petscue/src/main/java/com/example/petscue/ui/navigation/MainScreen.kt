@@ -1,10 +1,36 @@
 package com.example.petscue.ui.navigation
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -13,52 +39,53 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.petscue.ui.novedades.NovedadesScreen
+import androidx.navigation.NavHostController
 import com.example.petscue.ui.mapa.MapaScreen
 import com.example.petscue.ui.mascotas.MascotasScreen
-import com.example.petscue.ui.sos.SosScreen
+import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.profile.ProfileScreen
+import com.example.petscue.ui.sos.SosScreen
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
 sealed class BottomTab(
     val route: String,
     val icon: ImageVector,
     val label: String
 ) {
     object Mapa : BottomTab("mapa", Icons.Default.LocationOn, "Mapa")
-    object Novedades : BottomTab("novedades", Icons.Default.Campaign, "Novedades")
     object Mascotas : BottomTab("mascotas", Icons.Default.Pets, "Mascotas")
+    object Novedades : BottomTab("novedades", Icons.Default.Campaign, "Novedades")
     object Protectoras : BottomTab("protectoras", Icons.Default.Home, "Protectoras")
     object Perfil : BottomTab("profile", Icons.Default.Person, "Perfil")
-
-    // Esta no va en bottom bar, pero sí la usamos como estado de pantalla actual
     object Sos : BottomTab("sos", Icons.Default.Warning, "SOS")
 }
 
 private val tabs = listOf(
     BottomTab.Mapa,
-    BottomTab.Novedades,
     BottomTab.Mascotas,
+    BottomTab.Novedades,
     BottomTab.Protectoras,
     BottomTab.Perfil
 )
 
-// ── MainScreen ────────────────────────────────────────────────────────────────
 @Composable
-fun MainScreen(onLogout: () -> Unit = {}) {
-    var currentTab by remember { mutableStateOf<BottomTab>(BottomTab.Novedades) }
+fun MainScreen(
+    navController: NavHostController,
+    onLogout: () -> Unit = {}
+) {
+    var currentTabRoute by rememberSaveable { mutableStateOf(BottomTab.Novedades.route) }
+    val currentTab = tabs.firstOrNull { it.route == currentTabRoute } ?: BottomTab.Novedades
 
     Scaffold(
         topBar = { PetscueTopBar(onLogout = onLogout) },
         bottomBar = {
             PetscueBottomBar(
                 currentTab = currentTab,
-                onTabSelected = { currentTab = it }
+                onTabSelected = { currentTabRoute = it.route }
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { currentTab = BottomTab.Sos },
+                onClick = { currentTabRoute = BottomTab.Sos.route },
                 containerColor = Color(0xFF1565C0),
                 contentColor = Color.White
             ) {
@@ -70,24 +97,32 @@ fun MainScreen(onLogout: () -> Unit = {}) {
         },
         containerColor = Color(0xFFF0F4FF)
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
             when (currentTab) {
                 BottomTab.Mapa -> MapaScreen()
                 BottomTab.Novedades -> NovedadesScreen()
                 BottomTab.Mascotas -> MascotasScreen()
                 BottomTab.Protectoras -> PlaceholderScreen("Protectoras")
-                BottomTab.Perfil -> ProfileScreen()
+                BottomTab.Perfil -> ProfileScreen(
+                    onAddPetClick = {
+                        currentTabRoute = BottomTab.Perfil.route
+                        navController.navigate(Routes.ADD_PET)
+                    }
+                )
                 BottomTab.Sos -> SosScreen()
             }
         }
     }
 }
 
-// ── TopBar ────────────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PetscueTopBar(onLogout: () -> Unit = {}) {
-    var showMenu by remember { mutableStateOf(false) }
+    var showMenu by rememberSaveable { mutableStateOf(false) }
 
     TopAppBar(
         title = {
@@ -97,10 +132,10 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text          = "PETSCUE 🐾",
-                    color         = Color(0xFF1565C0),
-                    fontWeight    = FontWeight.ExtraBold,
-                    fontSize      = 20.sp,
+                    text = "PETSCUE 🐾",
+                    color = Color(0xFF1565C0),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
                     letterSpacing = 1.sp
                 )
             }
@@ -108,8 +143,8 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
         navigationIcon = {
             IconButton(onClick = { }) {
                 Icon(
-                    Icons.Default.Notifications,
-                    contentDescription = "Notificaciones",
+                    Icons.Default.Pets,
+                    contentDescription = "Logo",
                     tint = Color(0xFF1565C0)
                 )
             }
@@ -117,18 +152,21 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
         actions = {
             IconButton(onClick = { showMenu = true }) {
                 Icon(
-                    Icons.Default.Settings,
+                    Icons.Default.Home,
                     contentDescription = "Ajustes",
                     tint = Color(0xFF1565C0)
                 )
             }
             DropdownMenu(
-                expanded         = showMenu,
+                expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text    = { Text("Cerrar sesión") },
-                    onClick = { showMenu = false; onLogout() }
+                    text = { Text("Cerrar sesión") },
+                    onClick = {
+                        showMenu = false
+                        onLogout()
+                    }
                 )
             }
         },
@@ -136,7 +174,6 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
     )
 }
 
-// ── BottomBar ─────────────────────────────────────────────────────────────────
 @Composable
 fun PetscueBottomBar(
     currentTab: BottomTab,
@@ -154,8 +191,7 @@ fun PetscueBottomBar(
                 icon = {
                     Icon(
                         imageVector = tab.icon,
-                        contentDescription = tab.label,
-                        modifier = Modifier.size(24.dp)
+                        contentDescription = tab.label
                     )
                 },
                 label = {
@@ -176,15 +212,17 @@ fun PetscueBottomBar(
     }
 }
 
-// ── Placeholder ───────────────────────────────────────────────────────────────
 @Composable
 private fun PlaceholderScreen(label: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
         Text(
-            label,
+            text = label,
             fontWeight = FontWeight.Bold,
-            color      = Color(0xFF1565C0),
-            fontSize   = 18.sp
+            color = Color(0xFF1565C0),
+            fontSize = 18.sp
         )
     }
 }
