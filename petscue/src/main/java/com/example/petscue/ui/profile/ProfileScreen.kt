@@ -2,6 +2,7 @@ package com.example.petscue.ui.profile
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,10 +27,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -48,9 +52,6 @@ import coil.compose.AsyncImage
 import com.example.petscue.data.model.Pet
 import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.UserRole
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.ui.unit.Dp
 
 private val BluePrimary = Color(0xFF1565C0)
 private val BlueDark = Color(0xFF0D47A1)
@@ -61,6 +62,7 @@ private val BlueTextSoft = Color(0xFF5E7FAE)
 @Composable
 fun ProfileScreen(
     onAddPetClick: () -> Unit,
+    onPetClick: (String) -> Unit,
     vm: ProfileViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
@@ -75,11 +77,7 @@ fun ProfileScreen(
         item {
             ProfileHeader(
                 fullName = "${state.user.nombre} ${state.user.apellido}".trim(),
-                username = if (state.user.username.isNotBlank()) {
-                    "@${state.user.username}"
-                } else {
-                    ""
-                },
+                username = if (state.user.username.isNotBlank()) "@${state.user.username}" else "",
                 photoUrl = state.user.photoUrl,
                 postsCount = state.posts.size,
                 followersCount = state.followersCount,
@@ -104,7 +102,8 @@ fun ProfileScreen(
                     } else {
                         PetsPanel(
                             pets = state.pets,
-                            onAddPet = onAddPetClick
+                            onAddPet = onAddPetClick,
+                            onPetClick = onPetClick
                         )
                     }
                 }
@@ -220,7 +219,7 @@ private fun ProfileStat(value: String, label: String) {
             text = value,
             style = MaterialTheme.typography.titleMedium,
             color = BluePrimary,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Bold
         )
         Text(
             text = label,
@@ -290,7 +289,8 @@ private fun ProfileTabsRow(
 @Composable
 private fun PetsPanel(
     pets: List<Pet>,
-    onAddPet: () -> Unit
+    onAddPet: () -> Unit,
+    onPetClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -327,7 +327,10 @@ private fun PetsPanel(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 pets.forEach { pet ->
-                    PetHorizontalCard(pet = pet)
+                    PetHorizontalCard(
+                        pet = pet,
+                        onClick = onPetClick
+                    )
                 }
             }
         }
@@ -484,10 +487,13 @@ private fun PostCard(post: Post) {
 
 @Composable
 private fun PetHorizontalCard(
-    pet: Pet
+    pet: Pet,
+    onClick: (String) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick(pet.id) },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White

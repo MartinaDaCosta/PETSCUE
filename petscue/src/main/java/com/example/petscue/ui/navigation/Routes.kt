@@ -10,4 +10,10 @@ object Routes {
     const val MAIN = "main"
     const val ADMIN_APPROVAL = "admin_approval"
     const val ADD_PET = "add_pet"
+
+    const val PET_DETAIL = "pet_detail/{petId}"
+    const val EDIT_PET = "edit_pet/{petId}"
+
+    fun petDetailRoute(petId: String) = "pet_detail/$petId"
+    fun editPetRoute(petId: String) = "edit_pet/$petId"
 }

@@ -111,6 +111,10 @@ fun MainScreen(
                     onAddPetClick = {
                         currentTabRoute = BottomTab.Perfil.route
                         navController.navigate(Routes.ADD_PET)
+                    },
+                    onPetClick = { petId ->
+                        currentTabRoute = BottomTab.Perfil.route
+                        navController.navigate("pet_detail/$petId")
                     }
                 )
                 BottomTab.Sos -> SosScreen()
