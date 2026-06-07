@@ -15,22 +15,6 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
-data class AddPetUiState(
-    val nombre: String = "",
-    val especie: String = "",
-    val raza: String = "",
-    val genero: String = "",
-    val edad: String = "",
-    val peso: String = "",
-    val descripcion: String = "",
-    val ubicacion: String = "",
-    val estado: String = "propia",
-    val photoUris: List<Uri> = emptyList(),
-    val isLoading: Boolean = false,
-    val isSaved: Boolean = false,
-    val error: String? = null
-)
-
 @HiltViewModel
 class AddPetViewModel @Inject constructor(
     private val petRepository: PetRepository,
@@ -41,45 +25,60 @@ class AddPetViewModel @Inject constructor(
     val uiState: StateFlow<AddPetUiState> = _uiState.asStateFlow()
 
     fun onNombreChange(value: String) {
-        _uiState.update { it.copy(nombre = value) }
+        _uiState.update { it.copy(nombre = value, error = null) }
     }
 
     fun onEspecieChange(value: String) {
-        _uiState.update { it.copy(especie = value) }
+        _uiState.update {
+            it.copy(
+                especie = value,
+                raza = "",
+                error = null
+            )
+        }
     }
 
     fun onRazaChange(value: String) {
-        _uiState.update { it.copy(raza = value) }
+        _uiState.update { it.copy(raza = value, error = null) }
     }
 
     fun onGeneroChange(value: String) {
-        _uiState.update { it.copy(genero = value) }
+        _uiState.update { it.copy(genero = value, error = null) }
     }
 
     fun onEdadChange(value: String) {
-        _uiState.update { it.copy(edad = value) }
+        _uiState.update { it.copy(edad = value, error = null) }
     }
 
     fun onPesoChange(value: String) {
-        _uiState.update { it.copy(peso = value) }
+        _uiState.update { it.copy(peso = value, error = null) }
     }
 
     fun onDescripcionChange(value: String) {
-        _uiState.update { it.copy(descripcion = value) }
+        _uiState.update { it.copy(descripcion = value, error = null) }
     }
 
     fun onUbicacionChange(value: String) {
-        _uiState.update { it.copy(ubicacion = value) }
+        _uiState.update { it.copy(ubicacion = value, error = null) }
     }
 
     fun onEstadoChange(value: String) {
-        _uiState.update { it.copy(estado = value) }
+        _uiState.update { it.copy(estado = value, error = null) }
     }
 
     fun onPhotosSelected(uris: List<Uri>) {
-        _uiState.update {
-            it.copy(
-                photoUris = uris,
+        _uiState.update { current ->
+            current.copy(
+                photoUris = (current.photoUris + uris).distinct(),
+                error = null
+            )
+        }
+    }
+
+    fun removePhoto(uri: Uri) {
+        _uiState.update { current ->
+            current.copy(
+                photoUris = current.photoUris.filterNot { it == uri },
                 error = null
             )
         }
@@ -99,6 +98,16 @@ class AddPetViewModel @Inject constructor(
 
         if (state.especie.isBlank()) {
             _uiState.update { it.copy(error = "La especie es obligatoria.") }
+            return
+        }
+
+        if (state.raza.isBlank()) {
+            _uiState.update { it.copy(error = "La raza es obligatoria.") }
+            return
+        }
+
+        if (state.genero.isBlank()) {
+            _uiState.update { it.copy(error = "El género es obligatorio.") }
             return
         }
 
