@@ -5,13 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.petscue.data.model.UserRole
 import com.example.petscue.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -22,43 +22,71 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        loadProfile()
+        refreshProfile()
     }
 
     fun onTabSelected(tab: ProfileTab) {
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
-    private fun loadProfile() {
+    fun refreshProfile() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
             runCatching {
                 val user = repository.getCurrentUserProfile()
                 val posts = repository.getPostsByUser(user.uid)
-
                 val mediaPosts = posts.filter { it.fotos.isNotEmpty() }
 
-                repository.getPetsByUser(user.uid).collectLatest { pets ->
-                    val adoptionPets = if (user.role == UserRole.PROTECTORA) {
-                        pets.filter { pet ->
-                            pet.estado.contains("adop", ignoreCase = true)
-                        }
-                    } else {
-                        emptyList()
-                    }
+                val replies = runCatching {
+                    repository.getRepliesByUser(user.uid)
+                }.getOrDefault(emptyList())
 
-                    _uiState.value = ProfileUiState(
-                        isLoading = false,
+                val likedPosts = runCatching {
+                    repository.getLikedPostsByUser(user.uid)
+                }.getOrDefault(emptyList())
+
+                val followersCount = runCatching {
+                    repository.getFollowersCount(user.uid)
+                }.getOrDefault(0)
+
+                val followingCount = runCatching {
+                    repository.getFollowingCount(user.uid)
+                }.getOrDefault(0)
+
+                _uiState.update { current ->
+                    current.copy(
+                        isLoading = true,
                         user = user,
-                        pets = pets,
                         posts = posts,
-                        replies = emptyList(),
+                        replies = replies,
                         mediaPosts = mediaPosts,
-                        likedPosts = emptyList(),
-                        adoptionPets = adoptionPets,
-                        followersCount = user.followers,
-                        followingCount = user.following,
-                        selectedTab = _uiState.value.selectedTab
+                        likedPosts = likedPosts,
+                        followersCount = followersCount,
+                        followingCount = followingCount
                     )
+                }
+
+                if (user.role == UserRole.PROTECTORA) {
+                    repository.getAdoptionPetsByProtectora(user.uid).collectLatest { adoptionPets ->
+                        _uiState.update { current ->
+                            current.copy(
+                                isLoading = false,
+                                pets = emptyList(),
+                                adoptionPets = adoptionPets
+                            )
+                        }
+                    }
+                } else {
+                    repository.getPetsByUser(user.uid).collectLatest { pets ->
+                        _uiState.update { current ->
+                            current.copy(
+                                isLoading = false,
+                                pets = pets,
+                                adoptionPets = emptyList()
+                            )
+                        }
+                    }
                 }
             }.onFailure {
                 _uiState.update { state ->

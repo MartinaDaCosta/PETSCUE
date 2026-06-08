@@ -1,4 +1,4 @@
-package com.example.petscue.ui.pet
+package com.example.petscue.ui.profile.pet
 
 import android.net.Uri
 

@@ -42,7 +42,7 @@ class ProfileRepositoryImpl @Inject constructor(
                     doc.toObject(Pet::class.java)?.copy(id = doc.id)
                 } ?: emptyList()
 
-                trySend(pets)
+                trySend(pets).isSuccess
             }
 
         awaitClose { listener.remove() }
@@ -54,6 +54,43 @@ class ProfileRepositoryImpl @Inject constructor(
             .get()
             .await()
 
-        return snapshot.documents.mapNotNull { it.toObject(Post::class.java) }
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toObject(Post::class.java)?.copy(id = doc.id)
+        }
+    }
+
+    override suspend fun getRepliesByUser(userId: String): List<Post> {
+        return emptyList()
+    }
+
+    override suspend fun getLikedPostsByUser(userId: String): List<Post> {
+        return emptyList()
+    }
+
+    override suspend fun getFollowersCount(userId: String): Int {
+        return 0
+    }
+
+    override suspend fun getFollowingCount(userId: String): Int {
+        return 0
+    }
+
+    override fun getAdoptionPetsByProtectora(protectoraId: String): Flow<List<Pet>> = callbackFlow {
+        val listener = db.collection("adoption_pets")
+            .whereEqualTo("userId", protectoraId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val adoptionPets = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
+                trySend(adoptionPets).isSuccess
+            }
+
+        awaitClose { listener.remove() }
     }
 }

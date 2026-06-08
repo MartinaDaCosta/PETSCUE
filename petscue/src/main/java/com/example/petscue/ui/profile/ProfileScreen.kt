@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,10 +64,29 @@ private val BlueTextSoft = Color(0xFF5E7FAE)
 fun ProfileScreen(
     onAddPetClick: () -> Unit,
     onPetClick: (String) -> Unit,
+    onAdoptionPetClick: (String) -> Unit,
     vm: ProfileViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
-    val isProtectora = state.user.role == UserRole.PROTECTORA
+    val user = state.user
+
+    if (user == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BlueSoft),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Cargando perfil...",
+                color = BlueDark,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+        return
+    }
+
+    val isProtectora = user.role == UserRole.PROTECTORA
 
     LazyColumn(
         modifier = Modifier
@@ -76,9 +96,9 @@ fun ProfileScreen(
     ) {
         item {
             ProfileHeader(
-                fullName = "${state.user.nombre} ${state.user.apellido}".trim(),
-                username = if (state.user.username.isNotBlank()) "@${state.user.username}" else "",
-                photoUrl = state.user.photoUrl,
+                fullName = "${user.nombre} ${user.apellido}".trim(),
+                username = "",
+                photoUrl = user.photoUrl,
                 postsCount = state.posts.size,
                 followersCount = state.followersCount,
                 followingCount = state.followingCount,
@@ -98,7 +118,11 @@ fun ProfileScreen(
             when (state.selectedTab) {
                 ProfileTab.PETS_OR_ADOPTION -> {
                     if (isProtectora) {
-                        AdoptionPanel(state.adoptionPets)
+                        AdoptaSection(
+                            pets = state.adoptionPets,
+                            onAddPet = onAddPetClick,
+                            onPetClick = onAdoptionPetClick
+                        )
                     } else {
                         PetsPanel(
                             pets = state.pets,
@@ -338,59 +362,141 @@ private fun PetsPanel(
 }
 
 @Composable
-private fun AdoptionPanel(pets: List<Pet>) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Animales en adopción",
-            style = MaterialTheme.typography.titleLarge,
-            color = BlueDark,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
-        )
+private fun AdoptaSection(
+    pets: List<Pet>,
+    onAddPet: () -> Unit,
+    onPetClick: (String) -> Unit
+) {
+    val rows = (pets.size + 1) / 2
+    val gridHeight = if (pets.isEmpty()) 0.dp else (rows * 320).dp
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Adopta",
+                style = MaterialTheme.typography.titleLarge,
+                color = BlueDark,
+                fontWeight = FontWeight.Bold
+            )
+
+            TextButton(onClick = onAddPet) {
+                Text(
+                    text = "Añadir",
+                    color = BluePrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         if (pets.isEmpty()) {
             EmptyPanel("No hay animales en adopción ahora mismo.")
-            return
-        }
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(420.dp),
-            userScrollEnabled = false,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-        ) {
-            items(pets.size) { index ->
-                val pet = pets[index]
-                Card(
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .aspectRatio(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    ),
-                    border = BorderStroke(1.dp, BlueBorder)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(BlueSoft),
-                        contentAlignment = Alignment.BottomStart
-                    ) {
-                        Text(
-                            text = pet.nombre,
-                            modifier = Modifier.padding(10.dp),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = BlueDark,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(gridHeight),
+                userScrollEnabled = false,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(pets) { pet ->
+                    AdoptPetCard(
+                        pet = pet,
+                        onClick = { onPetClick(pet.id) }
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AdoptPetCard(
+    pet: Pet,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, BlueBorder)
+    ) {
+        Column {
+            val petImage = pet.fotos.firstOrNull()
+
+            if (!petImage.isNullOrBlank()) {
+                AsyncImage(
+                    model = petImage,
+                    contentDescription = "Foto de ${pet.nombre}",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .background(BlueSoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Pets,
+                        contentDescription = null,
+                        tint = BluePrimary,
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = pet.nombre.ifBlank { "Sin nombre" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = BlueDark,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                AdoptPetInfoLine("Edad", pet.edad)
+                AdoptPetInfoLine("Género", pet.genero)
+                AdoptPetInfoLine("Especie", pet.especie)
+                AdoptPetInfoLine("Raza", pet.raza)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdoptPetInfoLine(
+    label: String,
+    value: String
+) {
+    Text(
+        text = "$label: ${value.ifBlank { "-" }}",
+        style = MaterialTheme.typography.bodySmall,
+        color = BluePrimary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 @Composable

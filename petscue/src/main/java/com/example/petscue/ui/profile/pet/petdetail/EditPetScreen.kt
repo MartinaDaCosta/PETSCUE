@@ -1,4 +1,4 @@
-package com.example.petscue.ui.pet.editpet
+package com.example.petscue.ui.profile.pet.petdetail
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult

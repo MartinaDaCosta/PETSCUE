@@ -1,4 +1,4 @@
-package com.example.petscue.ui.pet
+package com.example.petscue.ui.profile.adoption
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,7 +50,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.example.petscue.ui.pet.petdetail.PetDetailViewModel
 
 private val BluePrimary = Color(0xFF1976D2)
 private val BlueDark = Color(0xFF0D47A1)
@@ -57,11 +57,11 @@ private val BlueSoft = Color(0xFFEFF6FF)
 private val BlueBorder = Color(0xFFB9D8FF)
 
 @Composable
-fun PetDetailScreen(
+fun AdoptionPetDetailScreen(
     onBack: () -> Unit,
-    onEditPet: (String) -> Unit,
+    onEditClick: (String) -> Unit,
     onPetDeleted: () -> Unit,
-    vm: PetDetailViewModel = hiltViewModel()
+    vm: AdoptionPetDetailViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
     val showDeleteDialog = remember { mutableStateOf(false) }
@@ -82,7 +82,7 @@ fun PetDetailScreen(
                 )
             },
             text = {
-                Text("¿Seguro que quieres eliminar esta mascota? Esta acción no se puede deshacer.")
+                Text("¿Seguro que quieres eliminar esta mascota en adopción? Esta acción no se puede deshacer.")
             },
             confirmButton = {
                 TextButton(
@@ -163,7 +163,7 @@ fun PetDetailScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Ficha de la mascota",
+                                    text = "Ficha de adopción",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = BluePrimary
                                 )
@@ -171,14 +171,14 @@ fun PetDetailScreen(
                         }
                     }
 
-                    if (pet.fotos.isNotEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, BlueBorder)
-                            ) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, BlueBorder)
+                        ) {
+                            if (pet.fotos.isNotEmpty()) {
                                 LazyRow(
                                     modifier = Modifier.padding(16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -197,6 +197,25 @@ fun PetDetailScreen(
                                         )
                                     }
                                 }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(220.dp)
+                                        .padding(16.dp)
+                                        .background(
+                                            color = BlueSoft,
+                                            shape = RoundedCornerShape(20.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Pets,
+                                        contentDescription = null,
+                                        tint = BluePrimary,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -212,10 +231,11 @@ fun PetDetailScreen(
                                 modifier = Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
+                                DetailLine("Nombre", pet.nombre)
+                                DetailLine("Edad", pet.edad)
+                                DetailLine("Género", pet.genero)
                                 DetailLine("Especie", pet.especie)
                                 DetailLine("Raza", pet.raza)
-                                DetailLine("Género", pet.genero)
-                                DetailLine("Edad", pet.edad)
                                 DetailLine("Peso", pet.peso)
                                 DetailLine("Ubicación", pet.ubicacion)
                                 DetailLine("Estado", pet.estado)
@@ -229,7 +249,7 @@ fun PetDetailScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Button(
-                                onClick = { onEditPet(pet.id) },
+                                onClick = { onEditClick(pet.id) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(54.dp),
@@ -284,7 +304,7 @@ private fun DetailLine(label: String, value: String) {
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = if (value.isBlank()) "-" else value,
+            text = value.ifBlank { "-" },
             style = MaterialTheme.typography.bodyLarge,
             color = BlueDark
         )

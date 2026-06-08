@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,7 +26,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -104,9 +104,13 @@ fun MainScreen(
         ) {
             when (currentTab) {
                 BottomTab.Mapa -> MapaScreen()
+
                 BottomTab.Novedades -> NovedadesScreen()
+
                 BottomTab.Mascotas -> MascotasScreen()
+
                 BottomTab.Protectoras -> PlaceholderScreen("Protectoras")
+
                 BottomTab.Perfil -> ProfileScreen(
                     onAddPetClick = {
                         currentTabRoute = BottomTab.Perfil.route
@@ -114,9 +118,14 @@ fun MainScreen(
                     },
                     onPetClick = { petId ->
                         currentTabRoute = BottomTab.Perfil.route
-                        navController.navigate("pet_detail/$petId")
+                        navController.navigate(Routes.petDetailRoute(petId))
+                    },
+                    onAdoptionPetClick = { petId ->
+                        currentTabRoute = BottomTab.Perfil.route
+                        navController.navigate(Routes.adoptionDetailRoute(petId))
                     }
                 )
+
                 BottomTab.Sos -> SosScreen()
             }
         }

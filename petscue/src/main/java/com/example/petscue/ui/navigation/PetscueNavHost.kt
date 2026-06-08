@@ -14,9 +14,11 @@ import com.example.petscue.ui.auth.login.LoginScreen
 import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
-import com.example.petscue.ui.pet.AddPetScreen
 import com.example.petscue.ui.pet.PetDetailScreen
-import com.example.petscue.ui.pet.editpet.EditPetScreen
+import com.example.petscue.ui.profile.adoption.AdoptionPetDetailScreen
+import com.example.petscue.ui.profile.pet.AddPetScreen
+import com.example.petscue.ui.profile.pet.petdetail.EditPetScreen
+import com.example.petscue.ui.profile.pet.editpet.EditAdoptionPetScreen
 import com.example.petscue.ui.splash.SplashScreen
 import com.google.firebase.auth.FirebaseAuth
 
@@ -184,8 +186,48 @@ fun PetscueNavHost(
             )
         }
 
+        composable(
+            route = Routes.ADOPTION_DETAIL,
+            arguments = listOf(
+                navArgument("petId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            AdoptionPetDetailScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onEditClick = { petId ->
+                    navController.navigate(Routes.editAdoptionPetRoute(petId))
+                },
+                onPetDeleted = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Routes.EDIT_ADOPTION_PET,
+            arguments = listOf(
+                navArgument("petId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            EditAdoptionPetScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onPetUpdated = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
         composable(Routes.ADMIN_APPROVAL) {
             AdminApprovalScreen()
         }
+
     }
 }

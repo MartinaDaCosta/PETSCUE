@@ -1,9 +1,8 @@
-package com.example.petscue.ui.pet.petdetail
+package com.example.petscue.ui.profile.pet.petdetail
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.petscue.data.model.Pet
 import com.example.petscue.data.repository.PetRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

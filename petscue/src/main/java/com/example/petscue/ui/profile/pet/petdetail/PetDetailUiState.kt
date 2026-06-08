@@ -1,4 +1,4 @@
-package com.example.petscue.ui.pet.petdetail
+package com.example.petscue.ui.profile.pet.petdetail
 
 import com.example.petscue.data.model.Pet
 
