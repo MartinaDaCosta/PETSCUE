@@ -74,7 +74,7 @@ fun LocationButton(
             } else {
                 Icon(Icons.Default.MyLocation, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Detectar mi ubicación")
+                Text("Detectar mi location")
             }
         }
     }

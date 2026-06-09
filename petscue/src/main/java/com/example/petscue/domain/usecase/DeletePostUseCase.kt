@@ -4,13 +4,10 @@ import com.example.petscue.data.model.Post
 import com.example.petscue.data.repository.PostRepository
 import javax.inject.Inject
 
-class InsertPostUseCase @Inject constructor(
+class DeletePostUseCase @Inject constructor(
     private val repository: PostRepository
 ) {
-    suspend operator fun invoke(
-        post: Post,
-        localImageUris: List<String> = emptyList()
-    ) {
-        repository.insert(post, localImageUris)
+    suspend operator fun invoke(post: Post) {
+        repository.delete(post)
     }
 }

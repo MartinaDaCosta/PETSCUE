@@ -3,12 +3,10 @@
 package com.example.petscue.ui.novedades
 
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,44 +14,42 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,7 +57,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -76,13 +77,33 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
 import com.example.petscue.data.model.Post
+import com.example.petscue.ui.novedades.location.LocationPickerScreen
+import com.example.petscue.ui.novedades.location.SelectedLocation
 import java.util.UUID
 
 private val BluePrimary = Color(0xFF4A90E2)
 private val BlueBorder = Color(0xFF6CA9F0)
 private val CardBackground = Color(0xFFF7F7F8)
+private val DeleteRed = Color(0xFFD32F2F)
+private val BlueSoft = Color(0xFFEAF3FF)
+
+private val SelectedLocationSaver: Saver<SelectedLocation, Any> = mapSaver(
+    save = { location ->
+        mapOf(
+            "address" to location.address,
+            "lat" to location.lat,
+            "lng" to location.lng
+        )
+    },
+    restore = { map ->
+        SelectedLocation(
+            address = map["address"] as? String ?: "",
+            lat = map["lat"] as? Double ?: 39.4699,
+            lng = map["lng"] as? Double ?: -0.3763
+        )
+    }
+)
 
 @Composable
 fun NovedadesScreen(
@@ -90,6 +111,7 @@ fun NovedadesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentUser = uiState.currentUser
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val currentUserName = listOf(currentUser.nombre, currentUser.apellido)
         .filter { it.isNotBlank() }
@@ -101,16 +123,57 @@ fun NovedadesScreen(
         .let { if (it.isBlank()) "@usuario" else "@$it" }
 
     var mostrarComposer by rememberSaveable { mutableStateOf(false) }
-    var imagenSeleccionada by rememberSaveable { mutableStateOf<String?>(null) }
+    var mostrarLocationPicker by rememberSaveable { mutableStateOf(false) }
     var postAComentar by rememberSaveable { mutableStateOf<Post?>(null) }
+    var filtroSeleccionado by rememberSaveable { mutableStateOf("Todos") }
 
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            imagenSeleccionada = it.toString()
+    var selectedLocation by rememberSaveable(stateSaver = SelectedLocationSaver) {
+        mutableStateOf(SelectedLocation())
+    }
+
+    val imagenesSeleccionadas = rememberSaveable(
+        saver = listSaver(
+            save = { stateList -> stateList.toList() },
+            restore = { restored ->
+                mutableStateListOf<String>().apply { addAll(restored) }
+            }
+        )
+    ) {
+        mutableStateListOf<String>()
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4)
+    ) { uris ->
+        val nuevasUris = uris.map { it.toString() }.take(4)
+        imagenesSeleccionadas.clear()
+        imagenesSeleccionadas.addAll(nuevasUris)
+
+        if (nuevasUris.isNotEmpty()) {
             mostrarComposer = true
         }
+    }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { error ->
+            snackbarHostState.showSnackbar(error)
+        }
+    }
+
+    val filtros = listOf(
+        "Todos",
+        "Perdido",
+        "Encontrado",
+        "Visto",
+        "Urgente",
+        "Adopción",
+        "Acogida",
+        "Recaudación",
+        "Comunidad"
+    )
+
+    val postsFiltrados = uiState.posts.filter { post ->
+        filtroSeleccionado == "Todos" || post.tipo.equals(filtroSeleccionado, ignoreCase = true)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -121,41 +184,6 @@ fun NovedadesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = BluePrimary)
-                }
-            }
-
-            uiState.posts.isEmpty() -> {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    CrearPublicacionCard(
-                        photoUrl = currentUser.photoUrl,
-                        displayName = currentUserName,
-                        onTextClick = {
-                            imagenSeleccionada = null
-                            mostrarComposer = true
-                        },
-                        onPhotoClick = { galleryLauncher.launch("image/*") }
-                    )
-
-                    Spacer(modifier = Modifier.height(40.dp))
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "No hay novedades aún",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "Sé el primero en publicar una novedad",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
 
@@ -170,41 +198,89 @@ fun NovedadesScreen(
                             photoUrl = currentUser.photoUrl,
                             displayName = currentUserName,
                             onTextClick = {
-                                imagenSeleccionada = null
+                                imagenesSeleccionadas.clear()
                                 mostrarComposer = true
                             },
-                            onPhotoClick = { galleryLauncher.launch("image/*") }
+                            onPhotoClick = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(
+                                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            }
                         )
                     }
 
-                    items(uiState.posts) { post ->
-                        PostCard(
-                            post = post,
-                            isLiked = uiState.likedPostIds.contains(post.id),
-                            isSaved = uiState.savedPostIds.contains(post.id),
-                            isReposted = uiState.repostedPostIds.contains(post.id),
-                            onCommentClick = { postAComentar = post },
-                            onLikeClick = { viewModel.toggleLike(post) },
-                            onRepostClick = { viewModel.toggleRepost(post) },
-                            onSaveClick = { viewModel.toggleSave(post) },
-                            onShareClick = { viewModel.sharePost(post) }
+                    item {
+                        FiltrosNovedadesSticky(
+                            filtros = filtros,
+                            filtroSeleccionado = filtroSeleccionado,
+                            onFiltroSelected = { filtroSeleccionado = it }
                         )
+                    }
+
+                    if (postsFiltrados.isEmpty()) {
+                        item {
+                            EmptyNovedadesState(
+                                filtroSeleccionado = filtroSeleccionado
+                            )
+                        }
+                    } else {
+                        items(
+                            items = postsFiltrados,
+                            key = { post: Post -> post.id }
+                        ) { post: Post ->
+                            PostCard(
+                                post = post,
+                                isLiked = uiState.likedPostIds.contains(post.id),
+                                isSaved = uiState.savedPostIds.contains(post.id),
+                                isReposted = uiState.repostedPostIds.contains(post.id),
+                                isOwner = post.userId == currentUser.uid,
+                                onDeleteClick = { viewModel.deletePost(post) },
+                                onCommentClick = { postAComentar = post },
+                                onLikeClick = { viewModel.toggleLike(post) },
+                                onRepostClick = { viewModel.toggleRepost(post) },
+                                onSaveClick = { viewModel.toggleSave(post) },
+                                onShareClick = { viewModel.sharePost(post) }
+                            )
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
             }
         }
 
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
+
         if (mostrarComposer) {
             CrearPostScreen(
-                initialImageUri = imagenSeleccionada,
+                initialImageUris = imagenesSeleccionadas.toList(),
                 currentUserName = currentUserName,
                 currentUserPhotoUrl = currentUser.photoUrl,
+                ubicacionTexto = selectedLocation.address,
                 onDismiss = {
                     mostrarComposer = false
-                    imagenSeleccionada = null
+                    imagenesSeleccionadas.clear()
                 },
-                onAddPhoto = { galleryLauncher.launch("image/*") },
-                onPublicar = { texto, imagenUri ->
+                onAddPhotos = {
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                },
+                onOpenLocationPicker = {
+                    mostrarLocationPicker = true
+                },
+                onPublicar = { texto, tipo, fotos ->
                     val post = Post(
                         id = UUID.randomUUID().toString(),
                         userId = currentUser.uid.ifBlank { "demo_user" },
@@ -212,17 +288,31 @@ fun NovedadesScreen(
                         userHandle = currentUserHandle,
                         userAvatar = currentUser.photoUrl,
                         mensaje = texto.trim(),
-                        ubicacion = "Valencia",
-                        tipo = "Avistamiento",
-                        fotos = imagenUri?.let { listOf(it) } ?: emptyList(),
+                        ubicacion = selectedLocation.address,
+                        tipo = tipo,
+                        fotos = emptyList(),
                         timestamp = System.currentTimeMillis(),
                         likes = 0,
                         comentarios = 0
                     )
 
-                    viewModel.insertPost(post)
+                    viewModel.insertPost(
+                        post = post,
+                        localImageUris = fotos.take(4)
+                    )
+
                     mostrarComposer = false
-                    imagenSeleccionada = null
+                    imagenesSeleccionadas.clear()
+                }
+            )
+        }
+
+        if (mostrarLocationPicker) {
+            LocationPickerScreen(
+                onDismiss = { mostrarLocationPicker = false },
+                onLocationSelected = { location ->
+                    selectedLocation = location
+                    mostrarLocationPicker = false
                 }
             )
         }
@@ -237,6 +327,88 @@ fun NovedadesScreen(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun FiltrosNovedadesSticky(
+    filtros: List<String>,
+    filtroSeleccionado: String,
+    onFiltroSelected: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BlueSoft.copy(alpha = 0.96f),
+        shadowElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp, bottom = 8.dp)
+        ) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(filtros) { filtro ->
+                    FilterChip(
+                        selected = filtroSeleccionado == filtro,
+                        onClick = { onFiltroSelected(filtro) },
+                        label = { Text(filtro) },
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (filtroSeleccionado == filtro) {
+                                BluePrimary.copy(alpha = 0.35f)
+                            } else {
+                                BlueBorder.copy(alpha = 0.55f)
+                            }
+                        ),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.White,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = BluePrimary,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyNovedadesState(
+    filtroSeleccionado: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 30.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = if (filtroSeleccionado == "Todos") {
+                "No hay novedades aún"
+            } else {
+                "No hay publicaciones de tipo $filtroSeleccionado"
+            },
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = if (filtroSeleccionado == "Todos") {
+                "Sé el primero en publicar una novedad"
+            } else {
+                "Prueba con otro filtro o crea una nueva publicación"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -287,7 +459,7 @@ private fun CrearPublicacionCard(
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.size(10.dp))
 
             Surface(
                 modifier = Modifier
@@ -303,217 +475,13 @@ private fun CrearPublicacionCard(
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
             IconButton(onClick = onPhotoClick) {
                 Icon(
                     imageVector = Icons.Default.Image,
-                    contentDescription = "Añadir foto",
+                    contentDescription = "Añadir fotos",
                     tint = BluePrimary
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun CrearPostScreen(
-    initialImageUri: String?,
-    currentUserName: String,
-    currentUserPhotoUrl: String,
-    onDismiss: () -> Unit,
-    onAddPhoto: () -> Unit,
-    onPublicar: (String, String?) -> Unit
-) {
-    var texto by rememberSaveable { mutableStateOf("") }
-    var imagenUri by rememberSaveable { mutableStateOf(initialImageUri) }
-
-    LaunchedEffect(initialImageUri) {
-        imagenUri = initialImageUri
-    }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.systemBars),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Volver"
-                    )
-                }
-
-                Text(
-                    text = "Crear publicación",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-
-                TextButton(
-                    onClick = { onPublicar(texto, imagenUri) },
-                    enabled = texto.isNotBlank() || imagenUri != null
-                ) {
-                    Text("PUBLICAR", fontWeight = FontWeight.Bold)
-                }
-            }
-
-            HorizontalDivider()
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (currentUserPhotoUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = currentUserPhotoUrl,
-                            contentDescription = "Foto de perfil",
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Surface(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(CircleShape),
-                            color = BluePrimary.copy(alpha = 0.15f)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = currentUserName.firstOrNull()?.uppercase() ?: "U",
-                                    color = BluePrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = currentUserName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Visible para la comunidad",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                OutlinedTextField(
-                    value = texto,
-                    onValueChange = { texto = it },
-                    placeholder = { Text("¿Qué está pasando?") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    shape = RoundedCornerShape(18.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (imagenUri != null) {
-                    Box {
-                        Image(
-                            painter = rememberAsyncImagePainter(model = imagenUri),
-                            contentDescription = "Imagen seleccionada",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(240.dp)
-                                .clip(RoundedCornerShape(18.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-
-                        IconButton(
-                            onClick = { imagenUri = null },
-                            modifier = Modifier.align(Alignment.TopEnd)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Quitar imagen",
-                                    modifier = Modifier.padding(6.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                OutlinedButtonZonaFoto(onClick = onAddPhoto)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = { onPublicar(texto, imagenUri) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = texto.isNotBlank() || imagenUri != null,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                ) {
-                    Text("PUBLICAR")
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun OutlinedButtonZonaFoto(
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Image,
-                contentDescription = null,
-                tint = BluePrimary
-            )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Text(
-                text = "Añadir foto desde la galería",
-                style = MaterialTheme.typography.bodyMedium
-            )
         }
     }
 }
@@ -568,6 +536,8 @@ fun PostCard(
     isLiked: Boolean,
     isSaved: Boolean,
     isReposted: Boolean,
+    isOwner: Boolean,
+    onDeleteClick: () -> Unit,
     onCommentClick: () -> Unit,
     onLikeClick: () -> Unit,
     onRepostClick: () -> Unit,
@@ -575,6 +545,30 @@ fun PostCard(
     onShareClick: () -> Unit
 ) {
     val context = LocalContext.current
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar publicación") },
+            text = { Text("¿Seguro que quieres borrar esta publicación? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteClick()
+                    }
+                ) {
+                    Text("Eliminar", color = DeleteRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -615,7 +609,7 @@ fun PostCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.size(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -628,7 +622,7 @@ fun PostCard(
                         )
 
                         if (post.userHandle.isNotBlank()) {
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.size(6.dp))
                             Text(
                                 text = post.userHandle,
                                 style = MaterialTheme.typography.bodySmall,
@@ -648,6 +642,25 @@ fun PostCard(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+
+                    Text(
+                        text = post.tipo,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = BluePrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                if (isOwner) {
+                    IconButton(
+                        onClick = { showDeleteDialog = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Eliminar publicación",
+                            tint = DeleteRed
+                        )
+                    }
                 }
             }
 
@@ -661,29 +674,9 @@ fun PostCard(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            val images = post.fotos.take(2)
-            if (images.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    images.forEach { foto ->
-                        AsyncImage(
-                            model = foto,
-                            contentDescription = "Foto del post",
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(170.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+            PostImagesGrid(images = post.fotos.take(4))
 
-                    if (images.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-
+            if (post.fotos.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
@@ -740,6 +733,55 @@ fun PostCard(
                         onShareClick()
                     }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PostImagesGrid(images: List<String>) {
+    when (images.size) {
+        0 -> Unit
+
+        1 -> {
+            AsyncImage(
+                model = images.first(),
+                contentDescription = "Foto del post",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        else -> {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                images.chunked(2).forEach { fila ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        fila.forEach { foto ->
+                            AsyncImage(
+                                model = foto,
+                                contentDescription = "Foto del post",
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(170.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        if (fila.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
             }
         }
     }

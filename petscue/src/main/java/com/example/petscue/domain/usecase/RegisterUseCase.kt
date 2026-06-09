@@ -51,7 +51,7 @@ class RegisterUseCase @Inject constructor(
             }
 
             if (user.provincia.isBlank() || user.ciudad.isBlank()) {
-                return Result.failure(Exception("Completa la ubicación de la protectora."))
+                return Result.failure(Exception("Completa la location de la protectora."))
             }
         }
 

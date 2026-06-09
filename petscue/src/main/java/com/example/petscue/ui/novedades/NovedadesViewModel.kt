@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.User
+import com.example.petscue.domain.usecase.DeletePostUseCase
 import com.example.petscue.domain.usecase.GetPostsUseCase
 import com.example.petscue.domain.usecase.InsertPostUseCase
 import com.google.firebase.auth.FirebaseAuth
@@ -21,6 +22,7 @@ import kotlinx.coroutines.tasks.await
 class NovedadesViewModel @Inject constructor(
     private val getPostsUseCase: GetPostsUseCase,
     private val insertPostUseCase: InsertPostUseCase,
+    private val deletePostUseCase: DeletePostUseCase,
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore
 ) : ViewModel() {
@@ -62,9 +64,31 @@ class NovedadesViewModel @Inject constructor(
         }
     }
 
-    fun insertPost(post: Post) {
+    fun insertPost(post: Post, localImageUris: List<String> = emptyList()) {
         viewModelScope.launch {
-            insertPostUseCase(post)
+            runCatching {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+                insertPostUseCase(post, localImageUris)
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: "No se pudo publicar"
+                    )
+                }
+            }
+        }
+    }
+
+    fun deletePost(post: Post) {
+        viewModelScope.launch {
+            runCatching {
+                deletePostUseCase(post)
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(error = e.message ?: "No se pudo borrar la publicación")
+                }
+            }
         }
     }
 

@@ -140,7 +140,7 @@ fun SosScreen(
         OutlinedTextField(
             value         = ubicacion,
             onValueChange = { ubicacion = it },
-            label         = { Text("Última ubicación conocida") },
+            label         = { Text("Última location conocida") },
             leadingIcon   = {
                 Icon(Icons.Default.LocationOn, contentDescription = null)
             },
