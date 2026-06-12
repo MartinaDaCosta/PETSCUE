@@ -65,7 +65,7 @@ class AdminApprovalViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     _uiState.update {
-                        it.copy(errorMessage = e.message ?: "No se pudo aprobar la protectora.")
+                        it.copy(errorMessage = e.message ?: "No se pudo aprobar la adopta.")
                     }
                 }
         }
@@ -82,7 +82,7 @@ class AdminApprovalViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     _uiState.update {
-                        it.copy(errorMessage = e.message ?: "No se pudo rechazar la protectora.")
+                        it.copy(errorMessage = e.message ?: "No se pudo rechazar la adopta.")
                     }
                 }
         }

@@ -1,9 +1,5 @@
 package com.example.petscue.data.repository
 
-import com.example.petscue.data.repository.PetRepository
-import com.example.petscue.data.repository.PetRepositoryImpl
-import com.example.petscue.data.repository.PostRepository
-import com.example.petscue.data.repository.PostRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -25,4 +21,16 @@ abstract class RepositoryModule {
     abstract fun bindPostRepository(
         impl: PostRepositoryImpl
     ): PostRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindReplyRepository(
+        impl: ReplyRepositoryImpl
+    ): ReplyRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(
+        impl: AuthRepositoryImpl
+    ): AuthRepository
 }

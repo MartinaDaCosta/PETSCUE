@@ -76,7 +76,7 @@ fun SignupScreen(
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
             val message = if (state.selectedRole == UserRole.PROTECTORA) {
-                "Cuenta creada. Revisa tu correo para verificarla. Además, la cuenta de protectora quedará pendiente de validación."
+                "Cuenta creada. Revisa tu correo para verificarla. Además, la cuenta de adopta quedará pendiente de validación."
             } else {
                 "Cuenta creada correctamente. Revisa tu correo para verificar la cuenta."
             }
@@ -264,7 +264,7 @@ fun SignupScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Datos de la protectora",
+                    text = "Datos de la adopta",
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.fillMaxWidth()
@@ -275,7 +275,7 @@ fun SignupScreen(
                 OutlinedTextField(
                     value = state.nombreProtectora,
                     onValueChange = { vm.onNombreProtectoraChange(it) },
-                    label = { Text("Nombre de la protectora *", color = Color.White) },
+                    label = { Text("Nombre de la adopta *", color = Color.White) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = fieldColors()
@@ -408,7 +408,7 @@ fun SignupScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Las cuentas de protectora requieren validación previa por parte del administrador.",
+                    text = "Las cuentas de adopta requieren validación previa por parte del administrador.",
                     color = Color.White.copy(alpha = 0.85f),
                     fontSize = 12.sp,
                     modifier = Modifier.fillMaxWidth()

@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,10 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.petscue.ui.mapa.MapaScreen
-import com.example.petscue.ui.mascotas.MascotasScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.profile.ProfileScreen
-import com.example.petscue.ui.sos.SosScreen
+import com.example.petscue.ui.mapa.SosScreen
 
 sealed class BottomTab(
     val route: String,
@@ -52,18 +53,18 @@ sealed class BottomTab(
     val label: String
 ) {
     object Mapa : BottomTab("mapa", Icons.Default.LocationOn, "Mapa")
-    object Mascotas : BottomTab("mascotas", Icons.Default.Pets, "Mascotas")
+    object Protectoras : BottomTab("protectoras", Icons.Default.Pets, "Protectoras")
     object Novedades : BottomTab("novedades", Icons.Default.Campaign, "Novedades")
-    object Protectoras : BottomTab("protectoras", Icons.Default.Home, "Protectoras")
+    object Mensajes : BottomTab("mensajes", Icons.Default.Chat, "Mensajes")
     object Perfil : BottomTab("profile", Icons.Default.Person, "Perfil")
     object Sos : BottomTab("sos", Icons.Default.Warning, "SOS")
 }
 
 private val tabs = listOf(
     BottomTab.Mapa,
-    BottomTab.Mascotas,
-    BottomTab.Novedades,
     BottomTab.Protectoras,
+    BottomTab.Novedades,
+    BottomTab.Mensajes,
     BottomTab.Perfil
 )
 
@@ -105,11 +106,15 @@ fun MainScreen(
             when (currentTab) {
                 BottomTab.Mapa -> MapaScreen()
 
-                BottomTab.Novedades -> NovedadesScreen()
-
-                BottomTab.Mascotas -> MascotasScreen()
+                BottomTab.Novedades -> NovedadesScreen(
+                    onOpenDetail = { postId ->
+                        navController.navigate(Routes.postDetailRoute(postId))
+                    }
+                )
 
                 BottomTab.Protectoras -> PlaceholderScreen("Protectoras")
+
+                BottomTab.Mensajes -> PlaceholderScreen("Mensajes")
 
                 BottomTab.Perfil -> ProfileScreen(
                     onAddPetClick = {
@@ -156,7 +161,7 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
         navigationIcon = {
             IconButton(onClick = { }) {
                 Icon(
-                    Icons.Default.Pets,
+                    Icons.Filled.Notifications,
                     contentDescription = "Logo",
                     tint = Color(0xFF1565C0)
                 )
@@ -165,7 +170,7 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
         actions = {
             IconButton(onClick = { showMenu = true }) {
                 Icon(
-                    Icons.Default.Home,
+                    Icons.Default.Settings,
                     contentDescription = "Ajustes",
                     tint = Color(0xFF1565C0)
                 )

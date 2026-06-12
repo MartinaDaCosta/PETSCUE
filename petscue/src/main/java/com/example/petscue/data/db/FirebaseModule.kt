@@ -1,7 +1,5 @@
 package com.example.petscue.data.db
 
-import com.example.petscue.data.repository.PetRepository
-import com.example.petscue.data.repository.PetRepositoryImpl
 import com.example.petscue.data.repository.ProfileRepository
 import com.example.petscue.data.repository.ProfileRepositoryImpl
 import com.google.firebase.auth.FirebaseAuth
@@ -31,11 +29,11 @@ object FirebaseModule {
     fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
 
     @Provides
+    @Singleton
     fun provideProfileRepository(
         auth: FirebaseAuth,
         db: FirebaseFirestore
     ): ProfileRepository {
         return ProfileRepositoryImpl(auth, db)
     }
-
 }

@@ -13,6 +13,8 @@ import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
 import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
+import com.example.petscue.ui.novedades.NovedadesScreen
+import com.example.petscue.ui.novedades.detailpost.PostDetailScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
 import com.example.petscue.ui.pet.PetDetailScreen
 import com.example.petscue.ui.profile.adoption.AdoptionPetDetailScreen
@@ -228,6 +230,18 @@ fun PetscueNavHost(
         composable(Routes.ADMIN_APPROVAL) {
             AdminApprovalScreen()
         }
+        composable("novedades") {
+            NovedadesScreen(
+                onOpenDetail = { postId ->
+                    navController.navigate("post_detail/$postId")
+                }
+            )
+        }
 
+        composable(Routes.POST_DETAIL) {
+            PostDetailScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
     }
 }

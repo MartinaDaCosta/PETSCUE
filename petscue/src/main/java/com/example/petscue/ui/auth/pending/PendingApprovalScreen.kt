@@ -83,7 +83,7 @@ fun PendingApprovalScreen(
         )
 
         Text(
-            text = "Tu cuenta de protectora ha sido creada, pero aún no ha sido validada por el administrador. Sube la documentación necesaria para completar la revisión.",
+            text = "Tu cuenta de adopta ha sido creada, pero aún no ha sido validada por el administrador. Sube la documentación necesaria para completar la revisión.",
             color = Color.White.copy(alpha = 0.9f)
         )
 
@@ -96,7 +96,7 @@ fun PendingApprovalScreen(
         )
 
         Text(
-            text = "- CIF o documento identificativo\n- Documento acreditativo de la protectora\n- Información adicional de contacto",
+            text = "- CIF o documento identificativo\n- Documento acreditativo de la adopta\n- Información adicional de contacto",
             color = Color.White.copy(alpha = 0.9f)
         )
 

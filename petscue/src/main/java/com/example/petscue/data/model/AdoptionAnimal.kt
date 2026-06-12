@@ -1,6 +1,6 @@
 package com.example.petscue.data.model
 
-// Animal publicado por una protectora para adopción.
+// Animal publicado por una adopta para adopción.
 data class AdoptionAnimal(
     val id: String = "",
     val protectoraId: String = "",

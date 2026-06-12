@@ -65,7 +65,7 @@ class SignupViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Completa los campos obligatorios de la protectora."
+                        errorMessage = "Completa los campos obligatorios de la adopta."
                     )
                 }
                 return@launch

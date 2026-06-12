@@ -8,7 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.petscue.data.model.Pet
-import com.example.petscue.ui.location.LocationButton
+import com.example.petscue.ui.mapa.location.LocationButton
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)

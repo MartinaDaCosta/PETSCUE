@@ -1,4 +1,4 @@
-package com.example.petscue.ui.profile.protectora.adoptiondetail
+package com.example.petscue.ui.profile.adopta
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -10,14 +10,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class AdoptionPetDetailUiState(
     val isLoading: Boolean = true,
     val pet: Pet? = null,
-    val isDeleted: Boolean = false,
     val error: String? = null
 )
 
@@ -39,12 +36,7 @@ class AdoptionPetDetailViewModel @Inject constructor(
     private fun loadPet() {
         viewModelScope.launch {
             runCatching {
-                val pet = repository
-                    .getAll()
-                    .firstOrNull()
-                    ?.firstOrNull { it.id == petId }
-
-                pet ?: error("No se encontró la mascota")
+                repository.getAdoptionPetById(petId)
             }.onSuccess { pet ->
                 _uiState.value = AdoptionPetDetailUiState(
                     isLoading = false,
@@ -53,24 +45,8 @@ class AdoptionPetDetailViewModel @Inject constructor(
             }.onFailure { e ->
                 _uiState.value = AdoptionPetDetailUiState(
                     isLoading = false,
-                    error = e.message ?: "No se pudo cargar la mascota"
+                    error = e.message
                 )
-            }
-        }
-    }
-
-    fun deletePet() {
-        val pet = _uiState.value.pet ?: return
-
-        viewModelScope.launch {
-            runCatching {
-                repository.delete(pet)
-            }.onSuccess {
-                _uiState.update { it.copy(isDeleted = true) }
-            }.onFailure { e ->
-                _uiState.update {
-                    it.copy(error = e.message ?: "No se pudo eliminar la mascota")
-                }
             }
         }
     }

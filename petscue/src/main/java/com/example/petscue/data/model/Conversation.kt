@@ -1,6 +1,6 @@
 package com.example.petscue.data.model
 
-// Conversación entre un usuario y una protectora
+// Conversación entre un usuario y una adopta
 // asociada a un animal y, opcionalmente, a una solicitud de adopción.
 data class Conversation(
     val id: String = "",

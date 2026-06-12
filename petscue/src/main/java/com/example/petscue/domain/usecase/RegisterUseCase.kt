@@ -47,11 +47,11 @@ class RegisterUseCase @Inject constructor(
 
         if (user.role == UserRole.PROTECTORA) {
             if (user.nombreProtectora.isBlank()) {
-                return Result.failure(Exception("Introduce el nombre de la protectora."))
+                return Result.failure(Exception("Introduce el nombre de la adopta."))
             }
 
             if (user.provincia.isBlank() || user.ciudad.isBlank()) {
-                return Result.failure(Exception("Completa la location de la protectora."))
+                return Result.failure(Exception("Completa la location de la adopta."))
             }
         }
 

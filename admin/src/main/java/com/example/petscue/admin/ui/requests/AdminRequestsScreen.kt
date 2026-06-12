@@ -90,7 +90,7 @@ fun AdminRequestsScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = request.nombre.ifBlank { "Sin nombre de protectora" },
+                                text = request.nombre.ifBlank { "Sin nombre de adopta" },
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(text = request.email)

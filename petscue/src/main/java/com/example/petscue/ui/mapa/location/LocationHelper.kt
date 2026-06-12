@@ -1,4 +1,4 @@
-package com.example.petscue.ui.location
+package com.example.petscue.ui.mapa.location
 
 import android.annotation.SuppressLint
 import android.content.Context

@@ -115,7 +115,6 @@ fun PetCard(pet: com.example.petscue.data.model.Pet) {
                     text  = pet.nombre,
                     style = MaterialTheme.typography.titleMedium
                 )
-                EstadoBadge(estado = pet.estado)
             }
 
             Text(
@@ -143,24 +142,3 @@ fun PetCard(pet: com.example.petscue.data.model.Pet) {
 }
 
 
-// ── Badge de estado ───────────────────────────────────────────────────────────
-@Composable
-fun EstadoBadge(estado: String) {
-    val color = when (estado) {
-        "perdido"    -> MaterialTheme.colorScheme.error
-        "encontrado" -> MaterialTheme.colorScheme.primary
-        "adoptado"   -> MaterialTheme.colorScheme.tertiary
-        else         -> MaterialTheme.colorScheme.outline
-    }
-    Surface(
-        color        = color.copy(alpha = 0.15f),
-        shape        = MaterialTheme.shapes.small
-    ) {
-        Text(
-            text     = estado.replaceFirstChar { it.uppercase() },
-            color    = color,
-            style    = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
-    }
-}

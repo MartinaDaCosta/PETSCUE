@@ -15,9 +15,11 @@ object Routes {
     const val EDIT_PET = "edit_pet/{petId}"
     const val ADOPTION_DETAIL = "adoption_detail/{petId}"
     const val EDIT_ADOPTION_PET = "edit_adoption_pet/{petId}"
-
+    const val POST_DETAIL = "post_detail/{postId}"
     fun petDetailRoute(petId: String) = "pet_detail/$petId"
     fun editPetRoute(petId: String) = "edit_pet/$petId"
     fun adoptionDetailRoute(petId: String) = "adoption_detail/$petId"
     fun editAdoptionPetRoute(petId: String) = "edit_adoption_pet/$petId"
+    fun postDetailRoute(postId: String) = "post_detail/$postId"
+
 }
