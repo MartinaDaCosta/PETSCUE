@@ -84,10 +84,6 @@ class AddPetViewModel @Inject constructor(
         }
     }
 
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
-    }
-
     fun savePet() {
         val state = _uiState.value
 

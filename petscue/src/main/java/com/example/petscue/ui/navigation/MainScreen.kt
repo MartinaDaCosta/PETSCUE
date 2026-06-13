@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -45,7 +45,6 @@ import androidx.navigation.NavHostController
 import com.example.petscue.ui.mapa.MapaScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.profile.ProfileScreen
-import com.example.petscue.ui.mapa.SosScreen
 
 sealed class BottomTab(
     val route: String,
@@ -55,9 +54,8 @@ sealed class BottomTab(
     object Mapa : BottomTab("mapa", Icons.Default.LocationOn, "Mapa")
     object Protectoras : BottomTab("protectoras", Icons.Default.Pets, "Protectoras")
     object Novedades : BottomTab("novedades", Icons.Default.Campaign, "Novedades")
-    object Mensajes : BottomTab("mensajes", Icons.Default.Chat, "Mensajes")
+    object Mensajes : BottomTab("mensajes", Icons.AutoMirrored.Filled.Chat, "Mensajes")
     object Perfil : BottomTab("profile", Icons.Default.Person, "Perfil")
-    object Sos : BottomTab("sos", Icons.Default.Warning, "SOS")
 }
 
 private val tabs = listOf(
@@ -86,13 +84,15 @@ fun MainScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { currentTabRoute = BottomTab.Sos.route },
+                onClick = {
+                    navController.navigate(Routes.SELECT_PET_FOR_ALERT)
+                },
                 containerColor = Color(0xFF1565C0),
                 contentColor = Color.White
             ) {
                 Icon(
                     imageVector = Icons.Default.Warning,
-                    contentDescription = "Alerta SOS"
+                    contentDescription = "Crear aviso"
                 )
             }
         },
@@ -130,8 +130,6 @@ fun MainScreen(
                         navController.navigate(Routes.adoptionDetailRoute(petId))
                     }
                 )
-
-                BottomTab.Sos -> SosScreen()
             }
         }
     }

@@ -159,4 +159,8 @@ class PetRepositoryImpl @Inject constructor(
         require(pet.id.isNotBlank()) { "El id de la mascota no puede estar vacío." }
         adoptionPetsRef.document(pet.id).set(pet).await()
     }
+    override suspend fun getPetById(petId: String): Pet? {
+        val snapshot = petsRef.document(petId).get().await()
+        return snapshot.toObject(Pet::class.java)?.copy(id = snapshot.id)
+    }
 }

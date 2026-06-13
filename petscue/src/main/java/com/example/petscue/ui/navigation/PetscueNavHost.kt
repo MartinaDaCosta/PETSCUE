@@ -13,6 +13,8 @@ import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
 import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
+import com.example.petscue.ui.mapa.alerts.SelectPetForAlertScreen
+import com.example.petscue.ui.mapa.alerts.create.CreateAlertScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.novedades.detailpost.PostDetailScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
@@ -241,6 +243,24 @@ fun PetscueNavHost(
         composable(Routes.POST_DETAIL) {
             PostDetailScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.SELECT_PET_FOR_ALERT) {
+            SelectPetForAlertScreen(
+                onBack = { navController.popBackStack() },
+                onAddPetClick = { navController.navigate(Routes.ADD_PET) },
+                onPetSelected = { petId ->
+                    navController.navigate(Routes.createAlertRoute(petId))
+                }
+            )
+        }
+
+        composable(Routes.CREATE_ALERT) {
+            CreateAlertScreen(
+                onBack = { navController.popBackStack() },
+                onAlertSaved = {
+                    navController.popBackStack(Routes.MAIN, inclusive = false)
+                }
             )
         }
     }

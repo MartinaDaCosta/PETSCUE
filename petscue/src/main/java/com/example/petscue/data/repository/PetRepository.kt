@@ -14,4 +14,5 @@ interface PetRepository {
     suspend fun uploadPetImages(petId: String, imageUris: List<Uri>): List<String>
     suspend fun getAdoptionPetById(petId: String): Pet?
     suspend fun updateAdoptionPet(pet: Pet)
+    suspend fun getPetById(petId: String): Pet?
 }

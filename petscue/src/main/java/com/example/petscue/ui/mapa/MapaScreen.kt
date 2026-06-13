@@ -3,7 +3,12 @@ package com.example.petscue.ui.mapa
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import androidx.compose.animation.AnimatedVisibility
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.Typeface
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -19,7 +24,18 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,29 +44,65 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
-import com.google.maps.android.compose.*
+import com.google.maps.android.compose.Circle
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerComposable
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberMarkerState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.roundToInt
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
+import androidx.core.graphics.toColorInt
+import androidx.core.graphics.withSave
 
 private val AzulPrimario = Color(0xFF1E88E5)
 private val AzulBorde = Color(0xFF6CA9F0)
@@ -67,16 +119,22 @@ data class LugarSugerido(
 @OptIn(ExperimentalPermissionsApi::class)
 @SuppressLint("MissingPermission")
 @Composable
-fun MapaScreen() {
+fun MapaScreen(
+    viewModel: MapaViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
     var vistaActiva by remember { mutableStateOf("MAPA") }
     var busqueda by remember { mutableStateOf("") }
     var sugerencias by remember { mutableStateOf(emptyList<LugarSugerido>()) }
     var lugarSeleccionado by remember { mutableStateOf<LugarSugerido?>(null) }
     var miUbicacion by remember { mutableStateOf<LatLng?>(null) }
-    var radioNotificaciones by remember { mutableDoubleStateOf(1500.0) }
     var mostrarSlider by remember { mutableStateOf(false) }
 
+    val radioNotificaciones = uiState.radioNotificaciones
     val context = LocalContext.current
+    val markerBitmaps = remember { mutableStateMapOf<String, Bitmap>() }
+
     val locationPermissionState = rememberPermissionState(
         Manifest.permission.ACCESS_FINE_LOCATION
     )
@@ -93,10 +151,7 @@ fun MapaScreen() {
         initialValue = 0.92f,
         targetValue = 1.12f,
         animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1800,
-                easing = LinearEasing
-            ),
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "radarScale"
@@ -106,10 +161,7 @@ fun MapaScreen() {
         initialValue = 0.22f,
         targetValue = 0.02f,
         animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1800,
-                easing = LinearEasing
-            ),
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "radarAlpha"
@@ -138,6 +190,20 @@ fun MapaScreen() {
         }
     }
 
+    LaunchedEffect(uiState.alerts) {
+        uiState.alerts.forEach { aviso ->
+            if (!markerBitmaps.containsKey(aviso.id)) {
+                val bitmap = createMarkerBitmapFromUrl(
+                    context = context,
+                    imageUrl = aviso.fotoUrl,
+                    nombre = aviso.nombreMascota,
+                    color = colorTipoAviso(aviso.tipoAviso)
+                )
+                markerBitmaps[aviso.id] = bitmap
+            }
+        }
+    }
+
     LaunchedEffect(lugarSeleccionado) {
         lugarSeleccionado?.let { lugar ->
             camaraState.position = CameraPosition.fromLatLngZoom(
@@ -161,7 +227,6 @@ fun MapaScreen() {
                 value = busqueda,
                 onValueChange = { query ->
                     busqueda = query
-
                     if (query.length >= 2 && Places.isInitialized()) {
                         val placesClient = Places.createClient(context)
                         val request = FindAutocompletePredictionsRequest.builder()
@@ -184,9 +249,7 @@ fun MapaScreen() {
                         sugerencias = emptyList()
                     }
                 },
-                placeholder = {
-                    Text("Buscar lugar", color = Color.Gray)
-                },
+                placeholder = { Text("Buscar lugar", color = Color.Gray) },
                 leadingIcon = {
                     Icon(
                         Icons.Filled.Search,
@@ -203,11 +266,7 @@ fun MapaScreen() {
                     focusedBorderColor = AzulPrimario,
                     unfocusedBorderColor = AzulPrimario,
                     focusedContainerColor = Blanco,
-                    unfocusedContainerColor = Blanco,
-                    focusedLeadingIconColor = AzulPrimario,
-                    unfocusedLeadingIconColor = AzulPrimario,
-                    focusedPlaceholderColor = Color.Gray,
-                    unfocusedPlaceholderColor = Color.Gray
+                    unfocusedContainerColor = Blanco
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -228,14 +287,14 @@ fun MapaScreen() {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
+                            .fillMaxSize()
                             .clip(RoundedCornerShape(24.dp))
                             .background(if (activo) Blanco else Color.Transparent),
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = Alignment.Center
                     ) {
                         TextButton(
                             onClick = { vistaActiva = opcion },
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             Text(
                                 text = opcion,
@@ -272,7 +331,7 @@ fun MapaScreen() {
                             state = rememberMarkerState(
                                 position = LatLng(lugar.lat, lugar.lng)
                             ),
-                            title = lugar.address
+                            title = ""
                         )
                     }
 
@@ -293,6 +352,53 @@ fun MapaScreen() {
                             strokeWidth = 2f
                         )
                     }
+
+                    uiState.alerts.forEach { aviso ->
+                        val position = LatLng(aviso.lat, aviso.lng)
+                        val zoom = camaraState.position.zoom
+                        val markerBitmap = markerBitmaps[aviso.id]
+
+                        when {
+                            zoom >= 12.8f && markerBitmap != null -> {
+                                Marker(
+                                    state = rememberMarkerState(position = position),
+                                    title = "",
+                                    icon = BitmapDescriptorFactory.fromBitmap(markerBitmap)
+                                )
+                            }
+
+                            zoom >= 10.8f -> {
+                                MarkerComposable(
+                                    state = rememberMarkerState(position = position),
+                                    title = ""
+                                ) {
+                                    MarkerSoloNombre(
+                                        nombre = aviso.nombreMascota,
+                                        color = colorTipoAviso(aviso.tipoAviso)
+                                    )
+                                }
+                            }
+
+                            else -> {
+                                MarkerComposable(
+                                    state = rememberMarkerState(position = position),
+                                    title = ""
+                                ) {
+                                    MarkerSoloPunto(
+                                        color = colorTipoAviso(aviso.tipoAviso)
+                                    )
+                                }
+                            }
+                        }
+
+                        Circle(
+                            center = position,
+                            radius = aviso.radioMetros,
+                            fillColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.12f),
+                            strokeColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.45f),
+                            strokeWidth = 2f
+                        )
+                    }
                 }
 
                 if (sugerencias.isNotEmpty()) {
@@ -305,9 +411,7 @@ fun MapaScreen() {
                         border = BorderStroke(1.dp, AzulBorde),
                         colors = CardDefaults.cardColors(containerColor = Blanco)
                     ) {
-                        LazyColumn(
-                            modifier = Modifier.heightIn(max = 220.dp)
-                        ) {
+                        LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
                             items(sugerencias) { item ->
                                 Row(
                                     modifier = Modifier
@@ -340,9 +444,7 @@ fun MapaScreen() {
                                     )
                                 }
 
-                                HorizontalDivider(
-                                    color = AzulBorde.copy(alpha = 0.25f)
-                                )
+                                HorizontalDivider(color = AzulBorde.copy(alpha = 0.25f))
                             }
                         }
                     }
@@ -377,16 +479,8 @@ fun MapaScreen() {
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = if (mostrarSlider) {
-                                        Icons.Default.ChevronLeft
-                                    } else {
-                                        Icons.Default.ChevronRight
-                                    },
-                                    contentDescription = if (mostrarSlider) {
-                                        "Ocultar slider"
-                                    } else {
-                                        "Mostrar slider"
-                                    },
+                                    imageVector = if (mostrarSlider) Icons.Default.ChevronLeft else Icons.Default.ChevronRight,
+                                    contentDescription = null,
                                     tint = Blanco
                                 )
                             }
@@ -397,16 +491,10 @@ fun MapaScreen() {
                             modifier = Modifier
                                 .padding(start = tabWidth + 6.dp)
                                 .align(Alignment.CenterStart),
-                            enter = slideInHorizontally(
-                                initialOffsetX = { -it / 2 }
-                            ) + expandHorizontally(
-                                expandFrom = Alignment.Start
-                            ) + fadeIn(),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { -it / 2 }
-                            ) + shrinkHorizontally(
-                                shrinkTowards = Alignment.Start
-                            ) + fadeOut()
+                            enter = slideInHorizontally(initialOffsetX = { -it / 2 }) +
+                                    expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
+                            exit = slideOutHorizontally(targetOffsetX = { -it / 2 }) +
+                                    shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut()
                         ) {
                             Card(
                                 modifier = Modifier
@@ -430,9 +518,7 @@ fun MapaScreen() {
                                             color = Color(0xFF1A1A2E),
                                             fontSize = 13.sp
                                         )
-
                                         Spacer(modifier = Modifier.height(2.dp))
-
                                         Text(
                                             text = formatoDistancia(radioNotificaciones),
                                             color = AzulPrimario,
@@ -443,33 +529,22 @@ fun MapaScreen() {
 
                                     Slider(
                                         value = radioNotificaciones.toFloat(),
-                                        onValueChange = {
-                                            radioNotificaciones = it.toDouble()
-                                        },
+                                        onValueChange = { viewModel.onRadioChanged(it.toDouble()) },
                                         valueRange = 500f..10000f,
                                         steps = 18,
                                         colors = SliderDefaults.colors(
                                             thumbColor = AzulPrimario,
                                             activeTrackColor = AzulPrimario,
                                             inactiveTrackColor = AzulPrimario.copy(alpha = 0.20f)
-                                        ),
-                                        modifier = Modifier.padding(horizontal = 2.dp)
+                                        )
                                     )
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(
-                                            text = "500 m",
-                                            color = Color.Gray,
-                                            fontSize = 10.sp
-                                        )
-                                        Text(
-                                            text = "10 km",
-                                            color = Color.Gray,
-                                            fontSize = 10.sp
-                                        )
+                                        Text("500 m", color = Color.Gray, fontSize = 10.sp)
+                                        Text("10 km", color = Color.Gray, fontSize = 10.sp)
                                     }
                                 }
                             }
@@ -484,21 +559,156 @@ fun MapaScreen() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        "Vista Lista",
-                        color = AzulPrimario,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                    Text(
-                        "Aquí irá el listado de mascotas perdidas cerca de ti",
-                        color = Color.Gray,
-                        fontSize = 13.sp
-                    )
+                    Text("Vista Lista", color = AzulPrimario, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Aquí irá el listado de mascotas perdidas cerca de ti", color = Color.Gray, fontSize = 13.sp)
                 }
             }
         }
     }
+}
+
+private suspend fun createMarkerBitmapFromUrl(
+    context: Context,
+    imageUrl: String,
+    nombre: String,
+    color: Color
+): Bitmap = withContext(Dispatchers.IO) {
+    val width = 250
+    val height = 310
+    val avatarSize = 124f
+    val cornerRadius = 30f
+    val borderStrokeWidth = 6f
+
+    val bitmap = createBitmap(width, height)
+    val canvas = Canvas(bitmap)
+
+    val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        this.color = android.graphics.Color.WHITE
+    }
+
+    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        this.color = color.toArgb()
+        this.strokeWidth = borderStrokeWidth
+    }
+
+    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = "#1A1A2E".toColorInt()
+        textSize = 34f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    val pinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        this.color = color.toArgb()
+    }
+
+    val avatarBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        this.color = color.copy(alpha = 0.25f).toArgb()
+        this.strokeWidth = 4f
+    }
+
+    val cardRect = RectF(10f, 10f, width - 10f, 236f)
+    canvas.drawRoundRect(cardRect, cornerRadius, cornerRadius, fillPaint)
+    canvas.drawRoundRect(cardRect, cornerRadius, cornerRadius, strokePaint)
+
+    val avatarCx = width / 2f
+    val avatarCy = 86f
+    val avatarRect = RectF(
+        avatarCx - avatarSize / 2,
+        avatarCy - avatarSize / 2,
+        avatarCx + avatarSize / 2,
+        avatarCy + avatarSize / 2
+    )
+
+    if (imageUrl.isNotBlank()) {
+        val imageLoader = ImageLoader(context)
+        val request = ImageRequest.Builder(context)
+            .data(imageUrl)
+            .allowHardware(false)
+            .build()
+
+        val result = imageLoader.execute(request)
+
+        if (result is SuccessResult) {
+            val drawable = result.drawable
+            val srcBitmap = createBitmap(
+                drawable.intrinsicWidth.coerceAtLeast(1),
+                drawable.intrinsicHeight.coerceAtLeast(1)
+            )
+            val srcCanvas = Canvas(srcBitmap)
+            drawable.setBounds(0, 0, srcCanvas.width, srcCanvas.height)
+            drawable.draw(srcCanvas)
+
+            val scaled = srcBitmap.scale(
+                avatarSize.toInt(),
+                avatarSize.toInt(),
+                true
+            )
+
+            val clipPath = Path().apply {
+                addOval(avatarRect, Path.Direction.CW)
+            }
+
+            canvas.withSave {
+                clipPath(clipPath)
+                drawBitmap(scaled, avatarRect.left, avatarRect.top, null)
+            }
+
+            canvas.drawOval(avatarRect, avatarBorderPaint)
+        } else {
+            drawAvatarFallback(canvas, avatarRect, nombre, color, avatarBorderPaint)
+        }
+    } else {
+        drawAvatarFallback(canvas, avatarRect, nombre, color, avatarBorderPaint)
+    }
+
+    val safeName = nombre.take(18)
+    canvas.drawText(safeName, width / 2f, 200f, textPaint)
+
+    val pinCx = width / 2f
+    val pinCy = 254f
+    canvas.drawCircle(pinCx, pinCy, 20f, pinPaint)
+
+    val innerPinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        this.color = android.graphics.Color.WHITE
+    }
+    canvas.drawCircle(pinCx, pinCy, 8f, innerPinPaint)
+
+    bitmap
+}
+
+private fun drawAvatarFallback(
+    canvas: Canvas,
+    avatarRect: RectF,
+    nombre: String,
+    color: Color,
+    avatarBorderPaint: Paint
+) {
+    val fallbackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        this.color = color.copy(alpha = 0.15f).toArgb()
+    }
+
+    val fallbackTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color.toArgb()
+        textSize = 34f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    val cx = avatarRect.centerX()
+    val cy = avatarRect.centerY()
+    canvas.drawOval(avatarRect, fallbackPaint)
+    canvas.drawOval(avatarRect, avatarBorderPaint)
+
+    val letter = nombre.take(1).uppercase()
+    val textY = cy - ((fallbackTextPaint.descent() + fallbackTextPaint.ascent()) / 2)
+    canvas.drawText(letter, cx, textY, fallbackTextPaint)
 }
 
 @SuppressLint("MissingPermission")
@@ -506,9 +716,8 @@ private fun obtenerUbicacionActual(
     context: Context,
     onResult: (LatLng) -> Unit
 ) {
-    val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-
-    fusedClient.lastLocation
+    LocationServices.getFusedLocationProviderClient(context)
+        .lastLocation
         .addOnSuccessListener { location ->
             if (location != null) {
                 onResult(LatLng(location.latitude, location.longitude))
@@ -537,7 +746,6 @@ private fun fetchPlaceDetails(
         .addOnSuccessListener { response ->
             val place = response.place
             val latLng = place.latLng ?: return@addOnSuccessListener
-
             onResult(
                 LugarSugerido(
                     address = place.address ?: place.name ?: "Ubicación",
@@ -547,7 +755,6 @@ private fun fetchPlaceDetails(
                 )
             )
         }
-        .addOnFailureListener { }
 }
 
 private fun formatoDistancia(metros: Double): String {
@@ -557,3 +764,4 @@ private fun formatoDistancia(metros: Double): String {
         String.format(Locale.getDefault(), "%.1f km", metros / 1000.0)
     }
 }
+

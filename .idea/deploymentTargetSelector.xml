@@ -2,10 +2,10 @@
 <project version="4">
   <component name="deploymentTargetSelector">
     <selectionStates>
-      <SelectionState runConfigName="app">
+      <SelectionState runConfigName="petscue">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="petscueadmin">
+      <SelectionState runConfigName="admin">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

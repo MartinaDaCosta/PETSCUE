@@ -16,6 +16,11 @@ object Routes {
     const val ADOPTION_DETAIL = "adoption_detail/{petId}"
     const val EDIT_ADOPTION_PET = "edit_adoption_pet/{petId}"
     const val POST_DETAIL = "post_detail/{postId}"
+    const val MAP = "map"
+    const val SELECT_PET_FOR_ALERT = "select_pet_for_alert"
+    const val CREATE_ALERT = "create_alert/{petId}"
+
+    fun createAlertRoute(petId: String) = "create_alert/$petId"
     fun petDetailRoute(petId: String) = "pet_detail/$petId"
     fun editPetRoute(petId: String) = "edit_pet/$petId"
     fun adoptionDetailRoute(petId: String) = "adoption_detail/$petId"
