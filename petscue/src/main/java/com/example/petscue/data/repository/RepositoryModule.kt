@@ -39,4 +39,16 @@ abstract class RepositoryModule {
     abstract fun bindAlertRepository(
         impl: AlertRepositoryImpl
     ): AlertRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProtectorasRepository(
+        impl: ProtectorasRepositoryImpl
+    ): ProtectorasRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMensajesRepository(
+        impl: MensajesRepositoryImpl
+    ): MensajesRepository
 }

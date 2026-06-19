@@ -27,6 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,14 +41,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -59,6 +63,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,16 +71,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
+import androidx.core.graphics.toColorInt
+import androidx.core.graphics.withSave
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.example.petscue.BuildConfig
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -93,21 +104,12 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerComposable
+import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.roundToInt
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.scale
-import androidx.core.graphics.toColorInt
-import androidx.core.graphics.withSave
-
-private val AzulPrimario = Color(0xFF1E88E5)
-private val AzulBorde = Color(0xFF6CA9F0)
-private val Blanco = Color.White
-private val FondoPantalla = Color(0xFFF0F4FF)
 
 data class LugarSugerido(
     val address: String,
@@ -120,9 +122,12 @@ data class LugarSugerido(
 @SuppressLint("MissingPermission")
 @Composable
 fun MapaScreen(
+    onOpenAlertDetail: (String) -> Unit,
+    onOpenMyAlerts: () -> Unit,
     viewModel: MapaViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val markerBitmaps = remember { mutableStateMapOf<String, Bitmap>() }
 
     var vistaActiva by remember { mutableStateOf("MAPA") }
     var busqueda by remember { mutableStateOf("") }
@@ -133,7 +138,6 @@ fun MapaScreen(
 
     val radioNotificaciones = uiState.radioNotificaciones
     val context = LocalContext.current
-    val markerBitmaps = remember { mutableStateMapOf<String, Bitmap>() }
 
     val locationPermissionState = rememberPermissionState(
         Manifest.permission.ACCESS_FINE_LOCATION
@@ -167,11 +171,28 @@ fun MapaScreen(
         label = "radarAlpha"
     )
 
+    LaunchedEffect(uiState.alerts) {
+        val currentIds = uiState.alerts.map { it.id }.toSet()
+        markerBitmaps.keys.filter { it !in currentIds }.forEach { markerBitmaps.remove(it) }
+
+        uiState.alerts.forEach { aviso ->
+            if (!markerBitmaps.containsKey(aviso.id)) {
+                val bitmap = createMarkerBitmapFromUrl(
+                    context = context,
+                    imageUrl = aviso.fotoUrl,
+                    nombre = aviso.nombreMascota,
+                    color = colorTipoAviso(aviso.tipoAviso)
+                )
+                markerBitmaps[aviso.id] = bitmap
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (!Places.isInitialized()) {
             Places.initialize(
                 context.applicationContext,
-                "AIzaSyCeWkMeZ-sZcAloA6rcyP9ZAKhmFFxMHd8",
+                BuildConfig.MAPS_API_KEY,
                 Locale.getDefault()
             )
         }
@@ -190,20 +211,6 @@ fun MapaScreen(
         }
     }
 
-    LaunchedEffect(uiState.alerts) {
-        uiState.alerts.forEach { aviso ->
-            if (!markerBitmaps.containsKey(aviso.id)) {
-                val bitmap = createMarkerBitmapFromUrl(
-                    context = context,
-                    imageUrl = aviso.fotoUrl,
-                    nombre = aviso.nombreMascota,
-                    color = colorTipoAviso(aviso.tipoAviso)
-                )
-                markerBitmaps[aviso.id] = bitmap
-            }
-        }
-    }
-
     LaunchedEffect(lugarSeleccionado) {
         lugarSeleccionado?.let { lugar ->
             camaraState.position = CameraPosition.fromLatLngZoom(
@@ -216,7 +223,7 @@ fun MapaScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(FondoPantalla)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
@@ -249,24 +256,29 @@ fun MapaScreen(
                         sugerencias = emptyList()
                     }
                 },
-                placeholder = { Text("Buscar lugar", color = Color.Gray) },
+                placeholder = {
+                    Text(
+                        text = "Buscar lugar",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 leadingIcon = {
                     Icon(
-                        Icons.Filled.Search,
+                        imageVector = Icons.Filled.Search,
                         contentDescription = null,
-                        tint = AzulPrimario
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color(0xFF1A1A2E),
-                    unfocusedTextColor = Color(0xFF1A1A2E),
-                    cursorColor = AzulPrimario,
-                    focusedBorderColor = AzulPrimario,
-                    unfocusedBorderColor = AzulPrimario,
-                    focusedContainerColor = Blanco,
-                    unfocusedContainerColor = Blanco
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.primary,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -277,7 +289,7 @@ fun MapaScreen(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 8.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(AzulPrimario)
+                .background(MaterialTheme.colorScheme.primary)
                 .height(36.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -289,7 +301,10 @@ fun MapaScreen(
                             .weight(1f)
                             .fillMaxSize()
                             .clip(RoundedCornerShape(24.dp))
-                            .background(if (activo) Blanco else Color.Transparent),
+                            .background(
+                                if (activo) MaterialTheme.colorScheme.surface
+                                else Color.Transparent
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         TextButton(
@@ -298,7 +313,11 @@ fun MapaScreen(
                         ) {
                             Text(
                                 text = opcion,
-                                color = if (activo) AzulPrimario else Blanco,
+                                color = if (activo) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimary
+                                },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
@@ -328,9 +347,7 @@ fun MapaScreen(
                 ) {
                     lugarSeleccionado?.let { lugar ->
                         Marker(
-                            state = rememberMarkerState(
-                                position = LatLng(lugar.lat, lugar.lng)
-                            ),
+                            state = rememberUpdatedMarkerState(LatLng(lugar.lat, lugar.lng)),
                             title = ""
                         )
                     }
@@ -339,65 +356,80 @@ fun MapaScreen(
                         Circle(
                             center = ubicacion,
                             radius = radioNotificaciones,
-                            fillColor = AzulPrimario.copy(alpha = 0.10f),
-                            strokeColor = AzulPrimario.copy(alpha = 0.45f),
+                            fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                            strokeColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                             strokeWidth = 3f
                         )
 
                         Circle(
                             center = ubicacion,
                             radius = radioNotificaciones * radarScale.toDouble(),
-                            fillColor = AzulPrimario.copy(alpha = radarAlpha),
-                            strokeColor = AzulPrimario.copy(alpha = radarAlpha * 0.9f),
+                            fillColor = MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha),
+                            strokeColor = MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha * 0.9f),
                             strokeWidth = 2f
                         )
                     }
 
                     uiState.alerts.forEach { aviso ->
-                        val position = LatLng(aviso.lat, aviso.lng)
-                        val zoom = camaraState.position.zoom
-                        val markerBitmap = markerBitmaps[aviso.id]
+                        key(aviso.id) {
+                            val position = LatLng(aviso.lat, aviso.lng)
+                            val zoom = camaraState.position.zoom
+                            val markerBitmap = markerBitmaps[aviso.id]
 
-                        when {
-                            zoom >= 12.8f && markerBitmap != null -> {
-                                Marker(
-                                    state = rememberMarkerState(position = position),
-                                    title = "",
-                                    icon = BitmapDescriptorFactory.fromBitmap(markerBitmap)
-                                )
-                            }
-
-                            zoom >= 10.8f -> {
-                                MarkerComposable(
-                                    state = rememberMarkerState(position = position),
-                                    title = ""
-                                ) {
-                                    MarkerSoloNombre(
-                                        nombre = aviso.nombreMascota,
-                                        color = colorTipoAviso(aviso.tipoAviso)
+                            when {
+                                zoom >= 12.8f && markerBitmap != null -> {
+                                    Marker(
+                                        state = rememberUpdatedMarkerState(position),
+                                        title = aviso.nombreMascota,
+                                        icon = BitmapDescriptorFactory.fromBitmap(markerBitmap),
+                                        anchor = Offset(0.5f, 0.92f),
+                                        onClick = {
+                                            onOpenAlertDetail(aviso.petId)
+                                            true
+                                        }
                                     )
+                                }
+
+                                zoom >= 10.8f -> {
+                                    MarkerComposable(
+                                        state = rememberUpdatedMarkerState(position),
+                                        title = aviso.nombreMascota,
+                                        onClick = {
+                                            onOpenAlertDetail(aviso.petId)
+                                            true
+                                        }
+                                    ) {
+                                        MarkerSoloNombre(
+                                            nombre = aviso.nombreMascota,
+                                            color = colorTipoAviso(aviso.tipoAviso)
+                                        )
+                                    }
+                                }
+
+                                else -> {
+                                    MarkerComposable(
+                                        state = rememberUpdatedMarkerState(position),
+                                        title = aviso.nombreMascota,
+                                        onClick = {
+                                            onOpenAlertDetail(aviso.petId)
+                                            true
+                                        }
+                                    ) {
+                                        MarkerSoloPunto(
+                                            color = colorTipoAviso(aviso.tipoAviso)
+                                        )
+                                    }
                                 }
                             }
 
-                            else -> {
-                                MarkerComposable(
-                                    state = rememberMarkerState(position = position),
-                                    title = ""
-                                ) {
-                                    MarkerSoloPunto(
-                                        color = colorTipoAviso(aviso.tipoAviso)
-                                    )
-                                }
-                            }
+                            Circle(
+                                center = position,
+                                radius = aviso.radioMetros,
+                                fillColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.12f),
+                                strokeColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.45f),
+                                strokeWidth = 2f
+                            )
                         }
-
-                        Circle(
-                            center = position,
-                            radius = aviso.radioMetros,
-                            fillColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.12f),
-                            strokeColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.45f),
-                            strokeWidth = 2f
-                        )
                     }
                 }
 
@@ -408,8 +440,13 @@ fun MapaScreen(
                             .padding(top = 8.dp, start = 4.dp, end = 4.dp)
                             .fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, AzulBorde),
-                        colors = CardDefaults.cardColors(containerColor = Blanco)
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+                        ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
                     ) {
                         LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
                             items(sugerencias) { item ->
@@ -432,23 +469,43 @@ fun MapaScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.LocationOn,
+                                        imageVector = Icons.Filled.LocationOn,
                                         contentDescription = null,
-                                        tint = AzulPrimario
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         text = item.address,
-                                        color = Color(0xFF1A1A2E),
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         fontSize = 14.sp
                                     )
                                 }
 
-                                HorizontalDivider(color = AzulBorde.copy(alpha = 0.25f))
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                )
                             }
                         }
                     }
                 }
+
+                ExtendedFloatingActionButton(
+                    onClick = onOpenMyAlerts,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 16.dp, top = 16.dp),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.List,
+                            contentDescription = null
+                        )
+                    },
+                    text = {
+                        Text("Mis avisos")
+                    }
+                )
 
                 miUbicacion?.let {
                     val panelHeight = 108.dp
@@ -471,7 +528,7 @@ fun MapaScreen(
                                 topEnd = 14.dp,
                                 bottomEnd = 14.dp
                             ),
-                            color = AzulPrimario,
+                            color = MaterialTheme.colorScheme.primary,
                             shadowElevation = 6.dp
                         ) {
                             Box(
@@ -479,9 +536,13 @@ fun MapaScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = if (mostrarSlider) Icons.Default.ChevronLeft else Icons.Default.ChevronRight,
+                                    imageVector = if (mostrarSlider) {
+                                        Icons.Filled.ChevronLeft
+                                    } else {
+                                        Icons.Filled.ChevronRight
+                                    },
                                     contentDescription = null,
-                                    tint = Blanco
+                                    tint = MaterialTheme.colorScheme.onPrimary
                                 )
                             }
                         }
@@ -501,8 +562,13 @@ fun MapaScreen(
                                     .widthIn(max = 235.dp)
                                     .height(panelHeight),
                                 shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Blanco),
-                                border = BorderStroke(1.dp, AzulBorde.copy(alpha = 0.35f)),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                ),
                                 elevation = CardDefaults.cardElevation(6.dp)
                             ) {
                                 Column(
@@ -515,13 +581,13 @@ fun MapaScreen(
                                         Text(
                                             text = "Radio de notificaciones",
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF1A1A2E),
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             fontSize = 13.sp
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = formatoDistancia(radioNotificaciones),
-                                            color = AzulPrimario,
+                                            color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 12.sp
                                         )
@@ -533,9 +599,9 @@ fun MapaScreen(
                                         valueRange = 500f..10000f,
                                         steps = 18,
                                         colors = SliderDefaults.colors(
-                                            thumbColor = AzulPrimario,
-                                            activeTrackColor = AzulPrimario,
-                                            inactiveTrackColor = AzulPrimario.copy(alpha = 0.20f)
+                                            thumbColor = MaterialTheme.colorScheme.primary,
+                                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                                            inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
                                         )
                                     )
 
@@ -543,8 +609,16 @@ fun MapaScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("500 m", color = Color.Gray, fontSize = 10.sp)
-                                        Text("10 km", color = Color.Gray, fontSize = 10.sp)
+                                        Text(
+                                            text = "500 m",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 10.sp
+                                        )
+                                        Text(
+                                            text = "10 km",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 10.sp
+                                        )
                                     }
                                 }
                             }
@@ -552,19 +626,30 @@ fun MapaScreen(
                     }
                 }
             } else {
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Blanco),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .background(MaterialTheme.colorScheme.background),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Vista Lista", color = AzulPrimario, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text("Aquí irá el listado de mascotas perdidas cerca de ti", color = Color.Gray, fontSize = 13.sp)
+                    items(uiState.alerts, key = { it.id }) { aviso ->
+                        AvisoListaCard(
+                            aviso = aviso,
+                            onClick = { onOpenAlertDetail(aviso.petId) }
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun rememberUpdatedMarkerState(position: LatLng): MarkerState {
+    val state = remember { MarkerState(position = position) }
+    state.position = position
+    return state
 }
 
 private suspend fun createMarkerBitmapFromUrl(
@@ -757,11 +842,10 @@ private fun fetchPlaceDetails(
         }
 }
 
-private fun formatoDistancia(metros: Double): String {
+fun formatoDistancia(metros: Double): String {
     return if (metros < 1000) {
         "${metros.roundToInt()} m"
     } else {
         String.format(Locale.getDefault(), "%.1f km", metros / 1000.0)
     }
 }
-

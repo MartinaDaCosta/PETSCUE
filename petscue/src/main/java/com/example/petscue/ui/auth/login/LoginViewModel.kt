@@ -18,39 +18,60 @@ class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase
 ) : ViewModel() {
 
+    // Estado mutable interno del ViewModel
     private val _uiState = MutableStateFlow(LoginUiState())
+
+    // Estado público solo lectura para la UI
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
+    // Actualiza el email y limpia mensajes anteriores
     fun onEmailChange(value: String) {
         _uiState.update {
-            it.copy(email = value, errorMessage = null, successMessage = null)
+            it.copy(
+                email = value,
+                errorMessage = null,
+                successMessage = null
+            )
         }
     }
 
+    // Actualiza la contraseña y limpia mensajes anteriores
     fun onPasswordChange(value: String) {
         _uiState.update {
-            it.copy(password = value, errorMessage = null, successMessage = null)
+            it.copy(
+                password = value,
+                errorMessage = null,
+                successMessage = null
+            )
         }
     }
 
+    // Alterna entre mostrar u ocultar la contraseña
     fun onTogglePasswordVisibility() {
         _uiState.update {
             it.copy(passwordVisible = !it.passwordVisible)
         }
     }
 
+    // Muestra el diálogo de recuperación de contraseña
     fun showForgotPasswordDialog() {
         _uiState.update {
-            it.copy(showForgotPasswordDialog = true, errorMessage = null, successMessage = null)
+            it.copy(
+                showForgotPasswordDialog = true,
+                errorMessage = null,
+                successMessage = null
+            )
         }
     }
 
+    // Oculta el diálogo de recuperación
     fun hideForgotPasswordDialog() {
         _uiState.update {
             it.copy(showForgotPasswordDialog = false)
         }
     }
 
+    // Inicia sesión y carga el perfil del usuario
     fun onLoginClick() {
         viewModelScope.launch {
             _uiState.update {
@@ -61,14 +82,19 @@ class LoginViewModel @Inject constructor(
                 )
             }
 
-            loginUseCase(_uiState.value.email, _uiState.value.password)
+            val email = _uiState.value.email.trim()
+            val password = _uiState.value.password
+
+            loginUseCase(email, password)
                 .onSuccess {
                     if (!repository.isEmailVerified()) {
                         repository.logout()
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                errorMessage = "Verifica tu email antes de continuar."
+                                isSuccess = false,
+                                errorMessage = "Verifica tu email antes de continuar.",
+                                successMessage = null
                             )
                         }
                         return@onSuccess
@@ -80,6 +106,8 @@ class LoginViewModel @Inject constructor(
                                 it.copy(
                                     isLoading = false,
                                     isSuccess = true,
+                                    errorMessage = null,
+                                    successMessage = null,
                                     userRole = user.role,
                                     approvalStatus = user.approvalStatus
                                 )
@@ -90,8 +118,10 @@ class LoginViewModel @Inject constructor(
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
+                                    isSuccess = false,
                                     errorMessage = e.message
-                                        ?: "No se pudo cargar el profile del usuario."
+                                        ?: "No se pudo cargar el perfil del usuario.",
+                                    successMessage = null
                                 )
                             }
                         }
@@ -100,13 +130,16 @@ class LoginViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.message ?: "Error al iniciar sesión."
+                            isSuccess = false,
+                            errorMessage = e.message ?: "Error al iniciar sesión.",
+                            successMessage = null
                         )
                     }
                 }
         }
     }
 
+    // Envía el correo de recuperación de contraseña
     fun onForgotPasswordConfirm() {
         val email = _uiState.value.email.trim()
 
@@ -122,7 +155,11 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update {
-                it.copy(isLoading = true, errorMessage = null, successMessage = null)
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    successMessage = null
+                )
             }
 
             repository.resetPassword(email)
@@ -131,6 +168,7 @@ class LoginViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             showForgotPasswordDialog = false,
+                            errorMessage = null,
                             successMessage = "Te hemos enviado un correo para restablecer la contraseña."
                         )
                     }
@@ -140,7 +178,8 @@ class LoginViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             errorMessage = e.message
-                                ?: "No se pudo enviar el correo de recuperación."
+                                ?: "No se pudo enviar el correo de recuperación.",
+                            successMessage = null
                         )
                     }
                 }

@@ -1,6 +1,7 @@
-package com.example.petscue.ui.mapa.alerts
+package com.example.petscue.ui.mapa.alerts.selectPet
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,12 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,10 +30,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,26 +42,30 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.petscue.data.model.Pet
-
-private val BluePrimary = Color(0xFF1976D2)
-private val BlueDark = Color(0xFF0D47A1)
-private val BlueSoft = Color(0xFFEFF6FF)
-private val BlueBorder = Color(0xFFB9D8FF)
-private val BgColor = Color(0xFFF8FBFF)
-private val BlueHint = Color(0xFF6B8DB8)
+import com.example.petscue.ui.theme.AuthCardShape
+import com.example.petscue.ui.theme.authPrimaryButtonColors
 
 @Composable
 fun SelectPetForAlertScreen(
     onBack: () -> Unit,
     onAddPetClick: () -> Unit,
     onPetSelected: (String) -> Unit,
+    petAdded: Boolean,
+    onPetAddedConsumed: () -> Unit,
     vm: SelectPetForAlertViewModel = hiltViewModel()
 ) {
     val uiState = vm.uiState.collectAsStateWithLifecycle().value
 
+    LaunchedEffect(petAdded) {
+        if (petAdded) {
+            vm.refreshPets()
+            onPetAddedConsumed()
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = BgColor
+        color = MaterialTheme.colorScheme.background
     ) {
         when {
             uiState.isLoading -> {
@@ -70,7 +73,9 @@ fun SelectPetForAlertScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = BluePrimary)
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
@@ -82,7 +87,7 @@ fun SelectPetForAlertScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = uiState.error ?: "Ha ocurrido un error",
+                        text = uiState.error,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyLarge
                     )
@@ -139,7 +144,7 @@ private fun HeaderSection(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Volver",
-                tint = BlueDark
+                tint = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -148,14 +153,13 @@ private fun HeaderSection(
         Column {
             Text(
                 text = "Selecciona una mascota",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = BlueDark
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "Elige la mascota para crear el aviso",
                 style = MaterialTheme.typography.bodyMedium,
-                color = BlueHint
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -167,9 +171,14 @@ private fun EmptyPetsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        )
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -179,13 +188,14 @@ private fun EmptyPetsCard(
             Box(
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(RoundedCornerShape(18.dp)),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Pets,
                     contentDescription = null,
-                    tint = BluePrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(30.dp)
                 )
             }
@@ -193,14 +203,13 @@ private fun EmptyPetsCard(
             Text(
                 text = "Aún no tienes mascotas",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = BlueDark
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
                 text = "Añade una mascota a tu perfil para poder crear un aviso en el mapa.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = BlueHint
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Button(
@@ -208,11 +217,8 @@ private fun EmptyPetsCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding(),
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BluePrimary,
-                    contentColor = Color.White
-                )
+                shape = AuthCardShape,
+                colors = authPrimaryButtonColors()
             ) {
                 Text(
                     text = "Añadir mascota",
@@ -232,9 +238,14 @@ private fun SelectablePetCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        )
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -248,20 +259,21 @@ private fun SelectablePetCard(
                     contentDescription = "Foto de ${pet.nombre}",
                     modifier = Modifier
                         .size(96.dp)
-                        .clip(RoundedCornerShape(18.dp)),
+                        .clip(MaterialTheme.shapes.medium),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(96.dp)
-                        .clip(RoundedCornerShape(18.dp)),
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Pets,
                         contentDescription = null,
-                        tint = BluePrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -274,8 +286,7 @@ private fun SelectablePetCard(
                 Text(
                     text = pet.nombre.ifBlank { "Sin nombre" },
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = BlueDark,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -287,7 +298,7 @@ private fun SelectablePetCard(
                         append(pet.raza.ifBlank { "-" })
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = BluePrimary
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 Text(
@@ -297,13 +308,13 @@ private fun SelectablePetCard(
                         append(pet.edad.ifBlank { "-" })
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = BlueHint
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
                     text = pet.ubicacion.ifBlank { "Sin ubicación" },
                     style = MaterialTheme.typography.bodySmall,
-                    color = BlueHint,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

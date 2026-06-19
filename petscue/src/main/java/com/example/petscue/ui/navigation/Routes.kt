@@ -19,6 +19,10 @@ object Routes {
     const val MAP = "map"
     const val SELECT_PET_FOR_ALERT = "select_pet_for_alert"
     const val CREATE_ALERT = "create_alert/{petId}"
+    const val CHAT_DETAIL = "chat_detail/{conversationId}"
+
+    const val ALERT_DETAIL = "alert_detail/{petId}"
+    const val MY_ALERTS = "my_alerts"
 
     fun createAlertRoute(petId: String) = "create_alert/$petId"
     fun petDetailRoute(petId: String) = "pet_detail/$petId"
@@ -26,5 +30,6 @@ object Routes {
     fun adoptionDetailRoute(petId: String) = "adoption_detail/$petId"
     fun editAdoptionPetRoute(petId: String) = "edit_adoption_pet/$petId"
     fun postDetailRoute(postId: String) = "post_detail/$postId"
-
+    fun chatDetailRoute(conversationId: String) = "chat_detail/$conversationId"
+    fun alertDetailRoute(petId: String) = "alert_detail/$petId"
 }

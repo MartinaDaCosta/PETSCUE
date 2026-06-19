@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
 
 class PetRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
@@ -162,5 +164,25 @@ class PetRepositoryImpl @Inject constructor(
     override suspend fun getPetById(petId: String): Pet? {
         val snapshot = petsRef.document(petId).get().await()
         return snapshot.toObject(Pet::class.java)?.copy(id = snapshot.id)
+    }
+    override suspend fun getAnyPetById(petId: String): Pet? {
+        return getPetById(petId) ?: getAdoptionPetById(petId)
+    }
+    override fun getAlertPetsByCurrentUser(): Flow<List<Pet>> = flow {
+        val uid = auth.currentUser?.uid ?: error("No hay sesión iniciada.")
+
+        val userSnapshot = firestore.collection("users")
+            .document(uid)
+            .get()
+            .await()
+
+        val currentUser = userSnapshot.toObject(User::class.java)
+            ?: error("No se pudo cargar el usuario.")
+
+        if (currentUser.role == UserRole.PROTECTORA) {
+            emitAll(getAdoptionPetsByUserId(uid))
+        } else {
+            emitAll(getByUserId(uid))
+        }
     }
 }

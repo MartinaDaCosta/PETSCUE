@@ -21,14 +21,17 @@ data class User(
     val web: String = "",
     val facebook: String = "",
     val instagram: String = "",
+    val comunidad: String = "",
     val provincia: String = "",
     val ciudad: String = "",
 
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+
     val documentacionEnviada: Boolean = false,
-    val documentosUrls: List<String> = emptyList(),
+    val documentos: List<ProtectoraDocument> = emptyList(),
     val motivoRevision: String = "",
 
     val createdAt: Long = 0L,
-
     val admin: Boolean = false
 )

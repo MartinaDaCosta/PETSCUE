@@ -1,20 +1,42 @@
 package com.example.petscue.data.model
 
-// Conversación entre un usuario y una adopta
-// asociada a un animal y, opcionalmente, a una solicitud de adopción.
+enum class ConversationType {
+    GENERAL,
+    LOST_PET_ALERT,
+    ADOPTION
+}
+
 data class Conversation(
     val id: String = "",
+    val type: String = ConversationType.GENERAL.name,
 
-    val animalId: String = "",
-    val animalNombre: String = "",
-    val animalImagen: String = "",
+    val participantIds: List<String> = emptyList(),
 
-    val requestId: String = "",
-
-    val participants: List<String> = emptyList(),
-    val userId: String = "",
-    val protectoraId: String = "",
+    val createdBy: String = "",
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L,
 
     val lastMessage: String = "",
-    val lastUpdated: Long = 0L
+    val lastMessageAt: Long = 0L,
+    val lastMessageSenderId: String = "",
+
+    val unreadCountByUser: Map<String, Int> = emptyMap(),
+
+    val petId: String? = null,
+    val petName: String = "",
+    val petImageUrl: String = "",
+    val petOwnerId: String = "",
+
+    val shelterId: String? = null,
+    val shelterName: String = "",
+
+    val postId: String? = null,
+    val alertId: String? = null,
+
+    val adoptionFormId: String? = null,
+    val hasAdoptionForm: Boolean = false,
+    val adoptionFormStatus: String? = null,
+
+    val otherUserPreviewName: String = "",
+    val otherUserPreviewPhotoUrl: String = ""
 )

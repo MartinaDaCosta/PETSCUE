@@ -13,7 +13,8 @@ class RegisterUseCase @Inject constructor(
     suspend operator fun invoke(
         user: User,
         password: String,
-        profileImageUri: Uri?
+        profileImageUri: Uri?,
+        verificationDocuments: List<Uri> = emptyList()
     ): Result<Unit> {
         if (
             user.nombre.isBlank() ||
@@ -47,18 +48,23 @@ class RegisterUseCase @Inject constructor(
 
         if (user.role == UserRole.PROTECTORA) {
             if (user.nombreProtectora.isBlank()) {
-                return Result.failure(Exception("Introduce el nombre de la adopta."))
+                return Result.failure(Exception("Introduce el nombre de la protectora."))
             }
 
             if (user.provincia.isBlank() || user.ciudad.isBlank()) {
-                return Result.failure(Exception("Completa la location de la adopta."))
+                return Result.failure(Exception("Completa la ubicación de la protectora."))
+            }
+
+            if (verificationDocuments.isEmpty()) {
+                return Result.failure(Exception("Adjunta al menos un documento de verificación."))
             }
         }
 
         return repository.register(
             user = user.copy(username = username),
             password = password,
-            profileImageUri = profileImageUri
+            profileImageUri = profileImageUri,
+            verificationDocuments = verificationDocuments
         )
     }
 }

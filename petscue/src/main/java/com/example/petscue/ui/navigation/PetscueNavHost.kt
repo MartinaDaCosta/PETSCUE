@@ -13,8 +13,11 @@ import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
 import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
-import com.example.petscue.ui.mapa.alerts.SelectPetForAlertScreen
+import com.example.petscue.ui.mapa.AlertDetailScreen
+import com.example.petscue.ui.mapa.MyAlertsScreen
+import com.example.petscue.ui.mapa.alerts.selectPet.SelectPetForAlertScreen
 import com.example.petscue.ui.mapa.alerts.create.CreateAlertScreen
+import com.example.petscue.ui.mensajes.detail.ChatScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.novedades.detailpost.PostDetailScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
@@ -146,6 +149,10 @@ fun PetscueNavHost(
                     navController.popBackStack()
                 },
                 onPetSaved = {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("pet_added", true)
+
                     navController.popBackStack()
                 }
             )
@@ -245,12 +252,18 @@ fun PetscueNavHost(
                 onBack = { navController.popBackStack() }
             )
         }
-        composable(Routes.SELECT_PET_FOR_ALERT) {
+        composable(Routes.SELECT_PET_FOR_ALERT) { backStackEntry ->
+            val petAdded = backStackEntry.savedStateHandle.get<Boolean>("pet_added") == true
+
             SelectPetForAlertScreen(
                 onBack = { navController.popBackStack() },
                 onAddPetClick = { navController.navigate(Routes.ADD_PET) },
                 onPetSelected = { petId ->
                     navController.navigate(Routes.createAlertRoute(petId))
+                },
+                petAdded = petAdded,
+                onPetAddedConsumed = {
+                    backStackEntry.savedStateHandle["pet_added"] = false
                 }
             )
         }
@@ -260,6 +273,43 @@ fun PetscueNavHost(
                 onBack = { navController.popBackStack() },
                 onAlertSaved = {
                     navController.popBackStack(Routes.MAIN, inclusive = false)
+                }
+            )
+        }
+
+        composable(
+            route = Routes.CHAT_DETAIL,
+            arguments = listOf(
+                navArgument("conversationId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            ChatScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Routes.ALERT_DETAIL,
+            arguments = listOf(
+                navArgument("petId") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val petId = backStackEntry.arguments?.getString("petId").orEmpty()
+
+            AlertDetailScreen(
+                petId = petId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.MY_ALERTS) {
+            MyAlertsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenAlert = { petId ->
+                    navController.navigate(Routes.alertDetailRoute(petId))
                 }
             )
         }

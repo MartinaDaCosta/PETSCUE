@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,22 +22,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-
-private val Blanco = Color.White
-private val TextoOscuro = Color(0xFF1A1A2E)
+import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun MarkerSoloNombre(
     nombre: String,
     color: Color
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Card(
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
             border = BorderStroke(2.dp, color),
             elevation = CardDefaults.cardElevation(3.dp)
         ) {
@@ -47,9 +45,9 @@ fun MarkerSoloNombre(
             ) {
                 Text(
                     text = nombre,
-                    color = TextoOscuro,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     modifier = Modifier.widthIn(min = 40.dp, max = 84.dp)
@@ -62,22 +60,20 @@ fun MarkerSoloNombre(
 }
 
 @Composable
-fun MarkerSoloPunto(
-    color: Color
-) {
+fun MarkerSoloPunto(color: Color) {
     Box(
         modifier = Modifier
             .size(18.dp)
             .clip(CircleShape)
             .background(color)
-            .border(3.dp, Blanco, CircleShape),
+            .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(Blanco)
+                .background(MaterialTheme.colorScheme.surface)
         )
     }
 }
@@ -96,16 +92,18 @@ private fun PuntoInferior(color: Color) {
             modifier = Modifier
                 .size(7.dp)
                 .clip(CircleShape)
-                .background(Blanco)
+                .background(MaterialTheme.colorScheme.surface)
         )
     }
 }
 
-fun colorTipoAviso(tipo: String): Color {
-    return when (tipo.uppercase()) {
+fun colorTipoAviso(tipo: String?): Color {
+    return when (tipo?.trim()?.uppercase()) {
         "PERDIDO" -> Color(0xFFE53935)
         "VISTO" -> Color(0xFFFF8000)
         "ENCONTRADO" -> Color(0xFF43A047)
         else -> Color(0xFF1E88E5)
     }
 }
+
+

@@ -11,19 +11,48 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,8 +63,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.petscue.BuildConfig
 import com.example.petscue.data.model.Pet
 import com.example.petscue.ui.novedades.location.SelectedLocation
+import com.example.petscue.ui.theme.AuthCardShape
+import com.example.petscue.ui.theme.AuthTextFieldShape
+import com.example.petscue.ui.theme.PetscueError
+import com.example.petscue.ui.theme.PetscueSuccess
+import com.example.petscue.ui.theme.authPrimaryButtonColors
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -54,15 +89,6 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val BluePrimary = Color(0xFF1976D2)
-private val BlueDark = Color(0xFF0D47A1)
-private val BlueSoft = Color(0xFFEFF6FF)
-private val BlueBorder = Color(0xFFB9D8FF)
-private val BgColor = Color(0xFFF8FBFF)
-private val LostColor = Color(0xFFE53935)
-private val FoundColor = Color(0xFF43A047)
-private val SeenColor = Color(0xFFFB8C00)
-
 @Composable
 fun CreateAlertScreen(
     onBack: () -> Unit,
@@ -77,23 +103,11 @@ fun CreateAlertScreen(
     var loadingCurrentLocation by remember { mutableStateOf(false) }
     var resolvingMapAddress by remember { mutableStateOf(false) }
 
-    val selectedLatLng = uiState.selectedLocation?.let {
-        LatLng(it.lat, it.lng)
-    } ?: LatLng(39.4699, -0.3763)
-
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(selectedLatLng, 14f)
-    }
-
-    LaunchedEffect(selectedLatLng.latitude, selectedLatLng.longitude) {
-        cameraPositionState.position = CameraPosition.fromLatLngZoom(selectedLatLng, 15f)
-    }
-
     LaunchedEffect(Unit) {
         if (!Places.isInitialized()) {
             Places.initialize(
                 context.applicationContext,
-                "AIzaSyCeWkMeZ-sZcAloA6rcyP9ZAKhmFFxMHd8",
+                BuildConfig.MAPS_API_KEY,
                 Locale.getDefault()
             )
         }
@@ -105,12 +119,14 @@ fun CreateAlertScreen(
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
+    ) { granted: Boolean ->
         if (granted) {
             fetchCurrentLocation(
                 context = context,
-                onLoading = { loadingCurrentLocation = it },
-                onResult = { location ->
+                onLoading = { isLoading: Boolean ->
+                    loadingCurrentLocation = isLoading
+                },
+                onResult = { location: SelectedLocation ->
                     vm.onLocationSelected(location)
                     query = location.address
                 }
@@ -120,27 +136,11 @@ fun CreateAlertScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = BgColor
+        color = MaterialTheme.colorScheme.background
     ) {
         when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = BluePrimary)
-                }
-            }
-
-            uiState.pet == null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(uiState.error ?: "No se encontró la mascota")
-                }
-            }
-
+            uiState.isLoading -> LoadingState()
+            uiState.pet == null -> ErrorState(uiState.error ?: "No se encontró la mascota")
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -163,239 +163,85 @@ fun CreateAlertScreen(
                     }
 
                     item {
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { newQuery ->
+                        LocationSearchField(
+                            query = query,
+                            loadingCurrentLocation = loadingCurrentLocation,
+                            onQueryChange = { newQuery: String ->
                                 query = newQuery
-
                                 if (newQuery.length >= 2 && Places.isInitialized()) {
-                                    val placesClient = Places.createClient(context)
-                                    val request = FindAutocompletePredictionsRequest.builder()
-                                        .setQuery(newQuery)
-                                        .build()
-
-                                    placesClient.findAutocompletePredictions(request)
-                                        .addOnSuccessListener { response ->
-                                            suggestions = response.autocompletePredictions.map {
-                                                SelectedLocation(
-                                                    address = it.getFullText(null).toString()
-                                                )
-                                            }
+                                    loadPredictions(
+                                        context = context,
+                                        query = newQuery,
+                                        onResult = { locations: List<SelectedLocation> ->
+                                            suggestions = locations
                                         }
-                                        .addOnFailureListener {
-                                            suggestions = emptyList()
-                                        }
+                                    )
                                 } else {
                                     suggestions = emptyList()
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            placeholder = { Text("Buscar ubicación") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = null)
-                            },
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = {
-                                        locationPermissionLauncher.launch(
-                                            Manifest.permission.ACCESS_FINE_LOCATION
-                                        )
-                                    }
-                                ) {
-                                    if (loadingCurrentLocation) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.MyLocation,
-                                            contentDescription = "Mi ubicación",
-                                            tint = BluePrimary
-                                        )
-                                    }
-                                }
+                            onMyLocationClick = {
+                                locationPermissionLauncher.launch(
+                                    Manifest.permission.ACCESS_FINE_LOCATION
+                                )
                             }
                         )
                     }
 
                     if (suggestions.isNotEmpty()) {
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, BlueBorder)
-                            ) {
-                                LazyColumn(
-                                    modifier = Modifier.heightIn(max = 220.dp)
-                                ) {
-                                    items(suggestions) { item ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    searchExactPlace(
-                                                        context = context,
-                                                        query = item.address,
-                                                        onResult = { selected ->
-                                                            vm.onLocationSelected(selected)
-                                                            query = selected.address
-                                                            suggestions = emptyList()
-                                                        }
-                                                    )
-                                                }
-                                                .padding(16.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.LocationOn,
-                                                contentDescription = null,
-                                                tint = BluePrimary
-                                            )
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Text(item.address)
+                            SuggestionsCard(
+                                suggestions = suggestions,
+                                onSuggestionClick = { suggestion: SelectedLocation ->
+                                    searchExactPlace(
+                                        context = context,
+                                        query = suggestion.address,
+                                        onResult = { selected: SelectedLocation ->
+                                            vm.onLocationSelected(selected)
+                                            query = selected.address
+                                            suggestions = emptyList()
                                         }
-                                        HorizontalDivider(color = BlueBorder.copy(alpha = 0.35f))
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, BlueBorder)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(260.dp)
-                            ) {
-                                GoogleMap(
-                                    modifier = Modifier.fillMaxSize(),
-                                    cameraPositionState = cameraPositionState,
-                                    properties = MapProperties(isMyLocationEnabled = false),
-                                    uiSettings = MapUiSettings(
-                                        zoomControlsEnabled = false,
-                                        myLocationButtonEnabled = false
-                                    ),
-                                    onMapClick = { latLng ->
-                                        resolvingMapAddress = true
-                                        getAddressFromLatLng(
-                                            context = context,
-                                            latLng = latLng,
-                                            onResult = { address ->
-                                                resolvingMapAddress = false
-                                                val location = SelectedLocation(
-                                                    address = address,
-                                                    lat = latLng.latitude,
-                                                    lng = latLng.longitude
-                                                )
-                                                vm.onLocationSelected(location)
-                                                query = address
-                                            }
-                                        )
-                                    }
-                                ) {
-                                    uiState.selectedLocation?.let { selected ->
-                                        val pos = LatLng(selected.lat, selected.lng)
-
-                                        Marker(
-                                            state = MarkerState(position = pos),
-                                            title = selected.address
-                                        )
-
-                                        Circle(
-                                            center = pos,
-                                            radius = uiState.radiusMeters,
-                                            fillColor = BluePrimary.copy(alpha = 0.12f),
-                                            strokeColor = BluePrimary.copy(alpha = 0.45f),
-                                            strokeWidth = 3f
-                                        )
-                                    }
-                                }
-
-                                if (resolvingMapAddress) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(color = BluePrimary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, BlueBorder)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp)
-                            ) {
-                                Text(
-                                    text = "Rango del aviso",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BlueDark
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = formatDistance(uiState.radiusMeters),
-                                    color = BluePrimary
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Slider(
-                                    value = uiState.radiusMeters.toFloat(),
-                                    onValueChange = {
-                                        vm.onRadiusChanged(it.toDouble())
-                                    },
-                                    valueRange = 500f..10000f,
-                                    steps = 18,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = BluePrimary,
-                                        activeTrackColor = BluePrimary,
-                                        inactiveTrackColor = BluePrimary.copy(alpha = 0.2f)
                                     )
-                                )
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("500 m", color = Color.Gray)
-                                    Text("10 km", color = Color.Gray)
                                 }
-                            }
+                            )
                         }
+                    }
+
+                    item {
+                        AlertMapCard(
+                            selectedLocation = uiState.selectedLocation,
+                            radiusMeters = uiState.radiusMeters,
+                            onMapClick = { latLng: LatLng ->
+                                resolvingMapAddress = true
+                                getAddressFromLatLng(
+                                    context = context,
+                                    latLng = latLng,
+                                    onResult = { address: String ->
+                                        resolvingMapAddress = false
+                                        val location = SelectedLocation(
+                                            address = address,
+                                            lat = latLng.latitude,
+                                            lng = latLng.longitude
+                                        )
+                                        vm.onLocationSelected(location)
+                                        query = address
+                                    }
+                                )
+                            },
+                            resolvingMapAddress = resolvingMapAddress
+                        )
+                    }
+
+                    item {
+                        RadiusCard(
+                            radiusMeters = uiState.radiusMeters,
+                            onRadiusChange = vm::onRadiusChanged
+                        )
                     }
 
                     uiState.error?.let { errorMessage ->
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F1))
-                            ) {
-                                Text(
-                                    text = errorMessage,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(14.dp)
-                                )
-                            }
+                            ErrorMessageCard(errorMessage)
                         }
                     }
 
@@ -407,23 +253,50 @@ fun CreateAlertScreen(
                                 .navigationBarsPadding()
                                 .height(54.dp),
                             enabled = !uiState.isSaving,
-                            shape = RoundedCornerShape(18.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                            shape = AuthCardShape,
+                            colors = authPrimaryButtonColors()
                         ) {
                             if (uiState.isSaving) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(22.dp),
                                     strokeWidth = 2.dp,
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             } else {
-                                Text("Guardar aviso")
+                                Text(
+                                    text = "Guardar aviso",
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LoadingState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun ErrorState(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
 }
 
@@ -437,21 +310,22 @@ private fun Header(onBack: () -> Unit) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Volver",
-                tint = BlueDark
+                tint = MaterialTheme.colorScheme.primary
             )
         }
+
         Spacer(modifier = Modifier.width(8.dp))
+
         Column {
             Text(
                 text = "Nuevo aviso",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = BlueDark
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "Define el tipo, la ubicación y el rango",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF6B8DB8)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -461,9 +335,14 @@ private fun Header(onBack: () -> Unit) {
 private fun AlertPetCard(pet: Pet) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -478,7 +357,7 @@ private fun AlertPetCard(pet: Pet) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .clip(RoundedCornerShape(20.dp)),
+                        .clip(MaterialTheme.shapes.large),
                     contentScale = ContentScale.Crop
                 )
             } else {
@@ -486,14 +365,14 @@ private fun AlertPetCard(pet: Pet) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(BlueSoft),
+                        .clip(MaterialTheme.shapes.large)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Pets,
                         contentDescription = null,
-                        tint = BluePrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(48.dp)
                     )
                 }
@@ -501,25 +380,27 @@ private fun AlertPetCard(pet: Pet) {
 
             Text(
                 text = pet.nombre.ifBlank { "Mascota" },
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = BlueDark
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
                 text = "${pet.especie.ifBlank { "-" }} · ${pet.raza.ifBlank { "-" }}",
-                color = BluePrimary
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
             )
 
             Text(
                 text = "${pet.genero.ifBlank { "-" }} · ${pet.edad.ifBlank { "-" }} · ${pet.peso.ifBlank { "-" }}",
-                color = Color(0xFF6B8DB8)
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             if (pet.descripcion.isNotBlank()) {
                 Text(
                     text = pet.descripcion,
-                    color = Color(0xFF173A63)
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -533,9 +414,14 @@ private fun AlertTypeSection(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -544,8 +430,7 @@ private fun AlertTypeSection(
             Text(
                 text = "Tipo de aviso",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = BlueDark
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Row(
@@ -554,21 +439,21 @@ private fun AlertTypeSection(
             ) {
                 AlertTypeChip(
                     text = "Perdido",
-                    color = LostColor,
+                    color = PetscueError,
                     selected = selectedType == AlertType.LOST,
                     onClick = { onTypeSelected(AlertType.LOST) },
                     modifier = Modifier.weight(1f)
                 )
                 AlertTypeChip(
                     text = "Encontrado",
-                    color = FoundColor,
+                    color = PetscueSuccess,
                     selected = selectedType == AlertType.FOUND,
                     onClick = { onTypeSelected(AlertType.FOUND) },
                     modifier = Modifier.weight(1f)
                 )
                 AlertTypeChip(
                     text = "Visto",
-                    color = SeenColor,
+                    color = MaterialTheme.colorScheme.primary,
                     selected = selectedType == AlertType.SEEN,
                     onClick = { onTypeSelected(AlertType.SEEN) },
                     modifier = Modifier.weight(1f)
@@ -588,11 +473,15 @@ private fun AlertTypeChip(
 ) {
     Card(
         modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) color.copy(alpha = 0.18f) else Color.White
+            containerColor = if (selected) color.copy(alpha = 0.16f)
+            else MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, if (selected) color else BlueBorder)
+        border = BorderStroke(
+            1.dp,
+            if (selected) color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        )
     ) {
         Box(
             modifier = Modifier
@@ -603,9 +492,265 @@ private fun AlertTypeChip(
             Text(
                 text = text,
                 color = color,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.labelLarge
             )
         }
+    }
+}
+
+@Composable
+private fun LocationSearchField(
+    query: String,
+    loadingCurrentLocation: Boolean,
+    onQueryChange: (String) -> Unit,
+    onMyLocationClick: () -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        shape = AuthTextFieldShape,
+        placeholder = {
+            Text(
+                text = "Buscar ubicación",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        trailingIcon = {
+            IconButton(onClick = onMyLocationClick) {
+                if (loadingCurrentLocation) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MyLocation,
+                        contentDescription = "Mi ubicación",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun SuggestionsCard(
+    suggestions: List<SelectedLocation>,
+    onSuggestionClick: (SelectedLocation) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        )
+    ) {
+        LazyColumn(
+            modifier = Modifier.heightIn(max = 220.dp)
+        ) {
+            items(suggestions) { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSuggestionClick(item) }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Text(
+                        text = item.address,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlertMapCard(
+    selectedLocation: SelectedLocation?,
+    radiusMeters: Double,
+    onMapClick: (LatLng) -> Unit,
+    resolvingMapAddress: Boolean
+) {
+    val selectedLatLng = selectedLocation?.let {
+        LatLng(it.lat, it.lng)
+    } ?: LatLng(39.4699, -0.3763)
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(selectedLatLng, 14f)
+    }
+
+    LaunchedEffect(selectedLatLng.latitude, selectedLatLng.longitude) {
+        cameraPositionState.position = CameraPosition.fromLatLngZoom(selectedLatLng, 15f)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
+        ) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = MapProperties(isMyLocationEnabled = false),
+                uiSettings = MapUiSettings(
+                    zoomControlsEnabled = false,
+                    myLocationButtonEnabled = false
+                ),
+                onMapClick = onMapClick
+            ) {
+                selectedLocation?.let { selected ->
+                    val pos = LatLng(selected.lat, selected.lng)
+
+                    Marker(
+                        state = MarkerState(position = pos),
+                        title = selected.address
+                    )
+
+                    Circle(
+                        center = pos,
+                        radius = radiusMeters,
+                        fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        strokeColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                        strokeWidth = 3f
+                    )
+                }
+            }
+
+            if (resolvingMapAddress) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadiusCard(
+    radiusMeters: Double,
+    onRadiusChange: (Double) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Rango del aviso",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = formatDistance(radiusMeters),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Slider(
+                value = radiusMeters.toFloat(),
+                onValueChange = { value: Float ->
+                    onRadiusChange(value.toDouble())
+                },
+                valueRange = 500f..10000f,
+                steps = 18,
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "500 m",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "10 km",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorMessageCard(message: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(14.dp)
+        )
     }
 }
 
@@ -616,6 +761,7 @@ private fun fetchCurrentLocation(
     onResult: (SelectedLocation) -> Unit
 ) {
     onLoading(true)
+
     val fusedClient = LocationServices.getFusedLocationProviderClient(context)
 
     fusedClient.lastLocation
@@ -626,6 +772,7 @@ private fun fetchCurrentLocation(
             }
 
             val latLng = LatLng(location.latitude, location.longitude)
+
             getAddressFromLatLng(
                 context = context,
                 latLng = latLng,
@@ -646,6 +793,30 @@ private fun fetchCurrentLocation(
         }
 }
 
+private fun loadPredictions(
+    context: Context,
+    query: String,
+    onResult: (List<SelectedLocation>) -> Unit
+) {
+    val placesClient = Places.createClient(context)
+    val request = FindAutocompletePredictionsRequest.builder()
+        .setQuery(query)
+        .build()
+
+    placesClient.findAutocompletePredictions(request)
+        .addOnSuccessListener { response ->
+            val results = response.autocompletePredictions.map { prediction ->
+                SelectedLocation(
+                    address = prediction.getFullText(null).toString()
+                )
+            }
+            onResult(results)
+        }
+        .addOnFailureListener {
+            onResult(emptyList())
+        }
+}
+
 private fun searchExactPlace(
     context: Context,
     query: String,
@@ -658,9 +829,15 @@ private fun searchExactPlace(
 
     placesClient.findAutocompletePredictions(request)
         .addOnSuccessListener { predictionResponse ->
-            val prediction = predictionResponse.autocompletePredictions.firstOrNull()
-                ?: return@addOnSuccessListener
-            fetchPlaceDetails(context, prediction, onResult)
+            val prediction: AutocompletePrediction =
+                predictionResponse.autocompletePredictions.firstOrNull()
+                    ?: return@addOnSuccessListener
+
+            fetchPlaceDetails(
+                context = context,
+                prediction = prediction,
+                onResult = onResult
+            )
         }
 }
 
@@ -684,6 +861,7 @@ private fun fetchPlaceDetails(
         .addOnSuccessListener { response ->
             val place = response.place
             val latLng = place.latLng ?: return@addOnSuccessListener
+
             onResult(
                 SelectedLocation(
                     address = place.address ?: place.name ?: "Ubicación",
@@ -720,6 +898,7 @@ private fun getAddressFromLatLng(
                 }
             )
         } else {
+            @Suppress("DEPRECATION")
             val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
             val address = addresses?.firstOrNull()?.getAddressLine(0)
                 ?: "${latLng.latitude}, ${latLng.longitude}"

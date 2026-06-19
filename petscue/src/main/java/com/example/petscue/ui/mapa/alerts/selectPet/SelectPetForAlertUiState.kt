@@ -1,4 +1,4 @@
-package com.example.petscue.ui.mapa.alerts
+package com.example.petscue.ui.mapa.alerts.selectPet
 
 import com.example.petscue.data.model.Pet
 

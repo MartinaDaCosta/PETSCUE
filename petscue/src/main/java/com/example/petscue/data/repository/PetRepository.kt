@@ -15,4 +15,6 @@ interface PetRepository {
     suspend fun getAdoptionPetById(petId: String): Pet?
     suspend fun updateAdoptionPet(pet: Pet)
     suspend fun getPetById(petId: String): Pet?
+    fun getAlertPetsByCurrentUser(): Flow<List<Pet>>
+    suspend fun getAnyPetById(petId: String): Pet?
 }

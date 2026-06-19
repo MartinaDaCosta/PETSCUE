@@ -1,6 +1,7 @@
 package com.example.petscue.data.repository
 
 import android.net.Uri
+import com.example.petscue.data.model.ProtectoraDocument
 import com.example.petscue.data.model.User
 
 interface AuthRepository {
@@ -9,7 +10,8 @@ interface AuthRepository {
     suspend fun register(
         user: User,
         password: String,
-        profileImageUri: Uri?
+        profileImageUri: Uri?,
+        verificationDocuments: List<Uri> = emptyList()
     ): Result<Unit>
 
     suspend fun isUsernameAvailable(username: String): Result<Boolean>
@@ -31,11 +33,15 @@ interface AuthRepository {
 
     fun getCurrentUserId(): String?
     suspend fun getCurrentUserProfile(): Result<User>
-    suspend fun uploadProtectoraDocument(fileUri: Uri): Result<String>
+
+    suspend fun uploadProtectoraDocument(fileUri: Uri): Result<ProtectoraDocument>
+
     suspend fun submitProtectoraDocuments(
-        documentUrl: String,
+        documents: List<ProtectoraDocument>,
         notes: String
     ): Result<Unit>
+
+    suspend fun deleteProtectoraDocument(document: ProtectoraDocument): Result<Unit>
 
     suspend fun getPendingProtectoras(): Result<List<User>>
     suspend fun approveProtectora(uid: String): Result<Unit>

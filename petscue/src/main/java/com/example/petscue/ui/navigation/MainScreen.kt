@@ -43,8 +43,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.petscue.ui.mapa.MapaScreen
+import com.example.petscue.ui.mensajes.MensajesScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.profile.ProfileScreen
+import com.example.petscue.ui.protectoras.ProtectorasScreen
 
 sealed class BottomTab(
     val route: String,
@@ -104,7 +106,14 @@ fun MainScreen(
                 .padding(padding)
         ) {
             when (currentTab) {
-                BottomTab.Mapa -> MapaScreen()
+                BottomTab.Mapa -> MapaScreen(
+                    onOpenAlertDetail = { petId ->
+                        navController.navigate("alert_detail/$petId")
+                    },
+                    onOpenMyAlerts = {
+                        navController.navigate("my_alerts")
+                    }
+                )
 
                 BottomTab.Novedades -> NovedadesScreen(
                     onOpenDetail = { postId ->
@@ -112,9 +121,13 @@ fun MainScreen(
                     }
                 )
 
-                BottomTab.Protectoras -> PlaceholderScreen("Protectoras")
+                BottomTab.Protectoras -> ProtectorasScreen()
 
-                BottomTab.Mensajes -> PlaceholderScreen("Mensajes")
+                BottomTab.Mensajes -> MensajesScreen(
+                    onConversationClick = { conversationId ->
+                        navController.navigate(Routes.chatDetailRoute(conversationId))
+                    }
+                )
 
                 BottomTab.Perfil -> ProfileScreen(
                     onAddPetClick = {
@@ -225,20 +238,5 @@ fun PetscueBottomBar(
                 )
             )
         }
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(label: String) {
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1565C0),
-            fontSize = 18.sp
-        )
     }
 }

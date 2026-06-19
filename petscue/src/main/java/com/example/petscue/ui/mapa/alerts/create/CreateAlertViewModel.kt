@@ -12,7 +12,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -23,17 +22,15 @@ enum class AlertType {
 
 @HiltViewModel
 class CreateAlertViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
     private val petRepository: PetRepository,
+    private val alertRepository: AlertRepository,
     private val profileRepository: ProfileRepository,
-    private val alertRepository: AlertRepository
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val petId: String = checkNotNull(savedStateHandle["petId"])
+    private val petId: String = savedStateHandle.get<String>("petId") ?: ""
 
-    private val _uiState = MutableStateFlow(
-        CreateAlertUiState(petId = petId)
-    )
+    private val _uiState = MutableStateFlow(CreateAlertUiState())
     val uiState: StateFlow<CreateAlertUiState> = _uiState.asStateFlow()
 
     init {
@@ -45,23 +42,21 @@ class CreateAlertViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             runCatching {
-                val user = profileRepository.getCurrentUserProfile()
-                val pets = petRepository.getByUserId(user.uid).first()
-                pets.firstOrNull { it.id == petId }
-                    ?: error("No se encontró la mascota.")
+                petRepository.getAnyPetById(petId)
             }.onSuccess { pet ->
                 _uiState.update {
                     it.copy(
                         pet = pet,
                         isLoading = false,
-                        error = null
+                        error = if (pet == null) "No se encontró la mascota" else null
                     )
                 }
             }.onFailure { e ->
                 _uiState.update {
                     it.copy(
+                        pet = null,
                         isLoading = false,
-                        error = e.message ?: "No se pudo cargar la mascota."
+                        error = e.message ?: "No se pudo cargar la mascota"
                     )
                 }
             }
@@ -97,26 +92,50 @@ class CreateAlertViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
 
+            val existing = alertRepository.getAlertByPetId(pet.id)
+            if (existing != null) {
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        error = "Esta mascota ya tiene un aviso activo."
+                    )
+                }
+                return@launch
+            }
+
             runCatching {
+                val user = profileRepository.getCurrentUserProfile()
+
                 val alert = AvisoMapa(
-                    id = "",
+                    id = pet.id,
                     petId = pet.id,
                     userId = pet.userId,
+                    userName = buildString {
+                        append(user.nombre)
+                        if (user.apellido.isNotBlank()) {
+                            append(" ")
+                            append(user.apellido)
+                        }
+                    }.trim(),
+                    userAvatar = user.photoUrl,
                     nombreMascota = pet.nombre,
                     fotoUrl = pet.fotos.firstOrNull().orEmpty(),
+                    direccionAviso = state.selectedLocation.address,
                     tipoAviso = when (state.alertType) {
                         AlertType.LOST -> "PERDIDO"
                         AlertType.FOUND -> "ENCONTRADO"
                         AlertType.SEEN -> "VISTO"
                     },
-                    direccionAviso = state.selectedLocation.address,
+                    sexo = pet.genero,
+                    raza = pet.raza,
+                    edad = pet.edad,
                     lat = state.selectedLocation.lat,
                     lng = state.selectedLocation.lng,
                     radioMetros = state.radiusMeters,
                     createdAt = System.currentTimeMillis()
                 )
 
-                alertRepository.insertAlert(alert)
+                alertRepository.upsertAlert(alert)
             }.onSuccess {
                 _uiState.update {
                     it.copy(
