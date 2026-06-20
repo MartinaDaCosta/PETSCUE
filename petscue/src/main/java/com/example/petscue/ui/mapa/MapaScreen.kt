@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -62,8 +63,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,7 +76,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.createBitmap
@@ -91,6 +91,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -118,6 +119,10 @@ data class LugarSugerido(
     val placeId: String? = null
 )
 
+private enum class MarkerMode {
+    CARD, NAME, DOT
+}
+
 @OptIn(ExperimentalPermissionsApi::class)
 @SuppressLint("MissingPermission")
 @Composable
@@ -127,7 +132,7 @@ fun MapaScreen(
     viewModel: MapaViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val markerBitmaps = remember { mutableStateMapOf<String, Bitmap>() }
+    val context = LocalContext.current
 
     var vistaActiva by remember { mutableStateOf("MAPA") }
     var busqueda by remember { mutableStateOf("") }
@@ -136,8 +141,10 @@ fun MapaScreen(
     var miUbicacion by remember { mutableStateOf<LatLng?>(null) }
     var mostrarSlider by remember { mutableStateOf(false) }
 
+    val markerDescriptors = remember { mutableStateMapOf<String, BitmapDescriptor>() }
+    val markerStates = remember { mutableStateMapOf<String, MarkerState>() }
+
     val radioNotificaciones = uiState.radioNotificaciones
-    val context = LocalContext.current
 
     val locationPermissionState = rememberPermissionState(
         Manifest.permission.ACCESS_FINE_LOCATION
@@ -147,6 +154,10 @@ fun MapaScreen(
 
     val camaraState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLatLng, 13f)
+    }
+
+    val currentZoom by remember {
+        derivedStateOf { camaraState.position.zoom }
     }
 
     val radarTransition = rememberInfiniteTransition(label = "radar")
@@ -170,23 +181,6 @@ fun MapaScreen(
         ),
         label = "radarAlpha"
     )
-
-    LaunchedEffect(uiState.alerts) {
-        val currentIds = uiState.alerts.map { it.id }.toSet()
-        markerBitmaps.keys.filter { it !in currentIds }.forEach { markerBitmaps.remove(it) }
-
-        uiState.alerts.forEach { aviso ->
-            if (!markerBitmaps.containsKey(aviso.id)) {
-                val bitmap = createMarkerBitmapFromUrl(
-                    context = context,
-                    imageUrl = aviso.fotoUrl,
-                    nombre = aviso.nombreMascota,
-                    color = colorTipoAviso(aviso.tipoAviso)
-                )
-                markerBitmaps[aviso.id] = bitmap
-            }
-        }
-    }
 
     LaunchedEffect(Unit) {
         if (!Places.isInitialized()) {
@@ -217,6 +211,39 @@ fun MapaScreen(
                 LatLng(lugar.lat, lugar.lng),
                 16f
             )
+        }
+    }
+
+    LaunchedEffect(uiState.alerts) {
+        val currentIds = uiState.alerts.map { it.id }.toSet()
+
+        markerDescriptors.keys
+            .filter { it !in currentIds }
+            .forEach { markerDescriptors.remove(it) }
+
+        markerStates.keys
+            .filter { it !in currentIds }
+            .forEach { markerStates.remove(it) }
+
+        uiState.alerts.forEach { aviso ->
+            val position = LatLng(aviso.lat, aviso.lng)
+
+            val existingState = markerStates[aviso.id]
+            if (existingState == null) {
+                markerStates[aviso.id] = MarkerState(position = position)
+            } else if (existingState.position != position) {
+                existingState.position = position
+            }
+
+            if (markerDescriptors[aviso.id] == null) {
+                val bitmap = createMarkerBitmapFromUrl(
+                    context = context,
+                    imageUrl = aviso.fotoUrl,
+                    nombre = aviso.nombreMascota,
+                    color = colorTipoAviso(aviso.tipoAviso)
+                )
+                markerDescriptors[aviso.id] = BitmapDescriptorFactory.fromBitmap(bitmap)
+            }
         }
     }
 
@@ -318,7 +345,6 @@ fun MapaScreen(
                                 } else {
                                     MaterialTheme.colorScheme.onPrimary
                                 },
-                                fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
                         }
@@ -347,8 +373,10 @@ fun MapaScreen(
                 ) {
                     lugarSeleccionado?.let { lugar ->
                         Marker(
-                            state = rememberUpdatedMarkerState(LatLng(lugar.lat, lugar.lng)),
-                            title = ""
+                            state = rememberUpdatedMarkerState(
+                                LatLng(lugar.lat, lugar.lng)
+                            ),
+                            title = lugar.address
                         )
                     }
 
@@ -371,29 +399,60 @@ fun MapaScreen(
                     }
 
                     uiState.alerts.forEach { aviso ->
-                        key(aviso.id) {
-                            val position = LatLng(aviso.lat, aviso.lng)
-                            val zoom = camaraState.position.zoom
-                            val markerBitmap = markerBitmaps[aviso.id]
+                        val markerState = markerStates[aviso.id]
+                        val markerIcon = markerDescriptors[aviso.id]
+                        val position = LatLng(aviso.lat, aviso.lng)
 
-                            when {
-                                zoom >= 12.8f && markerBitmap != null -> {
-                                    Marker(
-                                        state = rememberUpdatedMarkerState(position),
-                                        title = aviso.nombreMascota,
-                                        icon = BitmapDescriptorFactory.fromBitmap(markerBitmap),
-                                        anchor = Offset(0.5f, 0.92f),
-                                        onClick = {
-                                            onOpenAlertDetail(aviso.petId)
-                                            true
+                        val markerMode = when {
+                            currentZoom >= 12.8f -> MarkerMode.CARD
+                            currentZoom >= 10.8f -> MarkerMode.NAME
+                            else -> MarkerMode.DOT
+                        }
+
+                        if (markerState != null) {
+                            if (markerState.position != position) {
+                                markerState.position = position
+                            }
+
+                            when (markerMode) {
+                                MarkerMode.CARD -> {
+                                    if (markerIcon != null) {
+                                        Marker(
+                                            state = markerState,
+                                            title = aviso.nombreMascota,
+                                            snippet = aviso.tipoAviso,
+                                            icon = markerIcon,
+                                            anchor = Offset(0.5f, 0.92f),
+                                            onClick = {
+                                                onOpenAlertDetail(aviso.petId)
+                                                true
+                                            }
+                                        )
+                                    } else {
+                                        MarkerComposable(
+                                            keys = arrayOf(aviso.id, markerMode.name),
+                                            state = markerState,
+                                            title = aviso.nombreMascota,
+                                            anchor = Offset(0.5f, 1f),
+                                            onClick = {
+                                                onOpenAlertDetail(aviso.petId)
+                                                true
+                                            }
+                                        ) {
+                                            MarkerSoloNombre(
+                                                nombre = aviso.nombreMascota,
+                                                color = colorTipoAviso(aviso.tipoAviso)
+                                            )
                                         }
-                                    )
+                                    }
                                 }
 
-                                zoom >= 10.8f -> {
+                                MarkerMode.NAME -> {
                                     MarkerComposable(
-                                        state = rememberUpdatedMarkerState(position),
+                                        keys = arrayOf(aviso.id, markerMode.name),
+                                        state = markerState,
                                         title = aviso.nombreMascota,
+                                        anchor = Offset(0.5f, 1f),
                                         onClick = {
                                             onOpenAlertDetail(aviso.petId)
                                             true
@@ -406,10 +465,12 @@ fun MapaScreen(
                                     }
                                 }
 
-                                else -> {
+                                MarkerMode.DOT -> {
                                     MarkerComposable(
-                                        state = rememberUpdatedMarkerState(position),
+                                        keys = arrayOf(aviso.id, markerMode.name),
+                                        state = markerState,
                                         title = aviso.nombreMascota,
+                                        anchor = Offset(0.5f, 0.5f),
                                         onClick = {
                                             onOpenAlertDetail(aviso.petId)
                                             true
@@ -421,15 +482,15 @@ fun MapaScreen(
                                     }
                                 }
                             }
-
-                            Circle(
-                                center = position,
-                                radius = aviso.radioMetros,
-                                fillColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.12f),
-                                strokeColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.45f),
-                                strokeWidth = 2f
-                            )
                         }
+
+                        Circle(
+                            center = position,
+                            radius = aviso.radioMetros,
+                            fillColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.12f),
+                            strokeColor = colorTipoAviso(aviso.tipoAviso).copy(alpha = 0.45f),
+                            strokeWidth = 2f
+                        )
                     }
                 }
 
@@ -547,7 +608,7 @@ fun MapaScreen(
                             }
                         }
 
-                        androidx.compose.animation.AnimatedVisibility(
+                        this@Column.AnimatedVisibility(
                             visible = mostrarSlider,
                             modifier = Modifier
                                 .padding(start = tabWidth + 6.dp)
@@ -580,7 +641,6 @@ fun MapaScreen(
                                     Column {
                                         Text(
                                             text = "Radio de notificaciones",
-                                            fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface,
                                             fontSize = 13.sp
                                         )
@@ -588,7 +648,6 @@ fun MapaScreen(
                                         Text(
                                             text = formatoDistancia(radioNotificaciones),
                                             color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold,
                                             fontSize = 12.sp
                                         )
                                     }
@@ -648,7 +707,9 @@ fun MapaScreen(
 @Composable
 private fun rememberUpdatedMarkerState(position: LatLng): MarkerState {
     val state = remember { MarkerState(position = position) }
-    state.position = position
+    if (state.position != position) {
+        state.position = position
+    }
     return state
 }
 
@@ -675,7 +736,7 @@ private suspend fun createMarkerBitmapFromUrl(
     val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         this.color = color.toArgb()
-        this.strokeWidth = borderStrokeWidth
+        strokeWidth = borderStrokeWidth
     }
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -693,7 +754,7 @@ private suspend fun createMarkerBitmapFromUrl(
     val avatarBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         this.color = color.copy(alpha = 0.25f).toArgb()
-        this.strokeWidth = 4f
+        strokeWidth = 4f
     }
 
     val cardRect = RectF(10f, 10f, width - 10f, 236f)
@@ -788,6 +849,7 @@ private fun drawAvatarFallback(
 
     val cx = avatarRect.centerX()
     val cy = avatarRect.centerY()
+
     canvas.drawOval(avatarRect, fallbackPaint)
     canvas.drawOval(avatarRect, avatarBorderPaint)
 
