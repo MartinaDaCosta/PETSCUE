@@ -182,6 +182,20 @@ fun MapaScreen(
         label = "radarAlpha"
     )
 
+    LaunchedEffect(locationPermissionState.status.isGranted) {
+        if (locationPermissionState.status.isGranted) {
+            obtenerUbicacionActual(context) { latLng ->
+                miUbicacion = latLng
+                camaraState.position = CameraPosition.fromLatLngZoom(latLng, 14f)
+
+                viewModel.updateMyLocation(
+                    lat = latLng.latitude,
+                    lng = latLng.longitude
+                )
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (!Places.isInitialized()) {
             Places.initialize(
@@ -201,6 +215,11 @@ fun MapaScreen(
             obtenerUbicacionActual(context) { latLng ->
                 miUbicacion = latLng
                 camaraState.position = CameraPosition.fromLatLngZoom(latLng, 14f)
+
+                viewModel.updateMyLocation(
+                    lat = latLng.latitude,
+                    lng = latLng.longitude
+                )
             }
         }
     }
@@ -654,7 +673,13 @@ fun MapaScreen(
 
                                     Slider(
                                         value = radioNotificaciones.toFloat(),
-                                        onValueChange = { viewModel.onRadioChanged(it.toDouble()) },
+                                        onValueChange = {
+                                            viewModel.onRadioChanged(
+                                                value = it.toDouble(),
+                                                currentLat = miUbicacion?.latitude,
+                                                currentLng = miUbicacion?.longitude
+                                            )
+                                        },
                                         valueRange = 500f..10000f,
                                         steps = 18,
                                         colors = SliderDefaults.colors(

@@ -2,7 +2,10 @@
 
 package com.example.petscue.ui.novedades
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -74,6 +77,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.petscue.data.model.Post
@@ -120,7 +124,29 @@ fun NovedadesScreen(
 
     val currentUserHandle = currentUser.username.trim()
         .let { if (it.isBlank()) "@usuario" else "@$it" }
+    val context = LocalContext.current
 
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            // Aquí puedes registrar si aceptó o no
+        }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            }
+        }
+    }
     var mostrarComposer       by rememberSaveable { mutableStateOf(false) }
     var mostrarLocationPicker by rememberSaveable { mutableStateOf(false) }
     var postAComentar         by rememberSaveable { mutableStateOf<Post?>(null) }

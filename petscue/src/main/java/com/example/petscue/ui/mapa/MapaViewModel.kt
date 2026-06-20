@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.petscue.data.repository.AlertRepository
 import com.example.petscue.data.repository.AuthRepository
+import com.example.petscue.data.repository.UserLocationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class MapaViewModel @Inject constructor(
     private val alertRepository: AlertRepository,
     private val authRepository: AuthRepository,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val userLocationRepository: UserLocationRepository,
 ) : ViewModel() {
 
     private val initialRadio = savedStateHandle["radioNotificaciones"] ?: 1500.0
@@ -36,9 +38,18 @@ class MapaViewModel @Inject constructor(
         observeAlerts()
     }
 
-    fun onRadioChanged(value: Double) {
+    fun onRadioChanged(value: Double, currentLat: Double?, currentLng: Double?) {
         savedStateHandle["radioNotificaciones"] = value
         _uiState.update { it.copy(radioNotificaciones = value) }
+
+        if (currentLat != null && currentLng != null) {
+            userLocationRepository.updateUserLocation(
+                lat = currentLat,
+                lng = currentLng,
+                notificationsEnabled = true,
+                notificationRadius = value
+            )
+        }
     }
 
     fun deleteAlert(petId: String, onDeleted: (() -> Unit)? = null) {
@@ -52,7 +63,19 @@ class MapaViewModel @Inject constructor(
             }
         }
     }
+    fun updateMyLocation(lat: Double, lng: Double) {
+        userLocationRepository.updateUserLocation(
+            lat = lat,
+            lng = lng,
+            notificationsEnabled = true,
+            notificationRadius = _uiState.value.radioNotificaciones
+        )
+    }
 
+    fun updateNotificationRadius(radius: Double) {
+        savedStateHandle["radioNotificaciones"] = radius
+        _uiState.update { it.copy(radioNotificaciones = radius) }
+    }
     fun isMyAlert(userId: String): Boolean {
         return userId.isNotBlank() && userId == _uiState.value.currentUserId
     }

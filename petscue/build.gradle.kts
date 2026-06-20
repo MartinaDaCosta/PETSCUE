@@ -63,13 +63,13 @@ android {
 }
 
 dependencies {
-
     // ---------- Firebase ----------
     implementation(platform(libs.firebase.bom))      // BOM para alinear versiones Firebase
     implementation(libs.firebase.auth)               // Firebase Authentication
     implementation(libs.firebase.firestore)          // Cloud Firestore
     implementation(libs.firebase.storage)            // Firebase Storage
     implementation(libs.firebase.crashlytics)        // Firebase Crashlytics
+    implementation(libs.firebase.messaging)          // Firebase Messaging
 
     // ---------- AndroidX base ----------
     implementation(libs.androidx.core.ktx)           // Core KTX
@@ -88,7 +88,7 @@ dependencies {
 
     // ---------- Room ----------
     implementation(libs.room.runtime)                // Room runtime
-    implementation(libs.room.ktx)                    // Room coroutines/extensions
+    implementation(libs.room.ktx)
     ksp(libs.room.compiler)                          // Room compiler
 
     // ---------- Dependency Injection ----------

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">PETSCUE</string>
+    <string name="default_notification_channel_id">petscue_alerts</string>
+    <string name="default_notification_channel_name">Avisos cercanos</string>
 </resources>

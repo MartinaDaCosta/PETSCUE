@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.petscue.notifications.saveCurrentFcmToken
 import com.example.petscue.ui.admin.AdminApprovalScreen
 import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
@@ -90,6 +91,7 @@ fun PetscueNavHost(
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = { destination ->
+                    saveCurrentFcmToken()
                     navController.navigate(destination) {
                         popUpTo(Routes.AUTH) { inclusive = true }
                         launchSingleTop = true
