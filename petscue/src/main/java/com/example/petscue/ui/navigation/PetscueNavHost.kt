@@ -332,7 +332,6 @@ fun PetscueNavHost(
                 onOpenProfile = { anotherUserId ->
                     navController.navigate("user_profile/$anotherUserId")
                 },
-                onFollowClick = {},
                 onMessageClick = {}
             )
         }

@@ -163,7 +163,6 @@ fun MainScreen(
                     onOpenProfile = { userId ->
                         navController.navigate(userProfileRoute(userId))
                     },
-                    onFollowClick = {},
                     onMessageClick = {}
                 )
             }

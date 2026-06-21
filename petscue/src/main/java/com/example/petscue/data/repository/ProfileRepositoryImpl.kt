@@ -4,6 +4,7 @@ import com.example.petscue.data.model.Pet
 import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.User
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -72,11 +73,23 @@ class ProfileRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getFollowersCount(userId: String): Int {
-        return 0
+        val snapshot = db.collection("follows")
+            .whereEqualTo("followedId", userId)
+            .count()
+            .get(AggregateSource.SERVER)
+            .await()
+
+        return snapshot.count.toInt()
     }
 
     override suspend fun getFollowingCount(userId: String): Int {
-        return 0
+        val snapshot = db.collection("follows")
+            .whereEqualTo("followerId", userId)
+            .count()
+            .get(AggregateSource.SERVER)
+            .await()
+
+        return snapshot.count.toInt()
     }
 
     override fun getAdoptionPetsByProtectora(protectoraId: String): Flow<List<Pet>> = callbackFlow {
@@ -96,5 +109,51 @@ class ProfileRepositoryImpl @Inject constructor(
             }
 
         awaitClose { listener.remove() }
+    }
+
+    override suspend fun isFollowing(followerId: String, followedId: String): Boolean {
+        val snapshot = db.collection("follows")
+            .whereEqualTo("followerId", followerId)
+            .whereEqualTo("followedId", followedId)
+            .get()
+            .await()
+
+        return !snapshot.isEmpty
+    }
+
+    override suspend fun followUser(followerId: String, followedId: String) {
+        if (followerId == followedId) return
+
+        val existing = db.collection("follows")
+            .whereEqualTo("followerId", followerId)
+            .whereEqualTo("followedId", followedId)
+            .get()
+            .await()
+
+        if (existing.isEmpty) {
+            val followId = "${followerId}_$followedId"
+            db.collection("follows")
+                .document(followId)
+                .set(
+                    mapOf(
+                        "followerId" to followerId,
+                        "followedId" to followedId,
+                        "createdAt" to System.currentTimeMillis()
+                    )
+                )
+                .await()
+        }
+    }
+
+    override suspend fun unfollowUser(followerId: String, followedId: String) {
+        val snapshot = db.collection("follows")
+            .whereEqualTo("followerId", followerId)
+            .whereEqualTo("followedId", followedId)
+            .get()
+            .await()
+
+        snapshot.documents.forEach { doc ->
+            doc.reference.delete().await()
+        }
     }
 }

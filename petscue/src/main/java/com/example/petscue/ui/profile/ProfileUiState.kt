@@ -24,5 +24,6 @@ data class ProfileUiState(
     val adoptionPets: List<Pet> = emptyList(),
     val followersCount: Int = 0,
     val followingCount: Int = 0,
+    val isFollowing: Boolean = false,
     val selectedTab: ProfileTab = ProfileTab.PETS_OR_ADOPTION
 )

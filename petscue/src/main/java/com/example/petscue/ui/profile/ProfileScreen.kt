@@ -35,7 +35,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -71,7 +70,6 @@ fun ProfileScreen(
     onOpenPostDetail: (String) -> Unit,
     onOpenProfile: (String) -> Unit,
     isOwnProfile: Boolean = true,
-    onFollowClick: () -> Unit = {},
     onMessageClick: () -> Unit = {},
     vm: ProfileViewModel = hiltViewModel()
 ) {
@@ -118,8 +116,9 @@ fun ProfileScreen(
                     followersCount = state.followersCount,
                     followingCount = state.followingCount,
                     isOwnProfile = isOwnProfile,
+                    isFollowing = state.isFollowing,
                     onEditProfile = { },
-                    onFollowClick = onFollowClick,
+                    onFollowClick = vm::toggleFollow,
                     onMessageClick = onMessageClick
                 )
             } else {
@@ -130,8 +129,9 @@ fun ProfileScreen(
                     followersCount = state.followersCount,
                     followingCount = state.followingCount,
                     isOwnProfile = isOwnProfile,
+                    isFollowing = state.isFollowing,
                     onEditProfile = { },
-                    onFollowClick = onFollowClick,
+                    onFollowClick = vm::toggleFollow,
                     onMessageClick = onMessageClick
                 )
             }
@@ -209,6 +209,7 @@ private fun UserProfileHeader(
     followersCount: Int,
     followingCount: Int,
     isOwnProfile: Boolean,
+    isFollowing: Boolean,
     onEditProfile: () -> Unit,
     onFollowClick: () -> Unit,
     onMessageClick: () -> Unit
@@ -304,7 +305,7 @@ private fun UserProfileHeader(
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Seguir")
+                        Text(if (isFollowing) "Dejar de seguir" else "Seguir")
                     }
 
                     OutlinedButton(
@@ -334,6 +335,7 @@ private fun ProtectoraProfileHeader(
     followersCount: Int,
     followingCount: Int,
     isOwnProfile: Boolean,
+    isFollowing: Boolean,
     onEditProfile: () -> Unit,
     onFollowClick: () -> Unit,
     onMessageClick: () -> Unit
@@ -461,7 +463,7 @@ private fun ProtectoraProfileHeader(
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Seguir")
+                        Text(if (isFollowing) "Dejar de seguir" else "Seguir")
                     }
 
                     OutlinedButton(

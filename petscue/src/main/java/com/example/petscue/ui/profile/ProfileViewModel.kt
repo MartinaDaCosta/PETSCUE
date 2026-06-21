@@ -68,6 +68,14 @@ class ProfileViewModel @Inject constructor(
                     repository.getFollowingCount(user.uid)
                 }.getOrDefault(0)
 
+                val isFollowing = if (currentUser.uid != user.uid) {
+                    runCatching {
+                        repository.isFollowing(currentUser.uid, user.uid)
+                    }.getOrDefault(false)
+                } else {
+                    false
+                }
+
                 _uiState.update { current ->
                     current.copy(
                         isLoading = true,
@@ -78,7 +86,8 @@ class ProfileViewModel @Inject constructor(
                         mediaPosts = mediaPosts,
                         likedPosts = likedPosts,
                         followersCount = followersCount,
-                        followingCount = followingCount
+                        followingCount = followingCount,
+                        isFollowing = isFollowing
                     )
                 }
 
@@ -110,6 +119,31 @@ class ProfileViewModel @Inject constructor(
                 _uiState.update { state ->
                     state.copy(isLoading = false)
                 }
+            }
+        }
+    }
+
+    fun toggleFollow() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val currentUserId = state.currentUserId
+            val viewedUserId = state.user?.uid ?: return@launch
+
+            android.util.Log.d("FOLLOW_DEBUG", "current=$currentUserId viewed=$viewedUserId isFollowing=${state.isFollowing}")
+
+            if (currentUserId.isBlank() || viewedUserId.isBlank() || currentUserId == viewedUserId) return@launch
+
+            if (state.isFollowing) {
+                repository.unfollowUser(currentUserId, viewedUserId)
+            } else {
+                repository.followUser(currentUserId, viewedUserId)
+            }
+
+            _uiState.update {
+                it.copy(
+                    isFollowing = !state.isFollowing,
+                    followersCount = if (state.isFollowing) it.followersCount - 1 else it.followersCount + 1
+                )
             }
         }
     }
