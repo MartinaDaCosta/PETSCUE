@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,7 +31,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
@@ -65,27 +68,13 @@ fun ProfileScreen(
     onAddPetClick: () -> Unit,
     onPetClick: (String) -> Unit,
     onAdoptionPetClick: (String) -> Unit,
+    isOwnProfile: Boolean = true,
+    onFollowClick: () -> Unit = {},
+    onMessageClick: () -> Unit = {},
     vm: ProfileViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
-    val user = state.user
-
-    if (user == null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BlueSoft),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Cargando perfil...",
-                color = BlueDark,
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-        return
-    }
-
+    val user = state.user ?: return
     val isProtectora = user.role == UserRole.PROTECTORA
 
     LazyColumn(
@@ -95,15 +84,38 @@ fun ProfileScreen(
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
-            ProfileHeader(
-                fullName = "${user.nombre} ${user.apellido}".trim(),
-                username = "",
-                photoUrl = user.photoUrl,
-                postsCount = state.posts.size,
-                followersCount = state.followersCount,
-                followingCount = state.followingCount,
-                onEditProfile = { }
-            )
+            if (isProtectora) {
+                ProtectoraProfileHeader(
+                    nombreProtectora = user.nombreProtectora,
+                    descripcion = user.descripcionProtectora,
+                    direccion = user.direccion,
+                    telefono = user.telefono,
+                    web = user.web,
+                    instagram = user.instagram,
+                    facebook = user.facebook,
+                    photoUrl = user.photoUrl,
+                    postsCount = state.posts.size,
+                    followersCount = state.followersCount,
+                    followingCount = state.followingCount,
+                    isOwnProfile = isOwnProfile,
+                    onEditProfile = { },
+                    onFollowClick = onFollowClick,
+                    onMessageClick = onMessageClick
+                )
+            } else {
+                UserProfileHeader(
+                    fullName = "${user.nombre} ${user.apellido}".trim(),
+                    descripcion = user.descripcionProtectora,
+                    photoUrl = user.photoUrl,
+                    postsCount = state.posts.size,
+                    followersCount = state.followersCount,
+                    followingCount = state.followingCount,
+                    isOwnProfile = isOwnProfile,
+                    onEditProfile = { },
+                    onFollowClick = onFollowClick,
+                    onMessageClick = onMessageClick
+                )
+            }
         }
 
         item {
@@ -131,7 +143,6 @@ fun ProfileScreen(
                         )
                     }
                 }
-
                 ProfileTab.POSTS -> PostsPanel(state.posts)
                 ProfileTab.REPLIES -> PostsPanel(state.replies)
                 ProfileTab.MEDIA -> PostsPanel(state.mediaPosts)
@@ -142,25 +153,29 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileHeader(
+private fun UserProfileHeader(
     fullName: String,
-    username: String,
+    descripcion: String,
     photoUrl: String,
     postsCount: Int,
     followersCount: Int,
     followingCount: Int,
-    onEditProfile: () -> Unit
+    isOwnProfile: Boolean,
+    onEditProfile: () -> Unit,
+    onFollowClick: () -> Unit,
+    onMessageClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(30.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, BlueBorder)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp)
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (photoUrl.isNotBlank()) {
@@ -168,14 +183,14 @@ private fun ProfileHeader(
                         model = photoUrl,
                         contentDescription = "Foto de perfil",
                         modifier = Modifier
-                            .size(88.dp)
+                            .size(92.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Box(
                         modifier = Modifier
-                            .size(88.dp)
+                            .size(92.dp)
                             .clip(CircleShape)
                             .background(BluePrimary.copy(alpha = 0.14f)),
                         contentAlignment = Alignment.Center
@@ -189,53 +204,293 @@ private fun ProfileHeader(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(20.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    ProfileStat(postsCount.toString(), "Publicaciones")
-                    ProfileStat(followersCount.toString(), "Seguidores")
-                    ProfileStat(followingCount.toString(), "Seguidos")
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = fullName.ifBlank { "Usuario" },
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = BlueDark,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = fullName.ifBlank { "Usuario" },
-                style = MaterialTheme.typography.headlineSmall,
-                color = BlueDark,
-                fontWeight = FontWeight.Bold
-            )
-
-            if (username.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = username,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = BluePrimary
-                )
+            if (descripcion.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = BlueSoft
+                ) {
+                    Text(
+                        text = descripcion,
+                        modifier = Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BlueDark
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = BlueBorder
+            )
 
-            Button(
-                onClick = onEditProfile,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BluePrimary,
-                    contentColor = Color.White
-                )
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Text("Editar perfil")
+                ProfileStat(postsCount.toString(), "Publicaciones")
+                ProfileStat(followersCount.toString(), "Seguidores")
+                ProfileStat(followingCount.toString(), "Seguidos")
+            }
+
+            if (isOwnProfile) {
+                Button(
+                    onClick = onEditProfile,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BluePrimary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Editar perfil")
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onFollowClick,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BluePrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Seguir")
+                    }
+
+                    OutlinedButton(
+                        onClick = onMessageClick,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text("Enviar mensaje")
+                    }
+                }
             }
         }
     }
 }
+@Composable
+private fun ProtectoraProfileHeader(
+    nombreProtectora: String,
+    descripcion: String,
+    direccion: String,
+    telefono: String,
+    web: String,
+    instagram: String,
+    facebook: String,
+    photoUrl: String,
+    postsCount: Int,
+    followersCount: Int,
+    followingCount: Int,
+    isOwnProfile: Boolean,
+    onEditProfile: () -> Unit,
+    onFollowClick: () -> Unit,
+    onMessageClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(30.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, BlueBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
+                if (photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = photoUrl,
+                        contentDescription = "Foto de la protectora",
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(CircleShape)
+                            .background(BluePrimary.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = nombreProtectora.firstOrNull()?.uppercase() ?: "?",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = BluePrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = nombreProtectora.ifBlank { "Protectora" },
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = BlueDark,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.offset(y = (-2).dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    if (telefono.isNotBlank()) {
+                        InlineProfileInfo("📞", telefono)
+                    }
+
+                    if (direccion.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        InlineProfileInfo("📍", direccion)
+                    }
+                }
+            }
+
+            if (descripcion.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = BlueSoft
+                ) {
+                    Text(
+                        text = descripcion,
+                        modifier = Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BlueDark
+                    )
+                }
+            }
+
+            ProtectoraBottomInfo(
+                web = web,
+                instagram = instagram,
+                facebook = facebook
+            )
+
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = BlueBorder
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ProfileStat(postsCount.toString(), "Publicaciones")
+                ProfileStat(followersCount.toString(), "Seguidores")
+                ProfileStat(followingCount.toString(), "Seguidos")
+            }
+
+            if (isOwnProfile) {
+                Button(
+                    onClick = onEditProfile,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BluePrimary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Editar perfil")
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onFollowClick,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BluePrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Seguir")
+                    }
+
+                    OutlinedButton(
+                        onClick = onMessageClick,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text("Enviar mensaje")
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+private fun InlineProfileInfo(
+    icon: String,
+    value: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = BlueDark,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+@Composable
+private fun ProtectoraBottomInfo(
+    web: String,
+    instagram: String,
+    facebook: String
+) {
+    val items = listOfNotNull(
+        web.takeIf { it.isNotBlank() }?.let { "🌐" to it },
+        instagram.takeIf { it.isNotBlank() }?.let { "📸" to it },
+        facebook.takeIf { it.isNotBlank() }?.let { "📘" to it }
+    )
+
+    if (items.isEmpty()) return
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items.forEach { (icon, value) ->
+            InlineProfileInfo(icon = icon, value = value)
+        }
+    }
+}
 @Composable
 private fun ProfileStat(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

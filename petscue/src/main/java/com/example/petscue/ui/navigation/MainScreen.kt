@@ -137,6 +137,7 @@ fun MainScreen(
                 )
 
                 BottomTab.Perfil -> ProfileScreen(
+                    isOwnProfile = true,
                     onAddPetClick = {
                         currentTabRoute = BottomTab.Perfil.route
                         navController.navigate(Routes.ADD_PET)
