@@ -20,8 +20,12 @@ class ProfileRepositoryImpl @Inject constructor(
         val uid = auth.currentUser?.uid
             ?: error("No hay sesión iniciada.")
 
+        return getUserProfileById(uid)
+    }
+
+    override suspend fun getUserProfileById(userId: String): User {
         val snapshot = db.collection("users")
-            .document(uid)
+            .document(userId)
             .get()
             .await()
 

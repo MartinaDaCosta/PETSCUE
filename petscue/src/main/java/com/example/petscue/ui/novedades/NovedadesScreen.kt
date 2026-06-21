@@ -110,12 +110,13 @@ private val SelectedLocationSaver: Saver<SelectedLocation, Any> = mapSaver(
 
 @Composable
 fun NovedadesScreen(
-    onOpenDetail : (String) -> Unit,
-    viewModel    : NovedadesViewModel = hiltViewModel()
+    onOpenDetail: (String) -> Unit,
+    onOpenProfile: (String) -> Unit,
+    viewModel: NovedadesViewModel = hiltViewModel()
 ) {
-    val uiState           by viewModel.uiState.collectAsState()
-    val currentUser        = uiState.currentUser
-    val snackbarHostState  = remember { SnackbarHostState() }
+    val uiState by viewModel.uiState.collectAsState()
+    val currentUser = uiState.currentUser
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val currentUserName = listOf(currentUser.nombre, currentUser.apellido)
         .filter { it.isNotBlank() }
@@ -124,14 +125,13 @@ fun NovedadesScreen(
 
     val currentUserHandle = currentUser.username.trim()
         .let { if (it.isBlank()) "@usuario" else "@$it" }
+
     val context = LocalContext.current
 
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            // Aquí puedes registrar si aceptó o no
-        }
+        ) { }
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -147,10 +147,11 @@ fun NovedadesScreen(
             }
         }
     }
-    var mostrarComposer       by rememberSaveable { mutableStateOf(false) }
+
+    var mostrarComposer by rememberSaveable { mutableStateOf(false) }
     var mostrarLocationPicker by rememberSaveable { mutableStateOf(false) }
-    var postAComentar         by rememberSaveable { mutableStateOf<Post?>(null) }
-    var filtroSeleccionado    by rememberSaveable { mutableStateOf("Todos") }
+    var postAComentar by rememberSaveable { mutableStateOf<Post?>(null) }
+    var filtroSeleccionado by rememberSaveable { mutableStateOf("Todos") }
 
     var selectedLocation by rememberSaveable(stateSaver = SelectedLocationSaver) {
         mutableStateOf(SelectedLocation())
@@ -158,7 +159,7 @@ fun NovedadesScreen(
 
     val imagenesSeleccionadas = rememberSaveable(
         saver = listSaver(
-            save    = { stateList -> stateList.toList() },
+            save = { stateList -> stateList.toList() },
             restore = { restored -> mutableStateListOf<String>().apply { addAll(restored) } }
         )
     ) { mutableStateListOf<String>() }
@@ -190,7 +191,7 @@ fun NovedadesScreen(
         when {
             uiState.isLoading -> {
                 Box(
-                    modifier         = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = BluePrimary)
@@ -199,13 +200,13 @@ fun NovedadesScreen(
 
             else -> {
                 LazyColumn(
-                    contentPadding      = PaddingValues(vertical = 8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier            = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     item {
                         CrearPublicacionCard(
-                            photoUrl    = currentUser.photoUrl,
+                            photoUrl = currentUser.photoUrl,
                             displayName = currentUserName,
                             onTextClick = {
                                 imagenesSeleccionadas.clear()
@@ -223,9 +224,9 @@ fun NovedadesScreen(
 
                     item {
                         FiltrosNovedadesSticky(
-                            filtros            = filtros,
+                            filtros = filtros,
                             filtroSeleccionado = filtroSeleccionado,
-                            onFiltroSelected   = { filtroSeleccionado = it }
+                            onFiltroSelected = { filtroSeleccionado = it }
                         )
                     }
 
@@ -236,19 +237,23 @@ fun NovedadesScreen(
                     } else {
                         items(
                             items = postsFiltrados,
-                            key   = { post: Post -> post.id }
+                            key = { post: Post -> post.id }
                         ) { post: Post ->
                             PostCard(
-                                post           = post,
-                                isLiked        = uiState.likedPostIds.contains(post.id),
-                                isReposted     = uiState.repostedPostIds.contains(post.id),
-                                isOwner        = post.userId == currentUser.uid,
-                                onDeleteClick  = { viewModel.deletePost(post) },
+                                post = post,
+                                isLiked = uiState.likedPostIds.contains(post.id),
+                                isReposted = uiState.repostedPostIds.contains(post.id),
+                                isOwner = post.userId == currentUser.uid,
+                                onDeleteClick = { viewModel.deletePost(post) },
                                 onCommentClick = { onOpenDetail(post.id) },
-                                onLikeClick    = { viewModel.toggleLike(post) },
-                                onRepostClick  = { viewModel.toggleRepost(post) },
-                                onShareClick   = { viewModel.sharePost(post) },
-                                onOpenDetail   = { onOpenDetail(post.id) }
+                                onLikeClick = { viewModel.toggleLike(post) },
+                                onRepostClick = { viewModel.toggleRepost(post) },
+                                onShareClick = { viewModel.sharePost(post) },
+                                onOpenDetail = { onOpenDetail(post.id) },
+                                onOpenProfile = {
+                                    val targetUserId = post.userId.ifBlank { currentUser.uid }
+                                    onOpenProfile(targetUserId)
+                                }
                             )
                         }
                     }
@@ -260,17 +265,17 @@ fun NovedadesScreen(
 
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier  = Modifier
+            modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(16.dp)
         )
 
         if (mostrarComposer) {
             CrearPostScreen(
-                initialImageUris    = imagenesSeleccionadas.toList(),
-                currentUserName     = currentUserName,
+                initialImageUris = imagenesSeleccionadas.toList(),
+                currentUserName = currentUserName,
                 currentUserPhotoUrl = currentUser.photoUrl,
-                ubicacionTexto      = selectedLocation.address,
+                ubicacionTexto = selectedLocation.address,
                 onDismiss = {
                     mostrarComposer = false
                     imagenesSeleccionadas.clear()
@@ -285,17 +290,17 @@ fun NovedadesScreen(
                 onOpenLocationPicker = { mostrarLocationPicker = true },
                 onPublicar = { texto, tipo, fotos ->
                     val post = Post(
-                        id          = UUID.randomUUID().toString(),
-                        userId      = currentUser.uid.ifBlank { "demo_user" },
-                        userName    = currentUserName,
-                        userHandle  = currentUserHandle,
-                        userAvatar  = currentUser.photoUrl,
-                        mensaje     = texto.trim(),
-                        ubicacion   = selectedLocation.address,
-                        tipo        = tipo,
-                        fotos       = emptyList(),
-                        timestamp   = System.currentTimeMillis(),
-                        likes       = 0,
+                        id = UUID.randomUUID().toString(),
+                        userId = currentUser.uid.ifBlank { "demo_user" },
+                        userName = currentUserName,
+                        userHandle = currentUserHandle,
+                        userAvatar = currentUser.photoUrl,
+                        mensaje = texto.trim(),
+                        ubicacion = selectedLocation.address,
+                        tipo = tipo,
+                        fotos = emptyList(),
+                        timestamp = System.currentTimeMillis(),
+                        likes = 0,
                         comentarios = 0
                     )
                     viewModel.insertPost(post = post, localImageUris = fotos.take(4))
@@ -307,9 +312,9 @@ fun NovedadesScreen(
 
         if (mostrarLocationPicker) {
             LocationPickerScreen(
-                onDismiss          = { mostrarLocationPicker = false },
+                onDismiss = { mostrarLocationPicker = false },
                 onLocationSelected = { location ->
-                    selectedLocation      = location
+                    selectedLocation = location
                     mostrarLocationPicker = false
                 }
             )
@@ -317,8 +322,8 @@ fun NovedadesScreen(
 
         postAComentar?.let { post ->
             CommentSheet(
-                post          = post,
-                onDismiss     = { postAComentar = null },
+                post = post,
+                onDismiss = { postAComentar = null },
                 onSendComment = { texto ->
                     viewModel.addComment(post, texto)
                     postAComentar = null
@@ -328,18 +333,15 @@ fun NovedadesScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Filtros
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun FiltrosNovedadesSticky(
-    filtros            : List<String>,
-    filtroSeleccionado : String,
-    onFiltroSelected   : (String) -> Unit
+    filtros: List<String>,
+    filtroSeleccionado: String,
+    onFiltroSelected: (String) -> Unit
 ) {
     Surface(
-        modifier        = Modifier.fillMaxWidth(),
-        color           = BlueSoft.copy(alpha = 0.96f),
+        modifier = Modifier.fillMaxWidth(),
+        color = BlueSoft.copy(alpha = 0.96f),
         shadowElevation = 4.dp
     ) {
         Column(
@@ -348,26 +350,26 @@ private fun FiltrosNovedadesSticky(
                 .padding(top = 6.dp, bottom = 8.dp)
         ) {
             LazyRow(
-                modifier              = Modifier.fillMaxWidth(),
-                contentPadding        = PaddingValues(horizontal = 14.dp),
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(filtros) { filtro ->
                     FilterChip(
                         selected = filtroSeleccionado == filtro,
-                        onClick  = { onFiltroSelected(filtro) },
-                        label    = { Text(filtro) },
-                        shape    = RoundedCornerShape(20.dp),
-                        border   = BorderStroke(
+                        onClick = { onFiltroSelected(filtro) },
+                        label = { Text(filtro) },
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(
                             1.dp,
                             if (filtroSeleccionado == filtro) BluePrimary.copy(alpha = 0.35f)
                             else BlueBorder.copy(alpha = 0.55f)
                         ),
                         colors = FilterChipDefaults.filterChipColors(
-                            containerColor         = Color.White,
-                            labelColor             = MaterialTheme.colorScheme.onSurfaceVariant,
+                            containerColor = Color.White,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             selectedContainerColor = BluePrimary,
-                            selectedLabelColor     = Color.White
+                            selectedLabelColor = Color.White
                         )
                     )
                 }
@@ -376,26 +378,23 @@ private fun FiltrosNovedadesSticky(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Estado vacío
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun EmptyNovedadesState(filtroSeleccionado: String) {
     Column(
-        modifier            = Modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 30.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text       = if (filtroSeleccionado == "Todos") "No hay novedades aún"
+            text = if (filtroSeleccionado == "Todos") "No hay novedades aún"
             else "No hay publicaciones de tipo $filtroSeleccionado",
-            style      = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text  = if (filtroSeleccionado == "Todos") "Sé el primero en publicar una novedad"
+            text = if (filtroSeleccionado == "Todos") "Sé el primero en publicar una novedad"
             else "Prueba con otro filtro o crea una nueva publicación",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -403,44 +402,43 @@ private fun EmptyNovedadesState(filtroSeleccionado: String) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tarjeta "crear publicación"
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun CrearPublicacionCard(
-    photoUrl    : String,
-    displayName : String,
-    onTextClick : () -> Unit,
+    photoUrl: String,
+    displayName: String,
+    onTextClick: () -> Unit,
     onPhotoClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 4.dp),
-        shape  = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.5.dp, BlueBorder),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
-            modifier          = Modifier.fillMaxWidth().padding(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (photoUrl.isNotBlank()) {
                 AsyncImage(
-                    model              = photoUrl,
+                    model = photoUrl,
                     contentDescription = "Foto de perfil",
-                    modifier           = Modifier.size(44.dp).clip(CircleShape),
-                    contentScale       = ContentScale.Crop
+                    modifier = Modifier.size(44.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Surface(
                     modifier = Modifier.size(44.dp).clip(CircleShape),
-                    color    = BluePrimary.copy(alpha = 0.15f)
+                    color = BluePrimary.copy(alpha = 0.15f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text       = displayName.firstOrNull()?.uppercase() ?: "U",
-                            color      = BluePrimary,
+                            text = displayName.firstOrNull()?.uppercase() ?: "U",
+                            color = BluePrimary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -451,13 +449,13 @@ private fun CrearPublicacionCard(
 
             Surface(
                 modifier = Modifier.weight(1f).clickable { onTextClick() },
-                shape    = RoundedCornerShape(24.dp),
-                color    = CardBackground
+                shape = RoundedCornerShape(24.dp),
+                color = CardBackground
             ) {
                 Text(
-                    text     = "¿Qué estás pensando?",
+                    text = "¿Qué estás pensando?",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -468,42 +466,39 @@ private fun CrearPublicacionCard(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sheet de comentario rápido (desde el feed)
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun CommentSheet(
-    post          : Post,
-    onDismiss     : () -> Unit,
-    onSendComment : (String) -> Unit
+    post: Post,
+    onDismiss: () -> Unit,
+    onSendComment: (String) -> Unit
 ) {
     var comment by rememberSaveable { mutableStateOf("") }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier            = Modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text       = "Responder a ${post.userName}",
-                style      = MaterialTheme.typography.titleMedium,
+                text = "Responder a ${post.userName}",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             OutlinedTextField(
-                value         = comment,
+                value = comment,
                 onValueChange = { comment = it },
-                modifier      = Modifier.fillMaxWidth(),
-                minLines      = 4,
-                placeholder   = { Text("Escribe tu comentario") }
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 4,
+                placeholder = { Text("Escribe tu comentario") }
             )
             Button(
-                onClick  = { onSendComment(comment) },
-                enabled  = comment.isNotBlank(),
+                onClick = { onSendComment(comment) },
+                enabled = comment.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
             ) {
                 Text("Comentar")
             }
@@ -511,37 +506,37 @@ private fun CommentSheet(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PostCard
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun PostCard(
-    post           : Post,
-    isLiked        : Boolean,
-    isReposted     : Boolean,
-    isOwner        : Boolean,
-    onDeleteClick  : () -> Unit,
-    onCommentClick : () -> Unit,
-    onLikeClick    : () -> Unit,
-    onRepostClick  : () -> Unit,
-    onShareClick   : () -> Unit,
-    onOpenDetail   : () -> Unit
+    post: Post,
+    isLiked: Boolean,
+    isReposted: Boolean,
+    isOwner: Boolean,
+    onDeleteClick: () -> Unit,
+    onCommentClick: () -> Unit,
+    onLikeClick: () -> Unit,
+    onRepostClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onOpenDetail: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
-    val context          = LocalContext.current
+    val context = LocalContext.current
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Eliminar publicación") },
-            text  = { Text("¿Seguro que quieres borrar esta publicación? Esta acción no se puede deshacer.") },
+            text = { Text("¿Seguro que quieres borrar esta publicación? Esta acción no se puede deshacer.") },
             confirmButton = {
                 TextButton(onClick = { showDeleteDialog = false; onDeleteClick() }) {
                     Text("Eliminar", color = DeleteRed)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
             }
         )
     }
@@ -550,38 +545,41 @@ fun PostCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp),
-        shape  = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.5.dp, BlueBorder),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onOpenDetail() }
                 .padding(12.dp)
         ) {
-            // ── Cabecera ──────────────────────────────────
             Row(
                 verticalAlignment = Alignment.Top,
-                modifier          = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Avatar
                 if (post.userAvatar.isNotBlank()) {
                     AsyncImage(
-                        model              = post.userAvatar,
+                        model = post.userAvatar,
                         contentDescription = "Foto de perfil de ${post.userName}",
-                        modifier           = Modifier.size(42.dp).clip(CircleShape),
-                        contentScale       = ContentScale.Crop
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .clickable { onOpenProfile() },
+                        contentScale = ContentScale.Crop
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size(42.dp).clip(CircleShape),
-                        color    = BluePrimary.copy(alpha = 0.14f)
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .clickable { onOpenProfile() },
+                        color = BluePrimary.copy(alpha = 0.14f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text       = post.userName.firstOrNull()?.toString() ?: "?",
-                                color      = BluePrimary,
+                                text = post.userName.firstOrNull()?.toString() ?: "?",
+                                color = BluePrimary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -590,72 +588,72 @@ fun PostCard(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    // Nombre + handle
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onOpenProfile() }
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text       = post.userName,
+                            text = post.userName,
                             fontWeight = FontWeight.Bold,
-                            style      = MaterialTheme.typography.bodyMedium,
-                            maxLines   = 1,
-                            overflow   = TextOverflow.Ellipsis
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (post.userHandle.isNotBlank()) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text     = post.userHandle,
-                                style    = MaterialTheme.typography.bodySmall,
-                                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = post.userHandle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    // Tipo · tiempo  ← segunda línea
                     Row(
-                        verticalAlignment     = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         if (post.tipo.isNotBlank()) {
                             Text(
-                                text       = post.tipo,
-                                style      = MaterialTheme.typography.labelSmall,
-                                color      = BluePrimary,
+                                text = post.tipo,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BluePrimary,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text  = "·",
+                                text = "·",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Text(
-                            text  = tiempoRelativo(post.timestamp),
+                            text = tiempoRelativo(post.timestamp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    // Ubicación ← tercera línea, solo si existe
                     if (post.ubicacion.isNotBlank()) {
                         Text(
-                            text     = post.ubicacion,
-                            style    = MaterialTheme.typography.labelSmall,
-                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = post.ubicacion,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // Botón borrar — solo para el dueño  ← NUEVO
                 if (isOwner) {
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(
-                            imageVector        = Icons.Default.DeleteOutline,
+                            imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Eliminar publicación",
-                            tint               = DeleteRed
+                            tint = DeleteRed
                         )
                     }
                 }
@@ -663,53 +661,63 @@ fun PostCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ── Texto ─────────────────────────────────────
-            if (post.mensaje.isNotBlank()) {
-                Text(post.mensaje, style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(10.dp))
-            }
+            Column(
+                modifier = Modifier.clickable { onOpenDetail() }
+            ) {
+                if (post.mensaje.isNotBlank()) {
+                    Text(
+                        text = post.mensaje,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
 
-            // ── Imágenes ───────────────────────────────────
-            PostImagesGrid(images = post.fotos.take(4))
-            if (post.fotos.isNotEmpty()) Spacer(modifier = Modifier.height(10.dp))
+                PostImagesGrid(
+                    images = post.fotos.take(4),
+                    onImageClick = onOpenDetail
+                )
+
+                if (post.fotos.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
         }
 
         HorizontalDivider(color = BlueBorder.copy(alpha = 0.5f))
 
-        // ── Acciones ──
         Row(
-            modifier              = Modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment     = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             PostActionItem(
-                icon     = Icons.Default.ChatBubbleOutline,
-                text     = post.comentarios.toString(),
+                icon = Icons.Default.ChatBubbleOutline,
+                text = post.comentarios.toString(),
                 selected = false,
-                onClick  = onCommentClick
+                onClick = onCommentClick
             )
             PostActionItem(
-                icon     = Icons.Default.Repeat,
-                text     = if (isReposted) "Publicado" else "Repost",
+                icon = Icons.Default.Repeat,
+                text = if (isReposted) "Publicado" else "Repost",
                 selected = isReposted,
-                onClick  = onRepostClick
+                onClick = onRepostClick
             )
             PostActionItem(
-                icon     = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                text     = post.likes.toString(),
+                icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                text = post.likes.toString(),
                 selected = isLiked,
-                onClick  = onLikeClick
+                onClick = onLikeClick
             )
             PostActionItem(
-                icon    = Icons.Default.Share,
-                text    = "Compartir",
+                icon = Icons.Default.Share,
+                text = "Compartir",
                 onClick = {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND
                         putExtra(Intent.EXTRA_TEXT, "${post.userName}: ${post.mensaje}")
-                        type   = "text/plain"
+                        type = "text/plain"
                     }
                     context.startActivity(
                         Intent.createChooser(sendIntent, "Compartir publicación")
@@ -721,39 +729,41 @@ fun PostCard(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Componentes internos
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun PostImagesGrid(images: List<String>) {
+private fun PostImagesGrid(
+    images: List<String>,
+    onImageClick: () -> Unit
+) {
     when (images.size) {
-        0    -> Unit
-        1    -> AsyncImage(
-            model              = images.first(),
+        0 -> Unit
+        1 -> AsyncImage(
+            model = images.first(),
             contentDescription = "Foto del post",
-            modifier           = Modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .height(240.dp)
-                .clip(RoundedCornerShape(14.dp)),
+                .clip(RoundedCornerShape(14.dp))
+                .clickable { onImageClick() },
             contentScale = ContentScale.Crop
         )
         else -> Column(
             verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier            = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         ) {
             images.chunked(2).forEach { fila ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier              = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     fila.forEach { foto ->
                         AsyncImage(
-                            model              = foto,
+                            model = foto,
                             contentDescription = "Foto del post",
-                            modifier           = Modifier
+                            modifier = Modifier
                                 .weight(1f)
                                 .height(170.dp)
-                                .clip(RoundedCornerShape(12.dp)),
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onImageClick() },
                             contentScale = ContentScale.Crop
                         )
                     }
@@ -766,28 +776,28 @@ private fun PostImagesGrid(images: List<String>) {
 
 @Composable
 private fun PostActionItem(
-    icon     : ImageVector,
-    text     : String,
-    selected : Boolean = false,
-    onClick  : () -> Unit
+    icon: ImageVector,
+    text: String,
+    selected: Boolean = false,
+    onClick: () -> Unit
 ) {
     val tint = if (selected) BluePrimary else MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier          = Modifier
+        modifier = Modifier
             .clickable { onClick() }
             .padding(vertical = 4.dp, horizontal = 6.dp)
     ) {
         Icon(
-            imageVector        = icon,
+            imageVector = icon,
             contentDescription = text,
-            tint               = tint,
-            modifier           = Modifier.size(18.dp)
+            tint = tint,
+            modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text  = text,
+            text = text,
             style = MaterialTheme.typography.labelSmall,
             color = tint
         )

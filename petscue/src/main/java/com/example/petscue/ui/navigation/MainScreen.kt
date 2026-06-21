@@ -68,6 +68,8 @@ private val tabs = listOf(
     BottomTab.Perfil
 )
 
+fun userProfileRoute(userId: String): String = "user_profile/$userId"
+
 @Composable
 fun MainScreen(
     navController: NavHostController,
@@ -125,6 +127,14 @@ fun MainScreen(
                 BottomTab.Novedades -> NovedadesScreen(
                     onOpenDetail = { postId ->
                         navController.navigate(Routes.postDetailRoute(postId))
+                    },
+                    onOpenProfile = { userId ->
+                        val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                        if (userId == currentUid) {
+                            currentTabRoute = BottomTab.Perfil.route
+                        } else {
+                            navController.navigate(userProfileRoute(userId))
+                        }
                     }
                 )
 
@@ -139,17 +149,22 @@ fun MainScreen(
                 BottomTab.Perfil -> ProfileScreen(
                     isOwnProfile = true,
                     onAddPetClick = {
-                        currentTabRoute = BottomTab.Perfil.route
                         navController.navigate(Routes.ADD_PET)
                     },
                     onPetClick = { petId ->
-                        currentTabRoute = BottomTab.Perfil.route
                         navController.navigate(Routes.petDetailRoute(petId))
                     },
                     onAdoptionPetClick = { petId ->
-                        currentTabRoute = BottomTab.Perfil.route
                         navController.navigate(Routes.adoptionDetailRoute(petId))
-                    }
+                    },
+                    onOpenPostDetail = { postId ->
+                        navController.navigate(Routes.postDetailRoute(postId))
+                    },
+                    onOpenProfile = { userId ->
+                        navController.navigate(userProfileRoute(userId))
+                    },
+                    onFollowClick = {},
+                    onMessageClick = {}
                 )
             }
         }
@@ -189,7 +204,7 @@ fun PetscueTopBar(
             Box {
                 IconButton(onClick = { showSettingsMenu = true }) {
                     Icon(
-                        Icons.Default.Settings,
+                        imageVector = Icons.Default.Settings,
                         contentDescription = "Ajustes",
                         tint = Color(0xFF1565C0)
                     )

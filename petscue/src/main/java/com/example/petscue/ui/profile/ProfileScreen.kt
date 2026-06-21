@@ -48,7 +48,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -56,6 +55,7 @@ import coil.compose.AsyncImage
 import com.example.petscue.data.model.Pet
 import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.UserRole
+import com.example.petscue.ui.novedades.PostCard
 
 private val BluePrimary = Color(0xFF1565C0)
 private val BlueDark = Color(0xFF0D47A1)
@@ -68,14 +68,34 @@ fun ProfileScreen(
     onAddPetClick: () -> Unit,
     onPetClick: (String) -> Unit,
     onAdoptionPetClick: (String) -> Unit,
+    onOpenPostDetail: (String) -> Unit,
+    onOpenProfile: (String) -> Unit,
     isOwnProfile: Boolean = true,
     onFollowClick: () -> Unit = {},
     onMessageClick: () -> Unit = {},
     vm: ProfileViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
-    val user = state.user ?: return
+    val user = state.user
+
+    if (user == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BlueSoft),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Cargando perfil...",
+                color = BlueDark,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+        return
+    }
+
     val isProtectora = user.role == UserRole.PROTECTORA
+    val viewerUserId = state.currentUserId
 
     LazyColumn(
         modifier = Modifier
@@ -105,7 +125,6 @@ fun ProfileScreen(
             } else {
                 UserProfileHeader(
                     fullName = "${user.nombre} ${user.apellido}".trim(),
-                    descripcion = user.descripcionProtectora,
                     photoUrl = user.photoUrl,
                     postsCount = state.posts.size,
                     followersCount = state.followersCount,
@@ -132,21 +151,51 @@ fun ProfileScreen(
                     if (isProtectora) {
                         AdoptaSection(
                             pets = state.adoptionPets,
+                            canAdd = isOwnProfile,
                             onAddPet = onAddPetClick,
                             onPetClick = onAdoptionPetClick
                         )
                     } else {
                         PetsPanel(
                             pets = state.pets,
+                            canAdd = isOwnProfile,
                             onAddPet = onAddPetClick,
                             onPetClick = onPetClick
                         )
                     }
                 }
-                ProfileTab.POSTS -> PostsPanel(state.posts)
-                ProfileTab.REPLIES -> PostsPanel(state.replies)
-                ProfileTab.MEDIA -> PostsPanel(state.mediaPosts)
-                ProfileTab.LIKES -> PostsPanel(state.likedPosts)
+
+                ProfileTab.POSTS -> ProfilePostsPanel(
+                    posts = state.posts,
+                    viewerUserId = viewerUserId,
+                    onOpenDetail = onOpenPostDetail,
+                    onOpenProfile = onOpenProfile,
+                    onDeletePost = { }
+                )
+
+                ProfileTab.REPLIES -> ProfilePostsPanel(
+                    posts = state.replies,
+                    viewerUserId = viewerUserId,
+                    onOpenDetail = onOpenPostDetail,
+                    onOpenProfile = onOpenProfile,
+                    onDeletePost = { }
+                )
+
+                ProfileTab.MEDIA -> ProfilePostsPanel(
+                    posts = state.mediaPosts.filter { it.fotos.isNotEmpty() },
+                    viewerUserId = viewerUserId,
+                    onOpenDetail = onOpenPostDetail,
+                    onOpenProfile = onOpenProfile,
+                    onDeletePost = { }
+                )
+
+                ProfileTab.LIKES -> ProfilePostsPanel(
+                    posts = state.likedPosts,
+                    viewerUserId = viewerUserId,
+                    onOpenDetail = onOpenPostDetail,
+                    onOpenProfile = onOpenProfile,
+                    onDeletePost = { }
+                )
             }
         }
     }
@@ -155,7 +204,6 @@ fun ProfileScreen(
 @Composable
 private fun UserProfileHeader(
     fullName: String,
-    descripcion: String,
     photoUrl: String,
     postsCount: Int,
     followersCount: Int,
@@ -216,20 +264,6 @@ private fun UserProfileHeader(
                 }
             }
 
-            if (descripcion.isNotBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = BlueSoft
-                ) {
-                    Text(
-                        text = descripcion,
-                        modifier = Modifier.padding(14.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = BlueDark
-                    )
-                }
-            }
-
             HorizontalDivider(
                 thickness = 1.dp,
                 color = BlueBorder
@@ -285,6 +319,7 @@ private fun UserProfileHeader(
         }
     }
 }
+
 @Composable
 private fun ProtectoraProfileHeader(
     nombreProtectora: String,
@@ -315,9 +350,7 @@ private fun ProtectoraProfileHeader(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.Top
-            ) {
+            Row(verticalAlignment = Alignment.Top) {
                 if (photoUrl.isNotBlank()) {
                     AsyncImage(
                         model = photoUrl,
@@ -346,9 +379,7 @@ private fun ProtectoraProfileHeader(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = nombreProtectora.ifBlank { "Protectora" },
                         style = MaterialTheme.typography.headlineSmall,
@@ -445,52 +476,7 @@ private fun ProtectoraProfileHeader(
         }
     }
 }
-@Composable
-private fun InlineProfileInfo(
-    icon: String,
-    value: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = icon,
-            style = MaterialTheme.typography.bodyMedium
-        )
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = BlueDark,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-@Composable
-private fun ProtectoraBottomInfo(
-    web: String,
-    instagram: String,
-    facebook: String
-) {
-    val items = listOfNotNull(
-        web.takeIf { it.isNotBlank() }?.let { "🌐" to it },
-        instagram.takeIf { it.isNotBlank() }?.let { "📸" to it },
-        facebook.takeIf { it.isNotBlank() }?.let { "📘" to it }
-    )
-
-    if (items.isEmpty()) return
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items.forEach { (icon, value) ->
-            InlineProfileInfo(icon = icon, value = value)
-        }
-    }
-}
 @Composable
 private fun ProfileStat(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -506,6 +492,51 @@ private fun ProfileStat(value: String, label: String) {
             color = BlueTextSoft,
             fontSize = 11.sp
         )
+    }
+}
+
+@Composable
+private fun InlineProfileInfo(
+    icon: String,
+    value: String
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = icon,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = BlueDark,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun ProtectoraBottomInfo(
+    web: String,
+    instagram: String,
+    facebook: String
+) {
+    val items = listOfNotNull(
+        web.takeIf { it.isNotBlank() }?.let { "🌐" to it },
+        instagram.takeIf { it.isNotBlank() }?.let { "📸" to it },
+        facebook.takeIf { it.isNotBlank() }?.let { "📘" to it }
+    )
+
+    if (items.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.forEach { (icon, value) ->
+            InlineProfileInfo(
+                icon = icon,
+                value = value
+            )
+        }
     }
 }
 
@@ -532,16 +563,6 @@ private fun ProfileTabsRow(
         edgePadding = 0.dp,
         containerColor = Color.White,
         contentColor = BluePrimary,
-        indicator = {
-            TabRowDefaults.PrimaryIndicator(
-                modifier = Modifier.tabIndicatorOffset(
-                    selectedTabIndex = selectedIndex,
-                    matchContentSize = true
-                ),
-                width = Dp.Unspecified,
-                color = BluePrimary
-            )
-        },
         divider = {
             HorizontalDivider(
                 thickness = 1.dp,
@@ -568,6 +589,7 @@ private fun ProfileTabsRow(
 @Composable
 private fun PetsPanel(
     pets: List<Pet>,
+    canAdd: Boolean,
     onAddPet: () -> Unit,
     onPetClick: (String) -> Unit
 ) {
@@ -588,23 +610,23 @@ private fun PetsPanel(
                 fontWeight = FontWeight.Bold
             )
 
-            TextButton(onClick = onAddPet) {
-                Text(
-                    text = "Añadir",
-                    color = BluePrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
+            if (canAdd) {
+                TextButton(onClick = onAddPet) {
+                    Text(
+                        text = "Añadir",
+                        color = BluePrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         if (pets.isEmpty()) {
-            EmptyPanel("Todavía no has añadido ninguna mascota.")
+            EmptyPanel("Todavía no hay mascotas en este perfil.")
         } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 pets.forEach { pet ->
                     PetHorizontalCard(
                         pet = pet,
@@ -619,6 +641,7 @@ private fun PetsPanel(
 @Composable
 private fun AdoptaSection(
     pets: List<Pet>,
+    canAdd: Boolean,
     onAddPet: () -> Unit,
     onPetClick: (String) -> Unit
 ) {
@@ -642,12 +665,14 @@ private fun AdoptaSection(
                 fontWeight = FontWeight.Bold
             )
 
-            TextButton(onClick = onAddPet) {
-                Text(
-                    text = "Añadir",
-                    color = BluePrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
+            if (canAdd) {
+                TextButton(onClick = onAddPet) {
+                    Text(
+                        text = "Añadir",
+                        color = BluePrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
@@ -755,7 +780,13 @@ private fun AdoptPetInfoLine(
 }
 
 @Composable
-private fun PostsPanel(posts: List<Post>) {
+private fun ProfilePostsPanel(
+    posts: List<Post>,
+    viewerUserId: String,
+    onOpenDetail: (String) -> Unit,
+    onOpenProfile: (String) -> Unit,
+    onDeletePost: (Post) -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         if (posts.isEmpty()) {
             EmptyPanel("No hay contenido en este apartado.")
@@ -763,7 +794,24 @@ private fun PostsPanel(posts: List<Post>) {
         }
 
         posts.forEach { post ->
-            PostCard(post)
+            PostCard(
+                post = post,
+                isLiked = false,
+                isReposted = false,
+                isOwner = post.userId == viewerUserId,
+                onDeleteClick = { onDeletePost(post) },
+                onCommentClick = { onOpenDetail(post.id) },
+                onLikeClick = { },
+                onRepostClick = { },
+                onShareClick = { },
+                onOpenDetail = { onOpenDetail(post.id) },
+                onOpenProfile = {
+                    val targetUserId = post.userId.ifBlank { viewerUserId }
+                    if (targetUserId.isNotBlank()) {
+                        onOpenProfile(targetUserId)
+                    }
+                }
+            )
         }
     }
 }
@@ -775,9 +823,7 @@ private fun EmptyPanel(message: String) {
             .fillMaxWidth()
             .padding(16.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, BlueBorder)
     ) {
         Box(
@@ -796,57 +842,6 @@ private fun EmptyPanel(message: String) {
 }
 
 @Composable
-private fun PostCard(post: Post) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        border = BorderStroke(1.dp, BlueBorder)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = post.userName,
-                style = MaterialTheme.typography.titleMedium,
-                color = BlueDark,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = post.ubicacion,
-                style = MaterialTheme.typography.bodySmall,
-                color = BluePrimary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = post.mensaje,
-                style = MaterialTheme.typography.bodyMedium,
-                color = BlueDark
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    text = "💬 ${post.comentarios}",
-                    color = BluePrimary
-                )
-                Text(
-                    text = "❤ ${post.likes}",
-                    color = BluePrimary
-                )
-                if (post.fotos.isNotEmpty()) {
-                    Text(
-                        text = "📷 Multimedia",
-                        color = BlueDark
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun PetHorizontalCard(
     pet: Pet,
     onClick: (String) -> Unit
@@ -856,13 +851,8 @@ private fun PetHorizontalCard(
             .fillMaxWidth()
             .clickable { onClick(pet.id) },
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = BlueBorder
-        )
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, BlueBorder)
     ) {
         Row(
             modifier = Modifier

@@ -15,6 +15,7 @@ enum class ProfileTab {
 data class ProfileUiState(
     val isLoading: Boolean = false,
     val user: User? = null,
+    val currentUserId: String = "",
     val pets: List<Pet> = emptyList(),
     val posts: List<Post> = emptyList(),
     val replies: List<Post> = emptyList(),

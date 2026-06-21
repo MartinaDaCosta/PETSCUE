@@ -3,8 +3,8 @@ package com.example.petscue.ui.navigation
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.NavType
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
@@ -23,6 +23,7 @@ import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.novedades.detailpost.PostDetailScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
 import com.example.petscue.ui.pet.PetDetailScreen
+import com.example.petscue.ui.profile.ProfileScreen
 import com.example.petscue.ui.profile.adoption.AdoptionPetDetailScreen
 import com.example.petscue.ui.profile.pet.AddPetScreen
 import com.example.petscue.ui.profile.pet.editpet.EditAdoptionPetScreen
@@ -147,9 +148,7 @@ fun PetscueNavHost(
 
         composable(Routes.ADD_PET) {
             AddPetScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
+                onBack = { navController.popBackStack() },
                 onPetSaved = {
                     navController.previousBackStackEntry
                         ?.savedStateHandle
@@ -169,9 +168,7 @@ fun PetscueNavHost(
             )
         ) {
             PetDetailScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
+                onBack = { navController.popBackStack() },
                 onEditPet = { petId ->
                     navController.navigate(Routes.editPetRoute(petId))
                 },
@@ -190,12 +187,8 @@ fun PetscueNavHost(
             )
         ) {
             EditPetScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
-                onPetUpdated = {
-                    navController.popBackStack()
-                }
+                onBack = { navController.popBackStack() },
+                onPetUpdated = { navController.popBackStack() }
             )
         }
 
@@ -208,9 +201,7 @@ fun PetscueNavHost(
             )
         ) {
             AdoptionPetDetailScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
+                onBack = { navController.popBackStack() },
                 onEditClick = { petId ->
                     navController.navigate(Routes.editAdoptionPetRoute(petId))
                 },
@@ -229,12 +220,8 @@ fun PetscueNavHost(
             )
         ) {
             EditAdoptionPetScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
-                onPetUpdated = {
-                    navController.popBackStack()
-                }
+                onBack = { navController.popBackStack() },
+                onPetUpdated = { navController.popBackStack() }
             )
         }
 
@@ -245,7 +232,10 @@ fun PetscueNavHost(
         composable("novedades") {
             NovedadesScreen(
                 onOpenDetail = { postId ->
-                    navController.navigate("post_detail/$postId")
+                    navController.navigate(Routes.postDetailRoute(postId))
+                },
+                onOpenProfile = { userId ->
+                    navController.navigate("user_profile/$userId")
                 }
             )
         }
@@ -316,6 +306,34 @@ fun PetscueNavHost(
                 onOpenAlert = { petId ->
                     navController.navigate(Routes.alertDetailRoute(petId))
                 }
+            )
+        }
+
+        composable(
+            route = "user_profile/{userId}",
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            ProfileScreen(
+                isOwnProfile = false,
+                onAddPetClick = {},
+                onPetClick = { petId ->
+                    navController.navigate(Routes.petDetailRoute(petId))
+                },
+                onAdoptionPetClick = { petId ->
+                    navController.navigate(Routes.adoptionDetailRoute(petId))
+                },
+                onOpenPostDetail = { postId ->
+                    navController.navigate(Routes.postDetailRoute(postId))
+                },
+                onOpenProfile = { anotherUserId ->
+                    navController.navigate("user_profile/$anotherUserId")
+                },
+                onFollowClick = {},
+                onMessageClick = {}
             )
         }
     }
