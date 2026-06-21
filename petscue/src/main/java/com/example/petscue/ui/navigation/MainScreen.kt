@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Settings
@@ -44,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.petscue.ui.mapa.MapaScreen
 import com.example.petscue.ui.mensajes.MensajesScreen
+import com.example.petscue.ui.notifications.NotificationsScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.profile.ProfileScreen
 import com.example.petscue.ui.protectoras.ProtectorasScreen
@@ -77,7 +77,14 @@ fun MainScreen(
     val currentTab = tabs.firstOrNull { it.route == currentTabRoute } ?: BottomTab.Novedades
 
     Scaffold(
-        topBar = { PetscueTopBar(onLogout = onLogout) },
+        topBar = {
+            PetscueTopBar(
+                onLogout = onLogout,
+                onOpenAlert = { petId ->
+                    navController.navigate(Routes.alertDetailRoute(petId))
+                }
+            )
+        },
         bottomBar = {
             PetscueBottomBar(
                 currentTab = currentTab,
@@ -108,10 +115,10 @@ fun MainScreen(
             when (currentTab) {
                 BottomTab.Mapa -> MapaScreen(
                     onOpenAlertDetail = { petId ->
-                        navController.navigate("alert_detail/$petId")
+                        navController.navigate(Routes.alertDetailRoute(petId))
                     },
                     onOpenMyAlerts = {
-                        navController.navigate("my_alerts")
+                        navController.navigate(Routes.MY_ALERTS)
                     }
                 )
 
@@ -150,8 +157,11 @@ fun MainScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PetscueTopBar(onLogout: () -> Unit = {}) {
-    var showMenu by rememberSaveable { mutableStateOf(false) }
+fun PetscueTopBar(
+    onLogout: () -> Unit = {},
+    onOpenAlert: (String) -> Unit
+) {
+    var showSettingsMenu by rememberSaveable { mutableStateOf(false) }
 
     TopAppBar(
         title = {
@@ -170,33 +180,32 @@ fun PetscueTopBar(onLogout: () -> Unit = {}) {
             }
         },
         navigationIcon = {
-            IconButton(onClick = { }) {
-                Icon(
-                    Icons.Filled.Notifications,
-                    contentDescription = "Logo",
-                    tint = Color(0xFF1565C0)
-                )
-            }
+            NotificationsScreen(
+                onOpenAlert = onOpenAlert
+            )
         },
         actions = {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    Icons.Default.Settings,
-                    contentDescription = "Ajustes",
-                    tint = Color(0xFF1565C0)
-                )
-            }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Cerrar sesión") },
-                    onClick = {
-                        showMenu = false
-                        onLogout()
-                    }
-                )
+            Box {
+                IconButton(onClick = { showSettingsMenu = true }) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Ajustes",
+                        tint = Color(0xFF1565C0)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showSettingsMenu,
+                    onDismissRequest = { showSettingsMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Cerrar sesión") },
+                        onClick = {
+                            showSettingsMenu = false
+                            onLogout()
+                        }
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)

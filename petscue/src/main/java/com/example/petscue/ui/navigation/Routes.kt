@@ -20,7 +20,6 @@ object Routes {
     const val SELECT_PET_FOR_ALERT = "select_pet_for_alert"
     const val CREATE_ALERT = "create_alert/{petId}"
     const val CHAT_DETAIL = "chat_detail/{conversationId}"
-
     const val ALERT_DETAIL = "alert_detail/{petId}"
     const val MY_ALERTS = "my_alerts"
 

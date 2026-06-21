@@ -16,8 +16,8 @@ import com.example.petscue.ui.auth.pending.PendingApprovalScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
 import com.example.petscue.ui.mapa.AlertDetailScreen
 import com.example.petscue.ui.mapa.MyAlertsScreen
-import com.example.petscue.ui.mapa.alerts.selectPet.SelectPetForAlertScreen
 import com.example.petscue.ui.mapa.alerts.create.CreateAlertScreen
+import com.example.petscue.ui.mapa.alerts.selectPet.SelectPetForAlertScreen
 import com.example.petscue.ui.mensajes.detail.ChatScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.novedades.detailpost.PostDetailScreen
@@ -25,8 +25,8 @@ import com.example.petscue.ui.onboarding.OnboardingScreen
 import com.example.petscue.ui.pet.PetDetailScreen
 import com.example.petscue.ui.profile.adoption.AdoptionPetDetailScreen
 import com.example.petscue.ui.profile.pet.AddPetScreen
-import com.example.petscue.ui.profile.pet.petdetail.EditPetScreen
 import com.example.petscue.ui.profile.pet.editpet.EditAdoptionPetScreen
+import com.example.petscue.ui.profile.pet.petdetail.EditPetScreen
 import com.example.petscue.ui.splash.SplashScreen
 import com.google.firebase.auth.FirebaseAuth
 
@@ -241,6 +241,7 @@ fun PetscueNavHost(
         composable(Routes.ADMIN_APPROVAL) {
             AdminApprovalScreen()
         }
+
         composable("novedades") {
             NovedadesScreen(
                 onOpenDetail = { postId ->
@@ -254,6 +255,7 @@ fun PetscueNavHost(
                 onBack = { navController.popBackStack() }
             )
         }
+
         composable(Routes.SELECT_PET_FOR_ALERT) { backStackEntry ->
             val petAdded = backStackEntry.savedStateHandle.get<Boolean>("pet_added") == true
 
@@ -291,6 +293,7 @@ fun PetscueNavHost(
                 onBack = { navController.popBackStack() }
             )
         }
+
         composable(
             route = Routes.ALERT_DETAIL,
             arguments = listOf(
