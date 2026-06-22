@@ -38,6 +38,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -70,11 +71,12 @@ fun ProfileScreen(
     onOpenPostDetail: (String) -> Unit,
     onOpenProfile: (String) -> Unit,
     isOwnProfile: Boolean = true,
-    onMessageClick: () -> Unit = {},
+    onMessageClick: (String) -> Unit = {},
     vm: ProfileViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
     val user = state.user
+    val chatToOpen by vm.openChatEvent.collectAsState()
 
     if (user == null) {
         Box(
@@ -94,6 +96,12 @@ fun ProfileScreen(
 
     val isProtectora = user.role == UserRole.PROTECTORA
     val viewerUserId = state.currentUserId
+
+    LaunchedEffect(chatToOpen) {
+        val conversationId = chatToOpen ?: return@LaunchedEffect
+        onMessageClick(conversationId)
+        vm.consumeOpenChatEvent()
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -119,7 +127,7 @@ fun ProfileScreen(
                     isFollowing = state.isFollowing,
                     onEditProfile = { },
                     onFollowClick = vm::toggleFollow,
-                    onMessageClick = onMessageClick
+                    onMessageClick = { vm.openOrCreateGeneralChat() }
                 )
             } else {
                 UserProfileHeader(
@@ -132,7 +140,7 @@ fun ProfileScreen(
                     isFollowing = state.isFollowing,
                     onEditProfile = { },
                     onFollowClick = vm::toggleFollow,
-                    onMessageClick = onMessageClick
+                    onMessageClick = { vm.openOrCreateGeneralChat() }
                 )
             }
         }
@@ -681,7 +689,7 @@ private fun AdoptaSection(
         Spacer(modifier = Modifier.height(12.dp))
 
         if (pets.isEmpty()) {
-            EmptyPanel("No hay animales en adopción ahora mismo.")
+            EmptyPanel("No hay animales ahora mismo.")
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -791,8 +799,9 @@ private fun ProfilePostsPanel(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         if (posts.isEmpty()) {
-            EmptyPanel("No hay contenido en este apartado.")
+            EmptyPanel("No hay posts ahora mismo.")
             return
+        }
         }
 
         posts.forEach { post ->
@@ -816,7 +825,7 @@ private fun ProfilePostsPanel(
             )
         }
     }
-}
+
 
 @Composable
 private fun EmptyPanel(message: String) {

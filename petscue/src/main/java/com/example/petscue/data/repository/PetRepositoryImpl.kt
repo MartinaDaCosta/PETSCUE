@@ -10,11 +10,13 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.emitAll
+
+
 
 class PetRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
@@ -125,7 +127,12 @@ class PetRepositoryImpl @Inject constructor(
             targetCollection.document(pet.id)
         }
 
-        docRef.set(pet.copy(id = docRef.id, userId = uid)).await()
+        val petToSave = pet.copy(
+            id = docRef.id,
+            userId = uid
+        )
+
+        docRef.set(petToSave).await()
     }
 
     override suspend fun delete(pet: Pet) {
@@ -159,15 +166,44 @@ class PetRepositoryImpl @Inject constructor(
 
     override suspend fun updateAdoptionPet(pet: Pet) {
         require(pet.id.isNotBlank()) { "El id de la mascota no puede estar vacío." }
-        adoptionPetsRef.document(pet.id).set(pet).await()
+        require(pet.userId.isNotBlank()) { "El userId de la mascota no puede estar vacío." }
+
+        val currentUid = auth.currentUser?.uid
+            ?: error("No hay sesión iniciada.")
+
+        if (currentUid != pet.userId) {
+            error("No tienes permisos para editar esta mascota.")
+        }
+
+        val data = mapOf(
+            "nombre" to pet.nombre,
+            "especie" to pet.especie,
+            "raza" to pet.raza,
+            "genero" to pet.genero,
+            "edad" to pet.edad,
+            "peso" to pet.peso,
+            "descripcion" to pet.descripcion,
+            "ubicacion" to pet.ubicacion,
+            "estado" to pet.estado,
+            "fotos" to pet.fotos,
+            "userId" to pet.userId
+        )
+
+        adoptionPetsRef
+            .document(pet.id)
+            .update(data)
+            .await()
     }
+
     override suspend fun getPetById(petId: String): Pet? {
         val snapshot = petsRef.document(petId).get().await()
         return snapshot.toObject(Pet::class.java)?.copy(id = snapshot.id)
     }
+
     override suspend fun getAnyPetById(petId: String): Pet? {
         return getPetById(petId) ?: getAdoptionPetById(petId)
     }
+
     override fun getAlertPetsByCurrentUser(): Flow<List<Pet>> = flow {
         val uid = auth.currentUser?.uid ?: error("No hay sesión iniciada.")
 

@@ -1,10 +1,9 @@
-package com.example.petscue.ui.profile.pet.editpet
+package com.example.petscue.ui.profile.adopta.edit
 
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.petscue.data.model.Pet
 import com.example.petscue.data.repository.PetRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,32 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class EditPhotoItem(
-    val remoteUrl: String? = null,
-    val localUri: Uri? = null
-) {
-    val preview: Any
-        get() = localUri ?: remoteUrl.orEmpty()
-}
 
-data class EditAdoptionPetUiState(
-    val petId: String = "",
-    val nombre: String = "",
-    val especie: String = "",
-    val raza: String = "",
-    val genero: String = "",
-    val edad: String = "",
-    val peso: String = "",
-    val descripcion: String = "",
-    val ubicacion: String = "",
-    val estado: String = "",
-    val photoItems: List<EditPhotoItem> = emptyList(),
-    val originalPet: Pet? = null,
-    val isInitialLoading: Boolean = true,
-    val isLoading: Boolean = false,
-    val isUpdated: Boolean = false,
-    val error: String? = null
-)
 
 @HiltViewModel
 class EditAdoptionPetViewModel @Inject constructor(
@@ -58,6 +32,13 @@ class EditAdoptionPetViewModel @Inject constructor(
 
     private fun loadPet() {
         viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isInitialLoading = true,
+                    error = null
+                )
+            }
+
             runCatching {
                 petRepository.getAdoptionPetById(petId)
                     ?: error("No se encontró la mascota.")
@@ -141,7 +122,10 @@ class EditAdoptionPetViewModel @Inject constructor(
 
     fun updatePet() {
         val state = _uiState.value
-        val original = state.originalPet ?: return
+        val original = state.originalPet ?: run {
+            _uiState.update { it.copy(error = "No se ha podido cargar la mascota original.") }
+            return
+        }
 
         if (state.nombre.isBlank()) {
             _uiState.update { it.copy(error = "El nombre es obligatorio.") }
@@ -163,15 +147,24 @@ class EditAdoptionPetViewModel @Inject constructor(
             return
         }
 
+        if (original.userId.isBlank()) {
+            _uiState.update {
+                it.copy(error = "La mascota no tiene propietario válido. Revisa el documento en Firestore.")
+            }
+            return
+        }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    error = null
+                )
+            }
 
             runCatching {
-                val remoteUrls = state.photoItems
-                    .mapNotNull { it.remoteUrl }
-
-                val newUris = state.photoItems
-                    .mapNotNull { it.localUri }
+                val remoteUrls = state.photoItems.mapNotNull { it.remoteUrl }
+                val newUris = state.photoItems.mapNotNull { it.localUri }
 
                 val uploadedUrls = if (newUris.isNotEmpty()) {
                     petRepository.uploadPetImages(
@@ -181,6 +174,8 @@ class EditAdoptionPetViewModel @Inject constructor(
                 } else {
                     emptyList()
                 }
+
+                val finalPhotos = (remoteUrls + uploadedUrls).distinct()
 
                 val updatedPet = original.copy(
                     nombre = state.nombre.trim(),
@@ -192,7 +187,8 @@ class EditAdoptionPetViewModel @Inject constructor(
                     descripcion = state.descripcion.trim(),
                     ubicacion = state.ubicacion.trim(),
                     estado = state.estado.trim().ifBlank { "en adopción" },
-                    fotos = remoteUrls + uploadedUrls
+                    fotos = finalPhotos,
+                    userId = original.userId
                 )
 
                 petRepository.updateAdoptionPet(updatedPet)
@@ -200,7 +196,8 @@ class EditAdoptionPetViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        isUpdated = true
+                        isUpdated = true,
+                        error = null
                     )
                 }
             }.onFailure { e ->

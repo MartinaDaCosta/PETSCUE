@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.UserRole
+import com.example.petscue.data.repository.MensajesRepository
 import com.example.petscue.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -19,6 +20,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val repository: ProfileRepository,
+    private val mensajesRepository: MensajesRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -29,9 +31,34 @@ class ProfileViewModel @Inject constructor(
 
     private var petsJob: Job? = null
 
+    private val _openChatEvent = MutableStateFlow<String?>(null)
+    val openChatEvent: StateFlow<String?> = _openChatEvent.asStateFlow()
+
     init {
         refreshProfile()
     }
+
+    fun openOrCreateGeneralChat() {
+        viewModelScope.launch {
+            val currentUser = repository.getCurrentUserProfile()
+            val otherUserId = viewedUserId ?: return@launch
+
+            if (currentUser.uid == otherUserId) return@launch
+
+            val conversationId = mensajesRepository.createOrGetGeneralConversation(
+                currentUserId = currentUser.uid,
+                otherUserId = otherUserId
+            )
+
+            _openChatEvent.value = conversationId
+        }
+    }
+
+    fun consumeOpenChatEvent() {
+        _openChatEvent.value = null
+    }
+
+
 
     fun onTabSelected(tab: ProfileTab) {
         _uiState.update { it.copy(selectedTab = tab) }
@@ -145,6 +172,19 @@ class ProfileViewModel @Inject constructor(
                     followersCount = if (state.isFollowing) it.followersCount - 1 else it.followersCount + 1
                 )
             }
+        }
+    }
+    fun startConversation(onReady: (String) -> Unit) {
+        val targetUserId = viewedUserId ?: return
+
+        viewModelScope.launch {
+            runCatching {
+                val currentUser = repository.getCurrentUserProfile()
+                mensajesRepository.createOrGetGeneralConversation(
+                    currentUserId = currentUser.uid,
+                    otherUserId = targetUserId
+                )
+            }.onSuccess(onReady)
         }
     }
 }

@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="petscue">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-06-21T15:30:37.150058500Z">
+        <DropdownSelection timestamp="2026-06-22T01:10:08.938289800Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=R52W304236Y" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=o7wgkfytknaevgln" />
             </handle>
           </Target>
         </DropdownSelection>

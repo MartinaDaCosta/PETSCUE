@@ -4,6 +4,5 @@ package com.example.petscue.data.model
 enum class AnimalStatus {
     DISPONIBLE,
     RESERVADO,
-    ADOPTADO,
-    ARCHIVADO
+    ADOPTADO
 }

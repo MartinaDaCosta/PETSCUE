@@ -24,9 +24,10 @@ import com.example.petscue.ui.novedades.detailpost.PostDetailScreen
 import com.example.petscue.ui.onboarding.OnboardingScreen
 import com.example.petscue.ui.pet.PetDetailScreen
 import com.example.petscue.ui.profile.ProfileScreen
-import com.example.petscue.ui.profile.adoption.AdoptionPetDetailScreen
+import com.example.petscue.ui.profile.adopta.adoptiondetail.AdoptionPetDetailScreen
 import com.example.petscue.ui.profile.pet.AddPetScreen
-import com.example.petscue.ui.profile.pet.editpet.EditAdoptionPetScreen
+import com.example.petscue.ui.profile.adopta.edit.EditAdoptionPetScreen
+import com.example.petscue.ui.profile.adopta.request.AdoptionRequestScreen
 import com.example.petscue.ui.profile.pet.petdetail.EditPetScreen
 import com.example.petscue.ui.splash.SplashScreen
 import com.google.firebase.auth.FirebaseAuth
@@ -172,6 +173,9 @@ fun PetscueNavHost(
                 onEditPet = { petId ->
                     navController.navigate(Routes.editPetRoute(petId))
                 },
+                onMessageClick = { conversationId ->
+                    navController.navigate(Routes.chatDetailRoute(conversationId))
+                },
                 onPetDeleted = {
                     navController.popBackStack()
                 }
@@ -205,12 +209,31 @@ fun PetscueNavHost(
                 onEditClick = { petId ->
                     navController.navigate(Routes.editAdoptionPetRoute(petId))
                 },
+                onRequestAdoption = { petId ->
+                    navController.navigate(Routes.adoptionRequestRoute(petId))
+                },
                 onPetDeleted = {
                     navController.popBackStack()
                 }
             )
         }
-
+        composable(
+            route = Routes.ADOPTION_REQUEST,
+            arguments = listOf(
+                navArgument("petId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            AdoptionRequestScreen(
+                onBack = { navController.popBackStack() },
+                onRequestSent = { conversationId ->
+                    navController.navigate(Routes.chatDetailRoute(conversationId)) {
+                        popUpTo(Routes.ADOPTION_REQUEST) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(
             route = Routes.EDIT_ADOPTION_PET,
             arguments = listOf(
@@ -332,8 +355,11 @@ fun PetscueNavHost(
                 onOpenProfile = { anotherUserId ->
                     navController.navigate("user_profile/$anotherUserId")
                 },
-                onMessageClick = {}
+                onMessageClick = { _ ->
+                    // TODO: crear o buscar conversación y luego navegar con conversationId
+                }
             )
         }
+
     }
 }

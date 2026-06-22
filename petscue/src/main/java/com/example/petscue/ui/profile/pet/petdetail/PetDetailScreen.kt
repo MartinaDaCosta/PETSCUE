@@ -60,6 +60,7 @@ private val BlueBorder = Color(0xFFB9D8FF)
 fun PetDetailScreen(
     onBack: () -> Unit,
     onEditPet: (String) -> Unit,
+    onMessageClick: (String) -> Unit,
     onPetDeleted: () -> Unit,
     vm: PetDetailViewModel = hiltViewModel()
 ) {
@@ -70,6 +71,12 @@ fun PetDetailScreen(
         if (state.isDeleted) {
             onPetDeleted()
         }
+    }
+
+    LaunchedEffect(state.openChatConversationId) {
+        val conversationId = state.openChatConversationId ?: return@LaunchedEffect
+        onMessageClick(conversationId)
+        vm.consumeOpenChatEvent()
     }
 
     if (showDeleteDialog.value) {
@@ -131,7 +138,7 @@ fun PetDetailScreen(
             }
 
             else -> {
-                val pet = state.pet!!
+                val pet = requireNotNull(state.pet)
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -209,62 +216,72 @@ fun PetDetailScreen(
                             border = BorderStroke(1.dp, BlueBorder)
                         ) {
                             Column(
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier.padding(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                DetailLine("Especie", pet.especie)
-                                DetailLine("Raza", pet.raza)
-                                DetailLine("Género", pet.genero)
-                                DetailLine("Edad", pet.edad)
-                                DetailLine("Peso", pet.peso)
-                                DetailLine("Ubicación", pet.ubicacion)
-                                DetailLine("Estado", pet.estado)
-                                DetailLine("Descripción", pet.descripcion)
+                                Text(
+                                    text = "Información",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = BlueDark,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Text("Género: ${pet.genero.ifBlank { "-" }}", color = BluePrimary)
+                                Text("Raza: ${pet.raza.ifBlank { "-" }}", color = BluePrimary)
+                                Text("Edad: ${pet.edad.ifBlank { "-" }}", color = BluePrimary)
+                                Text("Estado: ${pet.estado.ifBlank { "-" }}", color = BluePrimary)
+                                Text("Descripción: ${pet.descripcion.ifBlank { "-" }}", color = BluePrimary)
                             }
                         }
                     }
 
                     item {
                         Column(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Button(
-                                onClick = { onEditPet(pet.id) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(54.dp),
-                                shape = RoundedCornerShape(18.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = BluePrimary,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Editar información")
-                            }
+                            if (state.isOwner) {
+                                Button(
+                                    onClick = { onEditPet(pet.id) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(54.dp),
+                                    shape = RoundedCornerShape(18.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = BluePrimary,
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Editar mascota")
+                                }
 
-                            OutlinedButton(
-                                onClick = { showDeleteDialog.value = true },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(54.dp),
-                                shape = RoundedCornerShape(18.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Eliminar mascota",
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                                OutlinedButton(
+                                    onClick = { showDeleteDialog.value = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(54.dp),
+                                    shape = RoundedCornerShape(18.dp)
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Eliminar mascota")
+                                }
+                            } else {
+                                Button(
+                                    onClick = { vm.openOrCreateGeneralChat() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(54.dp),
+                                    shape = RoundedCornerShape(18.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = BluePrimary,
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Text("Enviar mensaje")
+                                }
                             }
                         }
                     }

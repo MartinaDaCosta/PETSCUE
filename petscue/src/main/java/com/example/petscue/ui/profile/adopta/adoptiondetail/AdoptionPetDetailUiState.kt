@@ -1,12 +1,11 @@
-package com.example.petscue.ui.profile.pet.petdetail
+package com.example.petscue.ui.profile.adopta.adoptiondetail
 
 import com.example.petscue.data.model.Pet
 
-data class PetDetailUiState(
+data class AdoptionPetDetailUiState(
     val isLoading: Boolean = true,
     val pet: Pet? = null,
     val isOwner: Boolean = false,
     val isDeleted: Boolean = false,
-    val openChatConversationId: String? = null,
     val error: String? = null
 )

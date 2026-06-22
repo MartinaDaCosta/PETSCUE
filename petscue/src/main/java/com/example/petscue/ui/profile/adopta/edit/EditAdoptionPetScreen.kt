@@ -1,4 +1,4 @@
-package com.example.petscue.ui.profile.pet.editpet
+package com.example.petscue.ui.profile.adopta.edit
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,7 +55,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
-
 private val BluePrimary = Color(0xFF4DA3FF)
 private val BlueSoft = Color(0xFFEFF6FF)
 private val BlueBorder = Color(0xFFB9D8FF)

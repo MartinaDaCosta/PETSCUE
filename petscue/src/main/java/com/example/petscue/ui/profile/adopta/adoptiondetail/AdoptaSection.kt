@@ -1,4 +1,4 @@
-package com.example.petscue.ui.profile.adopta
+package com.example.petscue.ui.profile.adopta.adoptiondetail
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
