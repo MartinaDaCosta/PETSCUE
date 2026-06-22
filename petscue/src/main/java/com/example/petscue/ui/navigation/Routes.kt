@@ -23,7 +23,9 @@ object Routes {
     const val ALERT_DETAIL = "alert_detail/{petId}"
     const val MY_ALERTS = "my_alerts"
     const val ADOPTION_REQUEST = "adoption_request/{petId}"
+    const val MAIN_WITH_TAB = "main?tab={tab}"
 
+    fun mainRoute(tab: String) = "main?tab=$tab"
     fun adoptionRequestRoute(petId: String) = "adoption_request/$petId"
     fun createAlertRoute(petId: String) = "create_alert/$petId"
     fun petDetailRoute(petId: String) = "pet_detail/$petId"

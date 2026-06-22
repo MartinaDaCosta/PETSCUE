@@ -73,6 +73,7 @@ fun userProfileRoute(userId: String): String = "user_profile/$userId"
 @Composable
 fun MainScreen(
     navController: NavHostController,
+    initialTabRoute: String = BottomTab.Novedades.route,
     onLogout: () -> Unit = {}
 ) {
     var currentTabRoute by rememberSaveable { mutableStateOf(BottomTab.Novedades.route) }

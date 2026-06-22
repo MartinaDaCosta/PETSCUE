@@ -65,40 +65,49 @@ private val DeleteRed  = Color(0xFFD32F2F)
 // Tarjeta del post principal
 // ─────────────────────────────────────────────
 @Composable
-fun PostDetailCard(post: Post) {
+fun PostDetailCard(
+    post: Post,
+    onOpenProfile: (String) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp),
-        shape  = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.5.dp, BlueBorder),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-
-            // ── Cabecera: avatar + nombre + tipo + tiempo ──
             Row(
                 verticalAlignment = Alignment.Top,
-                modifier          = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             ) {
+                val profileModifier = Modifier.clickable(
+                    enabled = post.userId.isNotBlank()
+                ) {
+                    onOpenProfile(post.userId)
+                }
+
                 if (post.userAvatar.isNotBlank()) {
                     AsyncImage(
-                        model              = post.userAvatar,
+                        model = post.userAvatar,
                         contentDescription = "Avatar de ${post.userName}",
-                        modifier           = Modifier
+                        modifier = profileModifier
                             .size(42.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size(42.dp).clip(CircleShape),
-                        color    = BluePrimary.copy(alpha = 0.15f)
+                        modifier = profileModifier
+                            .size(42.dp)
+                            .clip(CircleShape),
+                        color = BluePrimary.copy(alpha = 0.15f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text       = post.userName.firstOrNull()?.uppercase() ?: "U",
-                                color      = BluePrimary,
+                                text = post.userName.firstOrNull()?.uppercase() ?: "U",
+                                color = BluePrimary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -107,61 +116,65 @@ fun PostDetailCard(post: Post) {
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    // Nombre + handle
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(enabled = post.userId.isNotBlank()) {
+                            onOpenProfile(post.userId)
+                        }
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text       = post.userName,
+                            text = post.userName,
                             fontWeight = FontWeight.Bold,
-                            style      = MaterialTheme.typography.bodyMedium,
-                            maxLines   = 1,
-                            overflow   = TextOverflow.Ellipsis
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (post.userHandle.isNotBlank()) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text     = post.userHandle,
-                                style    = MaterialTheme.typography.bodySmall,
-                                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = post.userHandle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    // Tipo · tiempo · ubicación
                     Row(
-                        verticalAlignment     = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (post.tipo.isNotBlank()) {
                             Text(
-                                text       = post.tipo,
-                                style      = MaterialTheme.typography.labelSmall,
-                                color      = BluePrimary,
+                                text = post.tipo,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BluePrimary,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text  = "·",
+                                text = "·",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Text(
-                            text  = tiempoRelativo(post.timestamp),
+                            text = tiempoRelativo(post.timestamp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (post.ubicacion.isNotBlank()) {
                             Text(
-                                text  = "·",
+                                text = "·",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text     = post.ubicacion,
-                                style    = MaterialTheme.typography.labelSmall,
-                                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = post.ubicacion,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -172,13 +185,11 @@ fun PostDetailCard(post: Post) {
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // ── Texto del post ─────────────────────────────
             if (post.mensaje.isNotBlank()) {
                 Text(text = post.mensaje, style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // ── Imágenes ───────────────────────────────────
             if (post.fotos.isNotEmpty()) {
                 PostImages(post.fotos.take(4))
                 Spacer(modifier = Modifier.height(10.dp))
@@ -187,15 +198,14 @@ fun PostDetailCard(post: Post) {
             HorizontalDivider(color = BlueBorder.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(10.dp))
 
-            // ── Acciones ───────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
                 DetailAction(Icons.Default.ChatBubbleOutline, post.comentarios.toString())
-                DetailAction(Icons.Default.Repeat,            "Repost")
-                DetailAction(Icons.Default.FavoriteBorder,    post.likes.toString())
-                DetailAction(Icons.Default.Share,             "Compartir")
+                DetailAction(Icons.Default.Repeat, "Repost")
+                DetailAction(Icons.Default.FavoriteBorder, post.likes.toString())
+                DetailAction(Icons.Default.Share, "Compartir")
             }
         }
     }
@@ -206,28 +216,31 @@ fun PostDetailCard(post: Post) {
 // ─────────────────────────────────────────────
 @Composable
 fun ReplyThreadItem(
-    reply         : Reply,
-    childReplies  : List<Reply>,
-    currentUserId : String,
-    onReplyClick  : (Reply) -> Unit,
-    onDeleteReply : (Reply) -> Unit
+    reply: Reply,
+    childReplies: List<Reply>,
+    currentUserId: String,
+    onReplyClick: (Reply) -> Unit,
+    onDeleteReply: (Reply) -> Unit,
+    onOpenProfile: (String) -> Unit
 ) {
     ReplyCard(
-        reply         = reply,
-        canDelete     = reply.userId == currentUserId,
-        onReplyClick  = { onReplyClick(reply) },
+        reply = reply,
+        canDelete = reply.userId == currentUserId,
+        onReplyClick = { onReplyClick(reply) },
         onDeleteClick = { onDeleteReply(reply) },
-        startPadding  = 14.dp
+        onOpenProfile = onOpenProfile,
+        startPadding = 14.dp
     )
 
     childReplies.forEach { child ->
         ReplyCard(
-            reply         = child,
-            canDelete     = child.userId == currentUserId,
-            onReplyClick  = { onReplyClick(child) },
+            reply = child,
+            canDelete = child.userId == currentUserId,
+            onReplyClick = { onReplyClick(child) },
             onDeleteClick = { onDeleteReply(child) },
-            startPadding  = 34.dp,
-            isChild       = true
+            onOpenProfile = onOpenProfile,
+            startPadding = 34.dp,
+            isChild = true
         )
     }
 }
@@ -237,12 +250,13 @@ fun ReplyThreadItem(
 // ─────────────────────────────────────────────
 @Composable
 private fun ReplyCard(
-    reply         : Reply,
-    canDelete     : Boolean,
-    onReplyClick  : () -> Unit,
-    onDeleteClick : () -> Unit,
-    startPadding  : Dp      = 0.dp,
-    isChild       : Boolean = false
+    reply: Reply,
+    canDelete: Boolean,
+    onReplyClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onOpenProfile: (String) -> Unit,
+    startPadding: Dp = 0.dp,
+    isChild: Boolean = false
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -250,7 +264,7 @@ private fun ReplyCard(
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Eliminar comentario") },
-            text  = { Text("¿Seguro que quieres borrar este comentario?") },
+            text = { Text("¿Seguro que quieres borrar este comentario?") },
             confirmButton = {
                 TextButton(onClick = { showDialog = false; onDeleteClick() }) {
                     Text("Eliminar", color = DeleteRed)
@@ -268,7 +282,7 @@ private fun ReplyCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = startPadding, top = 6.dp, end = 14.dp),
-        shape  = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             width = 1.dp,
             color = if (isChild) BlueBorder.copy(alpha = 0.35f) else BlueBorder.copy(alpha = 0.6f)
@@ -276,27 +290,26 @@ private fun ReplyCard(
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-
-            // ── Cabecera: foto + nombre + botón borrar ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
                 Box(modifier = Modifier.weight(1f)) {
                     UserHeader(
-                        avatar     = reply.userAvatar,
-                        userName   = reply.userName,
-                        userHandle = reply.userHandle
+                        userId = reply.userId,
+                        avatar = reply.userAvatar,
+                        userName = reply.userName,
+                        userHandle = reply.userHandle,
+                        onOpenProfile = onOpenProfile
                     )
                 }
 
-                // Botón borrar — solo visible si el comentario es del usuario actual
                 if (canDelete) {
                     IconButton(onClick = { showDialog = true }) {
                         Icon(
-                            imageVector        = Icons.Default.DeleteOutline,
+                            imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Eliminar comentario",
-                            tint               = DeleteRed
+                            tint = DeleteRed
                         )
                     }
                 }
@@ -304,10 +317,9 @@ private fun ReplyCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ── Texto del comentario ──
             if (reply.mensaje.isNotBlank()) {
                 Text(
-                    text  = reply.mensaje,
+                    text = reply.mensaje,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(10.dp))
@@ -316,15 +328,14 @@ private fun ReplyCard(
             HorizontalDivider(color = BlueBorder.copy(alpha = 0.35f))
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ── Acciones inferiores ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment     = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 DetailAction(
-                    icon    = Icons.Default.ChatBubbleOutline,
-                    text    = "Responder",
+                    icon = Icons.Default.ChatBubbleOutline,
+                    text = "Responder",
                     onClick = onReplyClick
                 )
                 DetailAction(
@@ -412,31 +423,46 @@ fun ReplyComposer(
 // ─────────────────────────────────────────────
 @Composable
 internal fun UserHeader(
-    avatar     : String,
-    userName   : String,
-    userHandle : String,
-    extra      : String = ""
+    userId: String,
+    avatar: String,
+    userName: String,
+    userHandle: String,
+    extra: String = "",
+    onOpenProfile: (String) -> Unit
 ) {
+    val enabled = userId.isNotBlank()
+
     Row(
         verticalAlignment = Alignment.Top,
-        modifier          = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
     ) {
+        val avatarModifier = if (enabled) {
+            Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .clickable { onOpenProfile(userId) }
+        } else {
+            Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+        }
+
         if (avatar.isNotBlank()) {
             AsyncImage(
-                model              = avatar,
+                model = avatar,
                 contentDescription = "Avatar de $userName",
-                modifier           = Modifier.size(42.dp).clip(CircleShape),
-                contentScale       = ContentScale.Crop
+                modifier = avatarModifier,
+                contentScale = ContentScale.Crop
             )
         } else {
             Surface(
-                modifier = Modifier.size(42.dp).clip(CircleShape),
-                color    = BluePrimary.copy(alpha = 0.15f)
+                modifier = avatarModifier,
+                color = BluePrimary.copy(alpha = 0.15f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
-                        text       = userName.firstOrNull()?.uppercase() ?: "U",
-                        color      = BluePrimary,
+                        text = userName.firstOrNull()?.uppercase() ?: "U",
+                        color = BluePrimary,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -445,31 +471,38 @@ internal fun UserHeader(
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (enabled) Modifier.clickable { onOpenProfile(userId) } else Modifier
+                )
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text       = userName,
+                    text = userName,
                     fontWeight = FontWeight.Bold,
-                    style      = MaterialTheme.typography.bodyMedium,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (userHandle.isNotBlank()) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text     = userHandle,
-                        style    = MaterialTheme.typography.bodySmall,
-                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = userHandle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+
             if (extra.isNotBlank()) {
                 Text(
-                    text     = extra,
-                    style    = MaterialTheme.typography.bodySmall,
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = extra,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

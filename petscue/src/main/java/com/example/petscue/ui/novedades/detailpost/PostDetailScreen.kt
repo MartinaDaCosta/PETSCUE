@@ -45,10 +45,11 @@ private val BlueSoft    = Color(0xFFEAF3FF)
 
 @Composable
 fun PostDetailScreen(
-    onBack    : () -> Unit,
-    viewModel : PostDetailViewModel = hiltViewModel()
+    onBack: () -> Unit,
+    onOpenProfile: (String) -> Unit,
+    viewModel: PostDetailViewModel = hiltViewModel()
 ) {
-    val uiState          by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.error) {
@@ -56,30 +57,30 @@ fun PostDetailScreen(
     }
 
     Scaffold(
-        modifier       = Modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(BlueSoft)
             .windowInsetsPadding(WindowInsets.systemBars),
         containerColor = BlueSoft,
-        snackbarHost   = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(color = Color.White, shadowElevation = 2.dp) {
                 Row(
-                    modifier          = Modifier
+                    modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector        = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
-                            tint               = BluePrimary
+                            tint = BluePrimary
                         )
                     }
                     Text(
-                        text       = "Publicación",
-                        style      = MaterialTheme.typography.titleLarge,
+                        text = "Publicación",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -87,20 +88,22 @@ fun PostDetailScreen(
         },
         bottomBar = {
             ReplyComposer(
-                text          = uiState.replyText,
-                replyingTo    = uiState.replyingTo,
-                isSending     = uiState.isSending,
-                onTextChange  = viewModel::updateReplyText,
+                text = uiState.replyText,
+                replyingTo = uiState.replyingTo,
+                isSending = uiState.isSending,
+                onTextChange = viewModel::updateReplyText,
                 onCancelReply = { viewModel.setReplyingTo(null) },
-                onSend        = { viewModel.sendReply() }
+                onSend = { viewModel.sendReply() }
             )
         }
     ) { innerPadding ->
         when {
             uiState.isLoading -> {
                 Box(
-                    modifier          = Modifier.fillMaxSize().padding(innerPadding),
-                    contentAlignment  = Alignment.Center
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = BluePrimary)
                 }
@@ -108,7 +111,9 @@ fun PostDetailScreen(
 
             uiState.post == null -> {
                 Box(
-                    modifier         = Modifier.fillMaxSize().padding(innerPadding),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("No se encontró la publicación")
@@ -116,50 +121,56 @@ fun PostDetailScreen(
             }
 
             else -> {
-                val rootReplies     = uiState.replies.filter { it.parentReplyId == null }
+                val rootReplies = uiState.replies.filter { it.parentReplyId == null }
                 val groupedChildren = uiState.replies
                     .filter { it.parentReplyId != null }
                     .groupBy { it.parentReplyId }
 
                 LazyColumn(
-                    modifier            = Modifier.fillMaxSize().padding(innerPadding),
-                    contentPadding      = PaddingValues(vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item {
-                        PostDetailCard(post = uiState.post!!)
+                        PostDetailCard(
+                            post = uiState.post!!,
+                            onOpenProfile = onOpenProfile
+                        )
                     }
 
                     item {
                         Text(
-                            text       = "Respuestas",
-                            modifier   = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                            style      = MaterialTheme.typography.titleMedium,
+                            text = "Respuestas",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color      = BluePrimary
+                            color = BluePrimary
                         )
                     }
 
                     if (rootReplies.isEmpty()) {
                         item {
                             Text(
-                                text     = "Todavía no hay respuestas. Sé la primera persona en comentar.",
+                                text = "Todavía no hay respuestas. Sé la primera persona en comentar.",
                                 modifier = Modifier.padding(horizontal = 16.dp),
-                                color    = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     } else {
                         items(rootReplies, key = { it.id }) { reply ->
                             ReplyThreadItem(
-                                reply         = reply,
-                                childReplies  = groupedChildren[reply.id].orEmpty(),
+                                reply = reply,
+                                childReplies = groupedChildren[reply.id].orEmpty(),
                                 currentUserId = uiState.currentUserId,
-                                onReplyClick  = { selectedReply ->
+                                onReplyClick = { selectedReply ->
                                     viewModel.setReplyingTo(selectedReply)
                                 },
                                 onDeleteReply = { selectedReply ->
                                     viewModel.deleteReply(selectedReply)
-                                }
+                                },
+                                onOpenProfile = onOpenProfile
                             )
                         }
                     }

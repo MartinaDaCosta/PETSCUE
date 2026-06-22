@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
@@ -65,6 +67,7 @@ private val BlueTextSoft = Color(0xFF5E7FAE)
 
 @Composable
 fun ProfileScreen(
+    onBack: () -> Unit = {},
     onAddPetClick: () -> Unit,
     onPetClick: (String) -> Unit,
     onAdoptionPetClick: (String) -> Unit,
@@ -73,7 +76,7 @@ fun ProfileScreen(
     isOwnProfile: Boolean = true,
     onMessageClick: (String) -> Unit = {},
     vm: ProfileViewModel = hiltViewModel()
-) {
+){
     val state by vm.uiState.collectAsState()
     val user = state.user
     val chatToOpen by vm.openChatEvent.collectAsState()
@@ -103,107 +106,117 @@ fun ProfileScreen(
         vm.consumeOpenChatEvent()
     }
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlueSoft),
-        contentPadding = PaddingValues(bottom = 24.dp)
+            .background(BlueSoft)
     ) {
-        item {
-            if (isProtectora) {
-                ProtectoraProfileHeader(
-                    nombreProtectora = user.nombreProtectora,
-                    descripcion = user.descripcionProtectora,
-                    direccion = user.direccion,
-                    telefono = user.telefono,
-                    web = user.web,
-                    instagram = user.instagram,
-                    facebook = user.facebook,
-                    photoUrl = user.photoUrl,
-                    postsCount = state.posts.size,
-                    followersCount = state.followersCount,
-                    followingCount = state.followingCount,
-                    isOwnProfile = isOwnProfile,
-                    isFollowing = state.isFollowing,
-                    onEditProfile = { },
-                    onFollowClick = vm::toggleFollow,
-                    onMessageClick = { vm.openOrCreateGeneralChat() }
-                )
-            } else {
-                UserProfileHeader(
-                    fullName = "${user.nombre} ${user.apellido}".trim(),
-                    photoUrl = user.photoUrl,
-                    postsCount = state.posts.size,
-                    followersCount = state.followersCount,
-                    followingCount = state.followingCount,
-                    isOwnProfile = isOwnProfile,
-                    isFollowing = state.isFollowing,
-                    onEditProfile = { },
-                    onFollowClick = vm::toggleFollow,
-                    onMessageClick = { vm.openOrCreateGeneralChat() }
+        if (!isOwnProfile) {
+            OtherProfileTopBar(onBack = onBack)
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BlueSoft),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            item {
+                if (isProtectora) {
+                    ProtectoraProfileHeader(
+                        nombreProtectora = user.nombreProtectora,
+                        descripcion = user.descripcionProtectora,
+                        direccion = user.direccion,
+                        telefono = user.telefono,
+                        web = user.web,
+                        instagram = user.instagram,
+                        facebook = user.facebook,
+                        photoUrl = user.photoUrl,
+                        postsCount = state.posts.size,
+                        followersCount = state.followersCount,
+                        followingCount = state.followingCount,
+                        isOwnProfile = isOwnProfile,
+                        isFollowing = state.isFollowing,
+                        onEditProfile = { },
+                        onFollowClick = vm::toggleFollow,
+                        onMessageClick = { vm.openOrCreateGeneralChat() }
+                    )
+                } else {
+                    UserProfileHeader(
+                        fullName = "${user.nombre} ${user.apellido}".trim(),
+                        photoUrl = user.photoUrl,
+                        postsCount = state.posts.size,
+                        followersCount = state.followersCount,
+                        followingCount = state.followingCount,
+                        isOwnProfile = isOwnProfile,
+                        isFollowing = state.isFollowing,
+                        onEditProfile = { },
+                        onFollowClick = vm::toggleFollow,
+                        onMessageClick = { vm.openOrCreateGeneralChat() }
+                    )
+                }
+            }
+
+            item {
+                ProfileTabsRow(
+                    isProtectora = isProtectora,
+                    selectedTab = state.selectedTab,
+                    onTabSelected = vm::onTabSelected
                 )
             }
-        }
 
-        item {
-            ProfileTabsRow(
-                isProtectora = isProtectora,
-                selectedTab = state.selectedTab,
-                onTabSelected = vm::onTabSelected
-            )
-        }
-
-        item {
-            when (state.selectedTab) {
-                ProfileTab.PETS_OR_ADOPTION -> {
-                    if (isProtectora) {
-                        AdoptaSection(
-                            pets = state.adoptionPets,
-                            canAdd = isOwnProfile,
-                            onAddPet = onAddPetClick,
-                            onPetClick = onAdoptionPetClick
-                        )
-                    } else {
-                        PetsPanel(
-                            pets = state.pets,
-                            canAdd = isOwnProfile,
-                            onAddPet = onAddPetClick,
-                            onPetClick = onPetClick
-                        )
+            item {
+                when (state.selectedTab) {
+                    ProfileTab.PETS_OR_ADOPTION -> {
+                        if (isProtectora) {
+                            AdoptaSection(
+                                pets = state.adoptionPets,
+                                canAdd = isOwnProfile,
+                                onAddPet = onAddPetClick,
+                                onPetClick = onAdoptionPetClick
+                            )
+                        } else {
+                            PetsPanel(
+                                pets = state.pets,
+                                canAdd = isOwnProfile,
+                                onAddPet = onAddPetClick,
+                                onPetClick = onPetClick
+                            )
+                        }
                     }
+
+                    ProfileTab.POSTS -> ProfilePostsPanel(
+                        posts = state.posts,
+                        viewerUserId = viewerUserId,
+                        onOpenDetail = onOpenPostDetail,
+                        onOpenProfile = onOpenProfile,
+                        onDeletePost = { }
+                    )
+
+                    ProfileTab.REPLIES -> ProfilePostsPanel(
+                        posts = state.replies,
+                        viewerUserId = viewerUserId,
+                        onOpenDetail = onOpenPostDetail,
+                        onOpenProfile = onOpenProfile,
+                        onDeletePost = { }
+                    )
+
+                    ProfileTab.MEDIA -> ProfilePostsPanel(
+                        posts = state.mediaPosts.filter { it.fotos.isNotEmpty() },
+                        viewerUserId = viewerUserId,
+                        onOpenDetail = onOpenPostDetail,
+                        onOpenProfile = onOpenProfile,
+                        onDeletePost = { }
+                    )
+
+                    ProfileTab.LIKES -> ProfilePostsPanel(
+                        posts = state.likedPosts,
+                        viewerUserId = viewerUserId,
+                        onOpenDetail = onOpenPostDetail,
+                        onOpenProfile = onOpenProfile,
+                        onDeletePost = { }
+                    )
                 }
-
-                ProfileTab.POSTS -> ProfilePostsPanel(
-                    posts = state.posts,
-                    viewerUserId = viewerUserId,
-                    onOpenDetail = onOpenPostDetail,
-                    onOpenProfile = onOpenProfile,
-                    onDeletePost = { }
-                )
-
-                ProfileTab.REPLIES -> ProfilePostsPanel(
-                    posts = state.replies,
-                    viewerUserId = viewerUserId,
-                    onOpenDetail = onOpenPostDetail,
-                    onOpenProfile = onOpenProfile,
-                    onDeletePost = { }
-                )
-
-                ProfileTab.MEDIA -> ProfilePostsPanel(
-                    posts = state.mediaPosts.filter { it.fotos.isNotEmpty() },
-                    viewerUserId = viewerUserId,
-                    onOpenDetail = onOpenPostDetail,
-                    onOpenProfile = onOpenProfile,
-                    onDeletePost = { }
-                )
-
-                ProfileTab.LIKES -> ProfilePostsPanel(
-                    posts = state.likedPosts,
-                    viewerUserId = viewerUserId,
-                    onOpenDetail = onOpenPostDetail,
-                    onOpenProfile = onOpenProfile,
-                    onDeletePost = { }
-                )
             }
         }
     }
@@ -931,4 +944,36 @@ private fun PetInfoLine(
         style = MaterialTheme.typography.bodyLarge,
         color = BluePrimary
     )
+}
+
+@Composable
+private fun OtherProfileTopBar(
+    onBack: () -> Unit
+) {
+    Surface(
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Volver",
+                    tint = BlueDark
+                )
+            }
+
+            Text(
+                text = "Perfil",
+                style = MaterialTheme.typography.titleLarge,
+                color = BlueDark,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
 }

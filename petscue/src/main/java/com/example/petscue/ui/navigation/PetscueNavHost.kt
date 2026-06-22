@@ -135,9 +135,22 @@ fun PetscueNavHost(
             )
         }
 
-        composable(Routes.MAIN) {
+        composable(
+            route = "main?tab={tab}",
+            arguments = listOf(
+                navArgument("tab") {
+                    type = NavType.StringType
+                    defaultValue = BottomTab.Novedades.route
+                    nullable = false
+                }
+            )
+        ) { backStackEntry ->
+            val initialTab = backStackEntry.arguments?.getString("tab")
+                ?: BottomTab.Novedades.route
+
             MainScreen(
                 navController = navController,
+                initialTabRoute = initialTab,
                 onLogout = {
                     navController.navigate(Routes.AUTH) {
                         popUpTo(Routes.MAIN) { inclusive = true }
@@ -253,19 +266,40 @@ fun PetscueNavHost(
         }
 
         composable("novedades") {
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+
             NovedadesScreen(
                 onOpenDetail = { postId ->
                     navController.navigate(Routes.postDetailRoute(postId))
                 },
                 onOpenProfile = { userId ->
-                    navController.navigate("user_profile/$userId")
+                    if (userId == currentUserId) {
+                        navController.navigate(Routes.mainRoute(BottomTab.Perfil.route)) {
+                            popUpTo(Routes.MAIN) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    } else {
+                        navController.navigate(userProfileRoute(userId))
+                    }
                 }
             )
         }
 
         composable(Routes.POST_DETAIL) {
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+
             PostDetailScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenProfile = { userId: String ->
+                    if (userId == currentUserId) {
+                        navController.navigate(Routes.mainRoute(BottomTab.Perfil.route)) {
+                            popUpTo(Routes.MAIN) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    } else {
+                        navController.navigate(userProfileRoute(userId))
+                    }
+                }
             )
         }
 
@@ -341,6 +375,7 @@ fun PetscueNavHost(
             )
         ) {
             ProfileScreen(
+                onBack = { navController.popBackStack() },
                 isOwnProfile = false,
                 onAddPetClick = {},
                 onPetClick = { petId ->
@@ -355,9 +390,7 @@ fun PetscueNavHost(
                 onOpenProfile = { anotherUserId ->
                     navController.navigate("user_profile/$anotherUserId")
                 },
-                onMessageClick = { _ ->
-                    // TODO: crear o buscar conversación y luego navegar con conversationId
-                }
+                onMessageClick = { _ -> }
             )
         }
 
