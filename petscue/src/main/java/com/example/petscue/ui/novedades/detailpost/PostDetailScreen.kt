@@ -136,6 +136,9 @@ fun PostDetailScreen(
                     item {
                         PostDetailCard(
                             post = uiState.post!!,
+                            isLiked = uiState.isLikedByCurrentUser,
+                            isLiking = uiState.isLiking,
+                            onToggleLike = { viewModel.toggleLike() },
                             onOpenProfile = onOpenProfile
                         )
                     }

@@ -34,7 +34,7 @@ class PostRepositoryImpl @Inject constructor(
                     doc.toObject(Post::class.java)?.copy(id = doc.id)
                 } ?: emptyList()
 
-                trySend(posts)
+                trySend(posts).isSuccess
             }
 
         awaitClose { listener.remove() }
@@ -70,6 +70,42 @@ class PostRepositoryImpl @Inject constructor(
 
         if (post.id.isNotBlank()) {
             postsRef.document(post.id).delete().await()
+        }
+    }
+
+    override suspend fun toggleLike(postId: String, userId: String) {
+        val postRef = postsRef.document(postId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(postRef)
+            val post = snapshot.toObject(Post::class.java) ?: return@runTransaction
+
+            val currentLikedBy = post.likedBy.toMutableList()
+
+            if (currentLikedBy.contains(userId)) {
+                currentLikedBy.remove(userId)
+            } else {
+                currentLikedBy.add(userId)
+            }
+
+            transaction.update(
+                postRef,
+                mapOf(
+                    "likedBy" to currentLikedBy,
+                    "likes" to currentLikedBy.size
+                )
+            )
+        }.await()
+    }
+
+    override suspend fun getLikedPostsByUser(userId: String): List<Post> {
+        val snapshot = postsRef
+            .whereArrayContains("likedBy", userId)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toObject(Post::class.java)?.copy(id = doc.id)
         }
     }
 

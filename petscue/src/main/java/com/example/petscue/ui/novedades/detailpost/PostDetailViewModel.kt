@@ -3,6 +3,7 @@ package com.example.petscue.ui.novedades.detailpost
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.Reply
 import com.example.petscue.data.model.User
 import com.example.petscue.data.repository.PostRepository
@@ -66,10 +67,13 @@ class PostDetailViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, error = e.message) }
                 }
                 .collect { posts ->
-                    _uiState.update {
-                        it.copy(
-                            post = posts.firstOrNull { post -> post.id == postId },
-                            isLoading = false
+                    val updatedPost = posts.firstOrNull { post -> post.id == postId }
+
+                    _uiState.update { current ->
+                        current.copy(
+                            post = updatedPost,
+                            isLoading = false,
+                            isLiking = false
                         )
                     }
                 }
@@ -95,12 +99,58 @@ class PostDetailViewModel @Inject constructor(
     fun setReplyingTo(reply: Reply?) {
         _uiState.update { it.copy(replyingTo = reply) }
     }
+
+    fun toggleLike() {
+        val currentState = _uiState.value
+        val currentPost = currentState.post ?: return
+        val currentUserId = currentState.currentUserId
+
+        if (currentUserId.isBlank() || currentState.isLiking) return
+
+        val currentlyLiked = currentPost.likedBy.contains(currentUserId)
+
+        val newLikedBy = if (currentlyLiked) {
+            currentPost.likedBy - currentUserId
+        } else {
+            currentPost.likedBy + currentUserId
+        }
+
+        val optimisticPost = currentPost.copy(
+            likedBy = newLikedBy,
+            likes = newLikedBy.size
+        )
+
+        _uiState.update {
+            it.copy(
+                post = optimisticPost,
+                isLiking = true,
+                error = null
+            )
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                postRepository.toggleLike(
+                    postId = currentPost.id,
+                    userId = currentUserId
+                )
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        post = currentPost,
+                        isLiking = false,
+                        error = error.message
+                    )
+                }
+            }
+        }
+    }
+
     fun deleteReply(reply: Reply) {
         viewModelScope.launch {
             runCatching {
                 val postId = uiState.value.post?.id ?: return@launch
 
-                // 1. Borrar hijos del reply
                 val children = db.collection("posts")
                     .document(postId)
                     .collection("replies")
@@ -110,7 +160,6 @@ class PostDetailViewModel @Inject constructor(
 
                 children.documents.forEach { it.reference.delete().await() }
 
-                // 2. Borrar el reply raíz
                 db.collection("posts")
                     .document(postId)
                     .collection("replies")
@@ -118,7 +167,6 @@ class PostDetailViewModel @Inject constructor(
                     .delete()
                     .await()
 
-                // 3. Decrementar contador de comentarios en el post
                 val delta = -(1 + children.size())
                 db.collection("posts")
                     .document(postId)
@@ -130,6 +178,7 @@ class PostDetailViewModel @Inject constructor(
             }
         }
     }
+
     fun sendReply() {
         val state = _uiState.value
         val post = state.post ?: return

@@ -30,6 +30,8 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     private var petsJob: Job? = null
+    private var likedPostsJob: Job? = null
+    private var postsJob: Job? = null
 
     private val _openChatEvent = MutableStateFlow<String?>(null)
     val openChatEvent: StateFlow<String?> = _openChatEvent.asStateFlow()
@@ -58,8 +60,6 @@ class ProfileViewModel @Inject constructor(
         _openChatEvent.value = null
     }
 
-
-
     fun onTabSelected(tab: ProfileTab) {
         _uiState.update { it.copy(selectedTab = tab) }
     }
@@ -70,21 +70,15 @@ class ProfileViewModel @Inject constructor(
 
             runCatching {
                 val currentUser = repository.getCurrentUserProfile()
+
                 val user = if (viewedUserId.isNullOrBlank() || viewedUserId == currentUser.uid) {
                     currentUser
                 } else {
                     repository.getUserProfileById(viewedUserId)
                 }
 
-                val posts = repository.getPostsByUser(user.uid)
-                val mediaPosts = posts.filter { it.fotos.isNotEmpty() }
-
                 val replies: List<Post> = runCatching {
                     repository.getRepliesByUser(user.uid)
-                }.getOrDefault(emptyList())
-
-                val likedPosts: List<Post> = runCatching {
-                    repository.getLikedPostsByUser(user.uid)
                 }.getOrDefault(emptyList())
 
                 val followersCount = runCatching {
@@ -105,17 +99,39 @@ class ProfileViewModel @Inject constructor(
 
                 _uiState.update { current ->
                     current.copy(
-                        isLoading = true,
+                        isLoading = false,
                         currentUserId = currentUser.uid,
                         user = user,
-                        posts = posts,
                         replies = replies,
-                        mediaPosts = mediaPosts,
-                        likedPosts = likedPosts,
                         followersCount = followersCount,
                         followingCount = followingCount,
                         isFollowing = isFollowing
                     )
+                }
+
+                postsJob?.cancel()
+                postsJob = viewModelScope.launch {
+                    repository.getPostsByUser(user.uid).collectLatest { posts ->
+                        val sortedPosts = posts.sortedByDescending { it.timestamp }
+                        _uiState.update { current ->
+                            current.copy(
+                                posts = sortedPosts,
+                                mediaPosts = sortedPosts.filter { post -> post.fotos.isNotEmpty() }
+                            )
+                        }
+                    }
+                }
+
+                likedPostsJob?.cancel()
+                likedPostsJob = viewModelScope.launch {
+                    repository.getLikedPostsByUser(user.uid).collectLatest { likedPosts ->
+                        val sortedLikedPosts = likedPosts.sortedByDescending { it.timestamp }
+                        _uiState.update { current ->
+                            current.copy(
+                                likedPosts = sortedLikedPosts
+                            )
+                        }
+                    }
                 }
 
                 petsJob?.cancel()
@@ -124,7 +140,6 @@ class ProfileViewModel @Inject constructor(
                         repository.getAdoptionPetsByProtectora(user.uid).collectLatest { adoptionPets ->
                             _uiState.update { current ->
                                 current.copy(
-                                    isLoading = false,
                                     pets = emptyList(),
                                     adoptionPets = adoptionPets
                                 )
@@ -134,7 +149,6 @@ class ProfileViewModel @Inject constructor(
                         repository.getPetsByUser(user.uid).collectLatest { pets ->
                             _uiState.update { current ->
                                 current.copy(
-                                    isLoading = false,
                                     pets = pets,
                                     adoptionPets = emptyList()
                                 )
@@ -156,9 +170,9 @@ class ProfileViewModel @Inject constructor(
             val currentUserId = state.currentUserId
             val viewedUserId = state.user?.uid ?: return@launch
 
-            android.util.Log.d("FOLLOW_DEBUG", "current=$currentUserId viewed=$viewedUserId isFollowing=${state.isFollowing}")
-
-            if (currentUserId.isBlank() || viewedUserId.isBlank() || currentUserId == viewedUserId) return@launch
+            if (currentUserId.isBlank() || viewedUserId.isBlank() || currentUserId == viewedUserId) {
+                return@launch
+            }
 
             if (state.isFollowing) {
                 repository.unfollowUser(currentUserId, viewedUserId)
@@ -166,14 +180,19 @@ class ProfileViewModel @Inject constructor(
                 repository.followUser(currentUserId, viewedUserId)
             }
 
-            _uiState.update {
-                it.copy(
+            _uiState.update { current ->
+                current.copy(
                     isFollowing = !state.isFollowing,
-                    followersCount = if (state.isFollowing) it.followersCount - 1 else it.followersCount + 1
+                    followersCount = if (state.isFollowing) {
+                        (current.followersCount - 1).coerceAtLeast(0)
+                    } else {
+                        current.followersCount + 1
+                    }
                 )
             }
         }
     }
+
     fun startConversation(onReady: (String) -> Unit) {
         val targetUserId = viewedUserId ?: return
 
@@ -186,5 +205,12 @@ class ProfileViewModel @Inject constructor(
                 )
             }.onSuccess(onReady)
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        petsJob?.cancel()
+        likedPostsJob?.cancel()
+        postsJob?.cancel()
     }
 }

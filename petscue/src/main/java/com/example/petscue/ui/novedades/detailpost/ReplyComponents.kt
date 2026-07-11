@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
@@ -67,6 +68,9 @@ private val DeleteRed  = Color(0xFFD32F2F)
 @Composable
 fun PostDetailCard(
     post: Post,
+    isLiked: Boolean,
+    isLiking: Boolean,
+    onToggleLike: () -> Unit,
     onOpenProfile: (String) -> Unit
 ) {
     Card(
@@ -204,13 +208,52 @@ fun PostDetailCard(
             ) {
                 DetailAction(Icons.Default.ChatBubbleOutline, post.comentarios.toString())
                 DetailAction(Icons.Default.Repeat, "Repost")
-                DetailAction(Icons.Default.FavoriteBorder, post.likes.toString())
+                LikeDetailAction(
+                    isLiked = isLiked,
+                    likesCount = post.likes,
+                    isLoading = isLiking,
+                    onClick = onToggleLike
+                )
                 DetailAction(Icons.Default.Share, "Compartir")
             }
         }
     }
 }
+@Composable
+internal fun LikeDetailAction(
+    isLiked: Boolean,
+    likesCount: Int,
+    isLoading: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable(enabled = !isLoading) { onClick() }
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = if (isLiked) DeleteRed else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Icon(
+                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = "Me gusta",
+                tint = if (isLiked) DeleteRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
 
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Text(
+            text = likesCount.toString(),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isLiked) DeleteRed else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
 // ─────────────────────────────────────────────
 // Hilo de comentario: raíz + hijos indentados
 // ─────────────────────────────────────────────

@@ -53,23 +53,46 @@ class ProfileRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    override suspend fun getPostsByUser(userId: String): List<Post> {
-        val snapshot = db.collection("posts")
+    override fun getPostsByUser(userId: String): Flow<List<Post>> = callbackFlow {
+        val listener = db.collection("posts")
             .whereEqualTo("userId", userId)
-            .get()
-            .await()
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
 
-        return snapshot.documents.mapNotNull { doc ->
-            doc.toObject(Post::class.java)?.copy(id = doc.id)
-        }
+                val posts = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Post::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
+                trySend(posts).isSuccess
+            }
+
+        awaitClose { listener.remove() }
     }
 
     override suspend fun getRepliesByUser(userId: String): List<Post> {
         return emptyList()
     }
 
-    override suspend fun getLikedPostsByUser(userId: String): List<Post> {
-        return emptyList()
+    override fun getLikedPostsByUser(userId: String): Flow<List<Post>> = callbackFlow {
+        val listener = db.collection("posts")
+            .whereArrayContains("likedBy", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val likedPosts = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Post::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
+                trySend(likedPosts).isSuccess
+            }
+
+        awaitClose { listener.remove() }
     }
 
     override suspend fun getFollowersCount(userId: String): Int {
