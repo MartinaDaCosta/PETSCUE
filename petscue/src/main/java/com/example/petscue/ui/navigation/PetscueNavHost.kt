@@ -31,6 +31,7 @@ import com.example.petscue.ui.profile.pet.AddPetScreen
 import com.example.petscue.ui.profile.pet.petdetail.EditPetScreen
 import com.example.petscue.ui.splash.SplashScreen
 import com.google.firebase.auth.FirebaseAuth
+import com.example.petscue.ui.profile.edit.EditProfileScreen
 
 @Composable
 fun PetscueNavHost(
@@ -138,7 +139,20 @@ fun PetscueNavHost(
                 }
             }
         }
+        composable(Routes.EDIT_PROFILE) {
+            EditProfileScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onProfileUpdated = {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("profile_updated", true)
 
+                    navController.popBackStack()
+                }
+            )
+        }
         composable(Routes.ONBOARDING) {
             OnboardingScreen {
                 prefs.edit()
@@ -574,7 +588,11 @@ fun PetscueNavHost(
                         userProfileRoute(userId)
                     )
                 },
-                onMessageClick = {}
+                onMessageClick = { conversationId ->
+                    navController.navigate(
+                        Routes.chatDetailRoute(conversationId)
+                    )
+                }
             )
         }
     }

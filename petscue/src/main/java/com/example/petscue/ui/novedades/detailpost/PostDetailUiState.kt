@@ -12,6 +12,7 @@ data class PostDetailUiState(
     val replies: List<Reply> = emptyList(),
     val replyText: String = "",
     val replyingTo: Reply? = null,
+    val shouldFocusReply: Boolean = false,
     val error: String? = null
 ) {
     val isLikedByCurrentUser: Boolean

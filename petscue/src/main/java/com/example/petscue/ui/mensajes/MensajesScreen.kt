@@ -1,5 +1,6 @@
 package com.example.petscue.ui.mensajes
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material3.AssistChip
@@ -29,18 +31,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,13 +50,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.petscue.data.model.Conversation
+import com.example.petscue.ui.theme.PetscueBlue
+import com.example.petscue.ui.theme.PetscueBlueDark
+import com.example.petscue.ui.theme.PetscueLightSurfaceVariant
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-
-private val PetscueBlue = Color(0xFF1565C0)
-private val PetscueBackground = Color(0xFFF0F4FF)
 
 @Composable
 fun MensajesScreen(
@@ -63,20 +64,38 @@ fun MensajesScreen(
     viewModel: MensajesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var query by rememberSaveable { mutableStateOf("") }
-    var selectedFilter by rememberSaveable { mutableStateOf("Todos") }
+
+    var query by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var selectedFilter by rememberSaveable {
+        mutableStateOf("Todos")
+    }
 
     val conversations = uiState.conversations
 
-    val filteredConversations = remember(conversations, query, selectedFilter, uiState.currentUserId) {
+    val filteredConversations = remember(
+        conversations,
+        query,
+        selectedFilter,
+        uiState.currentUserId
+    ) {
         conversations
             .filter { conversation ->
-                val unreadCount = conversation.unreadCountByUser[uiState.currentUserId] ?: 0
+                val unreadCount =
+                    conversation.unreadCountByUser[uiState.currentUserId] ?: 0
 
                 val matchesQuery =
                     conversation.petName.contains(query, ignoreCase = true) ||
-                            conversation.otherUserPreviewName.contains(query, ignoreCase = true) ||
-                            conversation.shelterName.contains(query, ignoreCase = true)
+                            conversation.otherUserPreviewName.contains(
+                                query,
+                                ignoreCase = true
+                            ) ||
+                            conversation.shelterName.contains(
+                                query,
+                                ignoreCase = true
+                            )
 
                 val matchesFilter = when (selectedFilter) {
                     "Sin leer" -> unreadCount > 0
@@ -91,80 +110,22 @@ fun MensajesScreen(
             .sortedByDescending { it.updatedAt }
     }
 
+    val totalUnread = conversations.sumOf { conversation ->
+        conversation.unreadCountByUser[uiState.currentUserId] ?: 0
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PetscueBackground)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-        ) {
-            Text(
-                text = "Mensajes",
-                style = MaterialTheme.typography.headlineSmall,
-                color = PetscueBlue,
-                fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
-            )
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                placeholder = {
-                    Text("Buscar por animal, usuario o protectora")
-                },
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Buscar"
-                    )
-                },
-                shape = RoundedCornerShape(18.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    disabledContainerColor = Color.White,
-                    focusedIndicatorColor = PetscueBlue,
-                    unfocusedIndicatorColor = PetscueBlue.copy(alpha = 0.28f),
-                    cursorColor = PetscueBlue
-                )
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("Todos", "Sin leer", "Adopción", "Avisos", "Preguntas").forEach { filter ->
-                    AssistChip(
-                        onClick = { selectedFilter = filter },
-                        label = {
-                            Text(
-                                text = filter,
-                                fontWeight = if (selectedFilter == filter) FontWeight.Bold else FontWeight.Medium
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (selectedFilter == filter) PetscueBlue else Color.White,
-                            labelColor = if (selectedFilter == filter) Color.White else PetscueBlue
-                        ),
-                        border = AssistChipDefaults.assistChipBorder(
-                            enabled = true,
-                            borderColor = PetscueBlue.copy(alpha = 0.25f)
-                        )
-                    )
-                }
-            }
-        }
+        MessagesHeader(
+            query = query,
+            onQueryChange = { query = it },
+            selectedFilter = selectedFilter,
+            onFilterSelected = { selectedFilter = it },
+            totalUnread = totalUnread
+        )
 
         when {
             uiState.isLoading -> {
@@ -172,30 +133,35 @@ fun MensajesScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = PetscueBlue)
-                }
-            }
-
-            uiState.errorMessage != null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = uiState.errorMessage ?: "Error cargando mensajes",
+                    CircularProgressIndicator(
                         color = PetscueBlue
                     )
                 }
             }
 
+            uiState.errorMessage != null -> {
+                MessagesErrorState(
+                    message = uiState.errorMessage
+                        ?: "No se pudieron cargar los mensajes."
+                )
+            }
+
             filteredConversations.isEmpty() -> {
-                EmptyMessagesState()
+                EmptyMessagesState(
+                    isSearchOrFilterActive =
+                        query.isNotBlank() || selectedFilter != "Todos"
+                )
             }
 
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 24.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(
@@ -205,7 +171,159 @@ fun MensajesScreen(
                         ConversationCard(
                             conversation = conversation,
                             currentUserId = uiState.currentUserId,
-                            onClick = { onConversationClick(conversation.id) }
+                            onClick = {
+                                onConversationClick(conversation.id)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessagesHeader(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    selectedFilter: String,
+    onFilterSelected: (String) -> Unit,
+    totalUnread: Int
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                top = 16.dp,
+                bottom = 12.dp
+            ),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Mensajes",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = PetscueBlueDark,
+                    fontWeight = FontWeight.ExtraBold
+                )
+
+                Text(
+                    text = if (totalUnread > 0) {
+                        "Tienes $totalUnread mensaje${if (totalUnread == 1) "" else "s"} sin leer"
+                    } else {
+                        "Todas tus conversaciones en un mismo lugar"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (totalUnread > 0) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(PetscueBlue)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = totalUnread.toString(),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = {
+                Text("Buscar animal, usuario o protectora")
+            },
+            singleLine = true,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Buscar",
+                    tint = PetscueBlue
+                )
+            },
+            shape = RoundedCornerShape(18.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = PetscueBlue,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedLabelColor = PetscueBlue,
+                cursorColor = PetscueBlue,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            )
+        )
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(42.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        "Todos",
+                        "Sin leer",
+                        "Adopción",
+                        "Avisos",
+                        "Preguntas"
+                    ).forEach { filter ->
+                        val selected = selectedFilter == filter
+
+                        AssistChip(
+                            onClick = {
+                                onFilterSelected(filter)
+                            },
+                            label = {
+                                Text(
+                                    text = filter,
+                                    fontWeight = if (selected) {
+                                        FontWeight.Bold
+                                    } else {
+                                        FontWeight.Medium
+                                    }
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (selected) {
+                                    PetscueBlue
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                },
+                                labelColor = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    PetscueBlueDark
+                                }
+                            ),
+                            border = AssistChipDefaults.assistChipBorder(
+                                enabled = true,
+                                borderColor = if (selected) {
+                                    PetscueBlue
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                }
+                            )
                         )
                     }
                 }
@@ -220,15 +338,34 @@ private fun ConversationCard(
     currentUserId: String,
     onClick: () -> Unit
 ) {
-    val unreadCount = conversation.unreadCountByUser[currentUserId] ?: 0
+    val unreadCount =
+        conversation.unreadCountByUser[currentUserId] ?: 0
+
+    val hasUnreadMessages = unreadCount > 0
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (hasUnreadMessages) {
+                PetscueLightSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (hasUnreadMessages) {
+                PetscueBlue.copy(alpha = 0.35f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            }
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (hasUnreadMessages) 3.dp else 0.dp
+        )
     ) {
         Row(
             modifier = Modifier
@@ -236,41 +373,43 @@ private fun ConversationCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = conversation.petImageUrl,
-                contentDescription = conversation.petName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .width(76.dp)
-                    .height(76.dp)
+            ConversationImage(
+                imageUrl = conversation.petImageUrl,
+                petName = conversation.petName
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = conversation.petName.ifBlank { "Animal" },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = PetscueBlue,
+                            color = PetscueBlueDark,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
 
                         Text(
-                            text = conversation.otherUserPreviewName.ifBlank { "Usuario" },
+                            text = conversation.otherUserPreviewName
+                                .ifBlank { "Usuario" },
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF333333),
+                            fontWeight = if (hasUnreadMessages) {
+                                FontWeight.Bold
+                            } else {
+                                FontWeight.SemiBold
+                            },
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -279,14 +418,29 @@ private fun ConversationCard(
                     Text(
                         text = formatRelativeTime(conversation.lastMessageAt),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
+                        color = if (hasUnreadMessages) {
+                            PetscueBlue
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        fontWeight = if (hasUnreadMessages) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Normal
+                        }
                     )
                 }
 
                 Text(
-                    text = conversation.lastMessage.ifBlank { "Sin mensajes todavía" },
+                    text = conversation.lastMessage
+                        .ifBlank { "Sin mensajes todavía" },
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (hasUnreadMessages) {
+                        FontWeight.SemiBold
+                    } else {
+                        FontWeight.Normal
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -295,30 +449,11 @@ private fun ConversationCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    when (conversation.type) {
-                        "ADOPTION" -> {
-                            MiniStatusChip(
-                                text = "Formulario: ${conversation.adoptionFormStatus ?: "Pendiente"}",
-                                icon = Icons.Default.Description
-                            )
-                        }
+                    ConversationTypeChip(
+                        conversation = conversation
+                    )
 
-                        "LOST_PET_ALERT" -> {
-                            MiniStatusChip(
-                                text = "Aviso",
-                                icon = Icons.Default.Description
-                            )
-                        }
-
-                        else -> {
-                            MiniStatusChip(
-                                text = "Pregunta",
-                                icon = Icons.Outlined.MailOutline
-                            )
-                        }
-                    }
-
-                    if (unreadCount > 0) {
+                    if (hasUnreadMessages) {
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
@@ -328,7 +463,7 @@ private fun ConversationCard(
                         ) {
                             Text(
                                 text = unreadCount.toString(),
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -341,10 +476,57 @@ private fun ConversationCard(
 }
 
 @Composable
-private fun MiniStatusChip(
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+private fun ConversationImage(
+    imageUrl: String,
+    petName: String
 ) {
+    if (imageUrl.isNotBlank()) {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = "Foto de $petName",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .width(76.dp)
+                .height(76.dp)
+                .clip(RoundedCornerShape(18.dp))
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .width(76.dp)
+                .height(76.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(PetscueBlue.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Pets,
+                contentDescription = null,
+                tint = PetscueBlue
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConversationTypeChip(
+    conversation: Conversation
+) {
+    val (text, icon) = when (conversation.type) {
+        "ADOPTION" -> {
+            "Formulario: ${conversation.adoptionFormStatus ?: "Pendiente"}" to
+                    Icons.Default.Description
+        }
+
+        "LOST_PET_ALERT" -> {
+            "Aviso" to Icons.Default.Description
+        }
+
+        else -> {
+            "Pregunta" to Icons.Outlined.MailOutline
+        }
+    }
+
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
@@ -362,7 +544,7 @@ private fun MiniStatusChip(
 
         Text(
             text = text,
-            color = PetscueBlue,
+            color = PetscueBlueDark,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -371,42 +553,111 @@ private fun MiniStatusChip(
 }
 
 @Composable
-private fun EmptyMessagesState() {
+private fun EmptyMessagesState(
+    isSearchOrFilterActive: Boolean
+) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Aún no tienes conversaciones",
-                style = MaterialTheme.typography.titleMedium,
-                color = PetscueBlue,
-                fontWeight = FontWeight.Bold
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant
             )
+        ) {
+            Column(
+                modifier = Modifier.padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MailOutline,
+                    contentDescription = null,
+                    tint = PetscueBlue,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
 
-            Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = if (isSearchOrFilterActive) {
+                        "No hay resultados"
+                    } else {
+                        "Aún no tienes conversaciones"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = PetscueBlueDark,
+                    fontWeight = FontWeight.Bold
+                )
 
+                Text(
+                    text = if (isSearchOrFilterActive) {
+                        "Prueba a cambiar el texto de búsqueda o el filtro."
+                    } else {
+                        "Cuando alguien pregunte por un animal o un aviso, aparecerá aquí."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessagesErrorState(
+    message: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
             Text(
-                text = "Cuando alguien pregunte por un animal o por un aviso, aparecerá aquí.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                text = message,
+                modifier = Modifier.padding(20.dp),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
 }
 
-private fun formatRelativeTime(timestamp: Long): String {
+private fun formatRelativeTime(
+    timestamp: Long
+): String {
     if (timestamp <= 0L) return ""
 
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
+    val diff = System.currentTimeMillis() - timestamp
 
     return when {
         diff < TimeUnit.MINUTES.toMillis(1) -> "Ahora"
-        diff < TimeUnit.HOURS.toMillis(1) -> "${TimeUnit.MILLISECONDS.toMinutes(diff)} min"
-        diff < TimeUnit.DAYS.toMillis(1) -> "${TimeUnit.MILLISECONDS.toHours(diff)} h"
+        diff < TimeUnit.HOURS.toMillis(1) ->
+            "${TimeUnit.MILLISECONDS.toMinutes(diff)} min"
+
+        diff < TimeUnit.DAYS.toMillis(1) ->
+            "${TimeUnit.MILLISECONDS.toHours(diff)} h"
+
         diff < TimeUnit.DAYS.toMillis(2) -> "Ayer"
-        diff < TimeUnit.DAYS.toMillis(7) -> "${TimeUnit.MILLISECONDS.toDays(diff)} d"
-        else -> SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date(timestamp))
+
+        diff < TimeUnit.DAYS.toMillis(7) ->
+            "${TimeUnit.MILLISECONDS.toDays(diff)} d"
+
+        else -> SimpleDateFormat(
+            "dd/MM",
+            Locale.getDefault()
+        ).format(Date(timestamp))
     }
 }

@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,7 +51,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -71,10 +71,6 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import java.util.Locale
 
-private val BluePrimary = Color(0xFF4A90E2)
-private val BlueSoft = Color(0xFFEAF3FF)
-private val BlueBorder = Color(0xFF6CA9F0)
-
 @Composable
 fun LocationPickerScreen(
     onDismiss: () -> Unit,
@@ -84,10 +80,16 @@ fun LocationPickerScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
-    var loadingCurrentLocation by remember { mutableStateOf(false) }
-    var resolvingMapAddress by remember { mutableStateOf(false) }
+    var loadingCurrentLocation by remember {
+        mutableStateOf(false)
+    }
+
+    var resolvingMapAddress by remember {
+        mutableStateOf(false)
+    }
 
     val defaultLatLng = LatLng(39.4699, -0.3763)
+
     val selectedLatLng = uiState.selectedLocation?.let {
         LatLng(it.lat, it.lng)
     } ?: defaultLatLng
@@ -97,7 +99,10 @@ fun LocationPickerScreen(
     }
 
     LaunchedEffect(selectedLatLng.latitude, selectedLatLng.longitude) {
-        cameraPositionState.position = CameraPosition.fromLatLngZoom(selectedLatLng, 15f)
+        cameraPositionState.position = CameraPosition.fromLatLngZoom(
+            selectedLatLng,
+            15f
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -116,7 +121,9 @@ fun LocationPickerScreen(
         if (granted) {
             fetchCurrentLocation(
                 context = context,
-                onLoading = { loadingCurrentLocation = it },
+                onLoading = { isLoading ->
+                    loadingCurrentLocation = isLoading
+                },
                 onResult = { location ->
                     viewModel.selectLocation(location)
                 }
@@ -126,9 +133,11 @@ fun LocationPickerScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = BlueSoft
+        color = MaterialTheme.colorScheme.background
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -139,7 +148,7 @@ fun LocationPickerScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Volver",
-                        tint = BluePrimary
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -147,7 +156,7 @@ fun LocationPickerScreen(
                     text = "Seleccionar ubicación",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = BluePrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -157,11 +166,17 @@ fun LocationPickerScreen(
                     },
                     enabled = uiState.selectedLocation != null
                 ) {
-                    Text("USAR", fontWeight = FontWeight.Bold, color = BluePrimary)
+                    Text(
+                        text = "USAR",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
-            HorizontalDivider(color = BlueBorder)
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
 
             Column(
                 modifier = Modifier
@@ -169,8 +184,7 @@ fun LocationPickerScreen(
                     .padding(16.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
+                    modifier = Modifier.weight(1f)
                 ) {
                     OutlinedTextField(
                         value = uiState.query,
@@ -179,16 +193,21 @@ fun LocationPickerScreen(
 
                             if (query.length >= 2 && Places.isInitialized()) {
                                 val placesClient = Places.createClient(context)
-                                val request = FindAutocompletePredictionsRequest.builder()
+
+                                val request = FindAutocompletePredictionsRequest
+                                    .builder()
                                     .setQuery(query)
                                     .build()
 
-                                placesClient.findAutocompletePredictions(request)
+                                placesClient
+                                    .findAutocompletePredictions(request)
                                     .addOnSuccessListener { response ->
                                         viewModel.setSuggestions(
                                             response.autocompletePredictions.map {
                                                 SelectedLocation(
-                                                    address = it.getFullText(null).toString()
+                                                    address = it
+                                                        .getFullText(null)
+                                                        .toString()
                                                 )
                                             }
                                         )
@@ -201,31 +220,51 @@ fun LocationPickerScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Buscar ubicación") },
+                        placeholder = {
+                            Text("Buscar ubicación")
+                        },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
-                                contentDescription = null
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
                         trailingIcon = {
                             IconButton(
                                 onClick = {
-                                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    locationPermissionLauncher.launch(
+                                        Manifest.permission.ACCESS_FINE_LOCATION
+                                    )
                                 }
                             ) {
                                 if (loadingCurrentLocation) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.MyLocation,
                                         contentDescription = "Mi ubicación",
-                                        tint = BluePrimary
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
                         },
-                        shape = RoundedCornerShape(18.dp)
+                        shape = RoundedCornerShape(18.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
                     )
 
                     if (uiState.suggestions.isNotEmpty()) {
@@ -234,8 +273,13 @@ fun LocationPickerScreen(
                                 .fillMaxWidth()
                                 .padding(top = 8.dp),
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, BlueBorder),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
                         ) {
                             LazyColumn(
                                 modifier = Modifier.height(220.dp)
@@ -249,7 +293,9 @@ fun LocationPickerScreen(
                                                     context = context,
                                                     query = item.address,
                                                     onResult = { selected ->
-                                                        viewModel.selectLocation(selected)
+                                                        viewModel.selectLocation(
+                                                            selected
+                                                        )
                                                     }
                                                 )
                                             }
@@ -259,10 +305,17 @@ fun LocationPickerScreen(
                                         Icon(
                                             imageVector = Icons.Default.LocationOn,
                                             contentDescription = null,
-                                            tint = BluePrimary
+                                            tint = MaterialTheme.colorScheme.primary
                                         )
-                                        Spacer(modifier = Modifier.size(12.dp))
-                                        Text(item.address)
+
+                                        Spacer(
+                                            modifier = Modifier.size(12.dp)
+                                        )
+
+                                        Text(
+                                            text = item.address,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
                                 }
                             }
@@ -276,25 +329,32 @@ fun LocationPickerScreen(
                             .fillMaxWidth()
                             .height(220.dp),
                         shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, BlueBorder),
-                        color = Color.White
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        color = MaterialTheme.colorScheme.surface
                     ) {
                         Box {
                             GoogleMap(
                                 modifier = Modifier.fillMaxSize(),
                                 cameraPositionState = cameraPositionState,
-                                properties = MapProperties(isMyLocationEnabled = false),
+                                properties = MapProperties(
+                                    isMyLocationEnabled = false
+                                ),
                                 uiSettings = MapUiSettings(
                                     zoomControlsEnabled = false,
                                     myLocationButtonEnabled = false
                                 ),
                                 onMapClick = { latLng ->
                                     resolvingMapAddress = true
+
                                     getAddressFromLatLng(
                                         context = context,
                                         latLng = latLng,
                                         onResult = { address ->
                                             resolvingMapAddress = false
+
                                             viewModel.selectLocation(
                                                 SelectedLocation(
                                                     address = address,
@@ -307,8 +367,11 @@ fun LocationPickerScreen(
                                 }
                             ) {
                                 Marker(
-                                    state = MarkerState(position = selectedLatLng),
-                                    title = uiState.selectedLocation?.address ?: "Ubicación"
+                                    state = MarkerState(
+                                        position = selectedLatLng
+                                    ),
+                                    title = uiState.selectedLocation?.address
+                                        ?: "Ubicación"
                                 )
                             }
 
@@ -317,7 +380,9 @@ fun LocationPickerScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator(color = BluePrimary)
+                                    CircularProgressIndicator(
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
                         }
@@ -328,20 +393,28 @@ fun LocationPickerScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, BlueBorder),
-                        color = Color.White
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        color = MaterialTheme.colorScheme.surface
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
                             Text(
                                 text = "Ubicación seleccionada",
                                 style = MaterialTheme.typography.labelLarge,
-                                color = BluePrimary,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold
                             )
+
                             Spacer(modifier = Modifier.height(6.dp))
+
                             Text(
                                 text = uiState.selectedLocation?.address
-                                    ?: "Pulsa en el mapa, usa tu ubicación o busca una dirección"
+                                    ?: "Pulsa en el mapa, usa tu ubicación o busca una dirección",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -357,7 +430,12 @@ fun LocationPickerScreen(
                         .fillMaxWidth()
                         .navigationBarsPadding(),
                     enabled = uiState.selectedLocation != null,
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Text("CONFIRMAR UBICACIÓN")
@@ -374,6 +452,7 @@ private fun fetchCurrentLocation(
     onResult: (SelectedLocation) -> Unit
 ) {
     onLoading(true)
+
     val fusedClient = LocationServices.getFusedLocationProviderClient(context)
 
     fusedClient.lastLocation
@@ -383,12 +462,17 @@ private fun fetchCurrentLocation(
                 return@addOnSuccessListener
             }
 
-            val latLng = LatLng(location.latitude, location.longitude)
+            val latLng = LatLng(
+                location.latitude,
+                location.longitude
+            )
+
             getAddressFromLatLng(
                 context = context,
                 latLng = latLng,
                 onResult = { address ->
                     onLoading(false)
+
                     onResult(
                         SelectedLocation(
                             address = address,
@@ -410,15 +494,24 @@ private fun searchExactPlace(
     onResult: (SelectedLocation) -> Unit
 ) {
     val placesClient = Places.createClient(context)
-    val request = FindAutocompletePredictionsRequest.builder()
+
+    val request = FindAutocompletePredictionsRequest
+        .builder()
         .setQuery(query)
         .build()
 
     placesClient.findAutocompletePredictions(request)
         .addOnSuccessListener { predictionResponse ->
-            val prediction = predictionResponse.autocompletePredictions.firstOrNull()
+            val prediction = predictionResponse
+                .autocompletePredictions
+                .firstOrNull()
                 ?: return@addOnSuccessListener
-            fetchPlaceDetails(context, prediction, onResult)
+
+            fetchPlaceDetails(
+                context = context,
+                prediction = prediction,
+                onResult = onResult
+            )
         }
 }
 
@@ -428,6 +521,7 @@ private fun fetchPlaceDetails(
     onResult: (SelectedLocation) -> Unit
 ) {
     val placesClient = Places.createClient(context)
+
     val request = FetchPlaceRequest.builder(
         prediction.placeId,
         listOf(
@@ -441,11 +535,14 @@ private fun fetchPlaceDetails(
     placesClient.fetchPlace(request)
         .addOnSuccessListener { response ->
             val place = response.place
-            val latLng = place.latLng ?: return@addOnSuccessListener
+            val latLng = place.latLng
+                ?: return@addOnSuccessListener
 
             onResult(
                 SelectedLocation(
-                    address = place.address ?: place.name ?: "${latLng.latitude}, ${latLng.longitude}",
+                    address = place.address
+                        ?: place.name
+                        ?: "${latLng.latitude}, ${latLng.longitude}",
                     lat = latLng.latitude,
                     lng = latLng.longitude
                 )
@@ -458,7 +555,10 @@ private fun getAddressFromLatLng(
     latLng: LatLng,
     onResult: (String) -> Unit
 ) {
-    val geocoder = Geocoder(context, Locale.getDefault())
+    val geocoder = Geocoder(
+        context,
+        Locale.getDefault()
+    )
 
     try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -467,21 +567,39 @@ private fun getAddressFromLatLng(
                 latLng.longitude,
                 1,
                 object : Geocoder.GeocodeListener {
-                    override fun onGeocode(addresses: MutableList<Address>) {
-                        val address = addresses.firstOrNull()?.getAddressLine(0)
+                    override fun onGeocode(
+                        addresses: MutableList<Address>
+                    ) {
+                        val address = addresses
+                            .firstOrNull()
+                            ?.getAddressLine(0)
                             ?: "${latLng.latitude}, ${latLng.longitude}"
+
                         onResult(address)
                     }
 
-                    override fun onError(errorMessage: String?) {
-                        onResult("${latLng.latitude}, ${latLng.longitude}")
+                    override fun onError(
+                        errorMessage: String?
+                    ) {
+                        onResult(
+                            "${latLng.latitude}, ${latLng.longitude}"
+                        )
                     }
                 }
             )
         } else {
-            val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
-            val address = addresses?.firstOrNull()?.getAddressLine(0)
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocation(
+                latLng.latitude,
+                latLng.longitude,
+                1
+            )
+
+            val address = addresses
+                ?.firstOrNull()
+                ?.getAddressLine(0)
                 ?: "${latLng.latitude}, ${latLng.longitude}"
+
             onResult(address)
         }
     } catch (_: Exception) {

@@ -2,6 +2,7 @@
 
 package com.example.petscue.ui.novedades.detailpost
 
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,20 +36,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -58,30 +65,37 @@ import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.Reply
 import com.example.petscue.ui.novedades.tiempoRelativo
 
-private val BluePrimary = Color(0xFF4A90E2)
-private val BlueBorder = Color(0xFF6CA9F0)
-private val DeleteRed  = Color(0xFFD32F2F)
-
-// ─────────────────────────────────────────────
-// Tarjeta del post principal
-// ─────────────────────────────────────────────
 @Composable
 fun PostDetailCard(
     post: Post,
     isLiked: Boolean,
+    isReposted: Boolean,
     isLiking: Boolean,
+    onCommentClick: () -> Unit,
     onToggleLike: () -> Unit,
+    onToggleRepost: () -> Unit,
+    onShare: () -> Unit,
     onOpenProfile: (String) -> Unit
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp),
         shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.5.dp, BlueBorder),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(
+            modifier = Modifier.padding(14.dp)
+        ) {
             Row(
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
@@ -106,12 +120,16 @@ fun PostDetailCard(
                         modifier = profileModifier
                             .size(42.dp)
                             .clip(CircleShape),
-                        color = BluePrimary.copy(alpha = 0.15f)
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = post.userName.firstOrNull()?.uppercase() ?: "U",
-                                color = BluePrimary,
+                                text = post.userName
+                                    .firstOrNull()
+                                    ?.uppercase()
+                                    ?: "U",
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -123,20 +141,27 @@ fun PostDetailCard(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable(enabled = post.userId.isNotBlank()) {
+                        .clickable(
+                            enabled = post.userId.isNotBlank()
+                        ) {
                             onOpenProfile(post.userId)
                         }
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = post.userName,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+
                         if (post.userHandle.isNotBlank()) {
                             Spacer(modifier = Modifier.width(6.dp))
+
                             Text(
                                 text = post.userHandle,
                                 style = MaterialTheme.typography.bodySmall,
@@ -155,26 +180,30 @@ fun PostDetailCard(
                             Text(
                                 text = post.tipo,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = BluePrimary,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold
                             )
+
                             Text(
                                 text = "·",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+
                         Text(
                             text = tiempoRelativo(post.timestamp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
                         if (post.ubicacion.isNotBlank()) {
                             Text(
                                 text = "·",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
                             Text(
                                 text = post.ubicacion,
                                 style = MaterialTheme.typography.labelSmall,
@@ -190,7 +219,12 @@ fun PostDetailCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             if (post.mensaje.isNotBlank()) {
-                Text(text = post.mensaje, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = post.mensaje,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
@@ -199,26 +233,63 @@ fun PostDetailCard(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            HorizontalDivider(color = BlueBorder.copy(alpha = 0.5f))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
             Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                DetailAction(Icons.Default.ChatBubbleOutline, post.comentarios.toString())
-                DetailAction(Icons.Default.Repeat, "Repost")
+                DetailAction(
+                    icon = Icons.Default.ChatBubbleOutline,
+                    text = post.comentarios.toString(),
+                    onClick = onCommentClick
+                )
+
+                DetailAction(
+                    icon = Icons.Default.Repeat,
+                    text = if (isReposted) "Publicado" else "Repost",
+                    selected = isReposted,
+                    onClick = onToggleRepost
+                )
+
                 LikeDetailAction(
                     isLiked = isLiked,
                     likesCount = post.likes,
                     isLoading = isLiking,
                     onClick = onToggleLike
                 )
-                DetailAction(Icons.Default.Share, "Compartir")
+
+                DetailAction(
+                    icon = Icons.Default.Share,
+                    text = "Compartir",
+                    onClick = {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "${post.userName}: ${post.mensaje}"
+                            )
+                        }
+
+                        context.startActivity(
+                            Intent.createChooser(
+                                sendIntent,
+                                "Compartir publicación"
+                            )
+                        )
+
+                        onShare()
+                    }
+                )
             }
         }
     }
 }
+
 @Composable
 internal fun LikeDetailAction(
     isLiked: Boolean,
@@ -226,21 +297,35 @@ internal fun LikeDetailAction(
     isLoading: Boolean,
     onClick: () -> Unit
 ) {
+    val iconColor = if (isLiked) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(enabled = !isLoading) { onClick() }
+        modifier = Modifier.clickable(
+            enabled = !isLoading
+        ) {
+            onClick()
+        }
     ) {
         if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
                 strokeWidth = 2.dp,
-                color = if (isLiked) DeleteRed else MaterialTheme.colorScheme.onSurfaceVariant
+                color = iconColor
             )
         } else {
             Icon(
-                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
+                imageVector = if (isLiked) {
+                    Icons.Filled.Favorite
+                } else {
+                    Icons.Default.FavoriteBorder
+                },
                 contentDescription = "Me gusta",
-                tint = if (isLiked) DeleteRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = iconColor,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -250,13 +335,11 @@ internal fun LikeDetailAction(
         Text(
             text = likesCount.toString(),
             style = MaterialTheme.typography.labelSmall,
-            color = if (isLiked) DeleteRed else MaterialTheme.colorScheme.onSurfaceVariant
+            color = iconColor
         )
     }
 }
-// ─────────────────────────────────────────────
-// Hilo de comentario: raíz + hijos indentados
-// ─────────────────────────────────────────────
+
 @Composable
 fun ReplyThreadItem(
     reply: Reply,
@@ -269,8 +352,12 @@ fun ReplyThreadItem(
     ReplyCard(
         reply = reply,
         canDelete = reply.userId == currentUserId,
-        onReplyClick = { onReplyClick(reply) },
-        onDeleteClick = { onDeleteReply(reply) },
+        onReplyClick = {
+            onReplyClick(reply)
+        },
+        onDeleteClick = {
+            onDeleteReply(reply)
+        },
         onOpenProfile = onOpenProfile,
         startPadding = 14.dp
     )
@@ -279,8 +366,12 @@ fun ReplyThreadItem(
         ReplyCard(
             reply = child,
             canDelete = child.userId == currentUserId,
-            onReplyClick = { onReplyClick(child) },
-            onDeleteClick = { onDeleteReply(child) },
+            onReplyClick = {
+                onReplyClick(child)
+            },
+            onDeleteClick = {
+                onDeleteReply(child)
+            },
             onOpenProfile = onOpenProfile,
             startPadding = 34.dp,
             isChild = true
@@ -288,9 +379,6 @@ fun ReplyThreadItem(
     }
 }
 
-// ─────────────────────────────────────────────
-// Tarjeta individual de comentario
-// ─────────────────────────────────────────────
 @Composable
 private fun ReplyCard(
     reply: Reply,
@@ -301,20 +389,40 @@ private fun ReplyCard(
     startPadding: Dp = 0.dp,
     isChild: Boolean = false
 ) {
-    var showDialog by rememberSaveable { mutableStateOf(false) }
+    var showDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     if (showDialog) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Eliminar comentario") },
-            text = { Text("¿Seguro que quieres borrar este comentario?") },
+            onDismissRequest = {
+                showDialog = false
+            },
+            title = {
+                Text("Eliminar comentario")
+            },
+            text = {
+                Text("¿Seguro que quieres borrar este comentario?")
+            },
             confirmButton = {
-                TextButton(onClick = { showDialog = false; onDeleteClick() }) {
-                    Text("Eliminar", color = DeleteRed)
+                TextButton(
+                    onClick = {
+                        showDialog = false
+                        onDeleteClick()
+                    }
+                ) {
+                    Text(
+                        text = "Eliminar",
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
+                TextButton(
+                    onClick = {
+                        showDialog = false
+                    }
+                ) {
                     Text("Cancelar")
                 }
             }
@@ -324,20 +432,39 @@ private fun ReplyCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = startPadding, top = 6.dp, end = 14.dp),
+            .padding(
+                start = startPadding,
+                top = 6.dp,
+                end = 14.dp
+            ),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = if (isChild) BlueBorder.copy(alpha = 0.35f) else BlueBorder.copy(alpha = 0.6f)
+            color = if (isChild) {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            }
         ),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isChild) {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
-                Box(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier.weight(1f)
+                ) {
                     UserHeader(
                         userId = reply.userId,
                         avatar = reply.userAvatar,
@@ -348,11 +475,15 @@ private fun ReplyCard(
                 }
 
                 if (canDelete) {
-                    IconButton(onClick = { showDialog = true }) {
+                    IconButton(
+                        onClick = {
+                            showDialog = true
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Eliminar comentario",
-                            tint = DeleteRed
+                            tint = MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -363,12 +494,17 @@ private fun ReplyCard(
             if (reply.mensaje.isNotBlank()) {
                 Text(
                     text = reply.mensaje,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            HorizontalDivider(color = BlueBorder.copy(alpha = 0.35f))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -381,10 +517,12 @@ private fun ReplyCard(
                     text = "Responder",
                     onClick = onReplyClick
                 )
+
                 DetailAction(
                     icon = Icons.Default.FavoriteBorder,
                     text = reply.likes.toString()
                 )
+
                 DetailAction(
                     icon = Icons.Default.Share,
                     text = "Compartir"
@@ -394,50 +532,96 @@ private fun ReplyCard(
     }
 }
 
-// ─────────────────────────────────────────────
-// Composer de respuesta (barra inferior)
-// ─────────────────────────────────────────────
 @Composable
 fun ReplyComposer(
-    text          : String,
-    replyingTo    : Reply?,
-    isSending     : Boolean,
-    onTextChange  : (String) -> Unit,
-    onCancelReply : () -> Unit,
-    onSend        : () -> Unit
+    text: String,
+    replyingTo: Reply?,
+    isSending: Boolean,
+    requestFocus: Boolean,
+    onFocusConsumed: () -> Unit,
+    onTextChange: (String) -> Unit,
+    onCancelReply: () -> Unit,
+    onSend: () -> Unit
 ) {
-    Surface(color = Color.White, shadowElevation = 10.dp) {
+    val focusRequester = remember {
+        FocusRequester()
+    }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(requestFocus) {
+        if (requestFocus) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+            onFocusConsumed()
+        }
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shadowElevation = 10.dp
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(
+                    horizontal = 12.dp,
+                    vertical = 10.dp
+                )
         ) {
-            replyingTo?.let { r ->
+            replyingTo?.let { reply ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier          = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text     = "Respondiendo a ${r.userHandle.ifBlank { r.userName }}",
+                        text = "Respondiendo a ${
+                            reply.userHandle.ifBlank {
+                                reply.userName
+                            }
+                        }",
                         modifier = Modifier.weight(1f),
-                        style    = MaterialTheme.typography.bodySmall,
-                        color    = BluePrimary
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    TextButton(onClick = onCancelReply) { Text("Cancelar") }
+
+                    TextButton(
+                        onClick = onCancelReply
+                    ) {
+                        Text("Cancelar")
+                    }
                 }
+
                 Spacer(modifier = Modifier.height(6.dp))
             }
 
-            Row(verticalAlignment = Alignment.Bottom) {
+            Row(
+                verticalAlignment = Alignment.Bottom
+            ) {
                 OutlinedTextField(
-                    value         = text,
+                    value = text,
                     onValueChange = onTextChange,
-                    modifier      = Modifier.weight(1f),
-                    placeholder   = { Text("Publica tu respuesta") },
-                    maxLines      = 4,
-                    shape         = RoundedCornerShape(20.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                    placeholder = {
+                        Text("Publica tu respuesta")
+                    },
+                    maxLines = 4,
+                    shape = RoundedCornerShape(20.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -447,12 +631,16 @@ fun ReplyComposer(
                     enabled = text.isNotBlank() && !isSending
                 ) {
                     if (isSending) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     } else {
                         Icon(
-                            imageVector        = Icons.AutoMirrored.Filled.Send,
+                            imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "Enviar respuesta",
-                            tint               = BluePrimary
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -461,9 +649,6 @@ fun ReplyComposer(
     }
 }
 
-// ─────────────────────────────────────────────
-// Componentes internos compartidos
-// ─────────────────────────────────────────────
 @Composable
 internal fun UserHeader(
     userId: String,
@@ -483,7 +668,9 @@ internal fun UserHeader(
             Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .clickable { onOpenProfile(userId) }
+                .clickable {
+                    onOpenProfile(userId)
+                }
         } else {
             Modifier
                 .size(42.dp)
@@ -500,12 +687,18 @@ internal fun UserHeader(
         } else {
             Surface(
                 modifier = avatarModifier,
-                color = BluePrimary.copy(alpha = 0.15f)
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = userName.firstOrNull()?.uppercase() ?: "U",
-                        color = BluePrimary,
+                        text = userName
+                            .firstOrNull()
+                            ?.uppercase()
+                            ?: "U",
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -518,19 +711,30 @@ internal fun UserHeader(
             modifier = Modifier
                 .weight(1f)
                 .then(
-                    if (enabled) Modifier.clickable { onOpenProfile(userId) } else Modifier
+                    if (enabled) {
+                        Modifier.clickable {
+                            onOpenProfile(userId)
+                        }
+                    } else {
+                        Modifier
+                    }
                 )
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = userName,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
                 if (userHandle.isNotBlank()) {
                     Spacer(modifier = Modifier.width(6.dp))
+
                     Text(
                         text = userHandle,
                         style = MaterialTheme.typography.bodySmall,
@@ -556,63 +760,91 @@ internal fun UserHeader(
 
 @Composable
 internal fun DetailAction(
-    icon    : ImageVector,
-    text    : String,
-    onClick : (() -> Unit)? = null
+    icon: ImageVector,
+    text: String,
+    selected: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
+    val tint = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier          = if (onClick != null) Modifier.clickable { onClick() } else Modifier
+        modifier = if (onClick != null) {
+            Modifier.clickable {
+                onClick()
+            }
+        } else {
+            Modifier
+        }
     ) {
         Icon(
-            imageVector        = icon,
+            imageVector = icon,
             contentDescription = text,
-            tint               = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier           = Modifier.size(18.dp)
+            tint = tint,
+            modifier = Modifier.size(18.dp)
         )
+
         Spacer(modifier = Modifier.width(4.dp))
+
         Text(
-            text  = text,
+            text = text,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = tint
         )
     }
 }
 
 @Composable
-internal fun PostImages(images: List<String>) {
+internal fun PostImages(
+    images: List<String>
+) {
     when (images.size) {
-        0    -> Unit
-        1    -> AsyncImage(
-            model              = images.first(),
-            contentDescription = "Imagen del post",
-            modifier           = Modifier
-                .fillMaxWidth()
-                .height(240.dp)
-                .clip(RoundedCornerShape(14.dp)),
-            contentScale = ContentScale.Crop
-        )
-        else -> Column(
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier            = Modifier.fillMaxWidth()
-        ) {
-            images.chunked(2).forEach { row ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier              = Modifier.fillMaxWidth()
-                ) {
-                    row.forEach { img ->
-                        AsyncImage(
-                            model              = img,
-                            contentDescription = "Imagen del post",
-                            modifier           = Modifier
-                                .weight(1f)
-                                .height(170.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
-                        )
+        0 -> Unit
+
+        1 -> {
+            AsyncImage(
+                model = images.first(),
+                contentDescription = "Imagen del post",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        else -> {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                images.chunked(2).forEach { row ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        row.forEach { imageUrl ->
+                            AsyncImage(
+                                model = imageUrl,
+                                contentDescription = "Imagen del post",
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(170.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        if (row.size == 1) {
+                            Spacer(
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
-                    if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }

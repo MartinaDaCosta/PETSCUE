@@ -2,6 +2,7 @@ package com.example.petscue.data.repository
 
 import com.example.petscue.data.model.Pet
 import com.example.petscue.data.model.Post
+import com.example.petscue.data.model.Reply
 import com.example.petscue.data.model.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.AggregateSource
@@ -24,7 +25,9 @@ class ProfileRepositoryImpl @Inject constructor(
         return getUserProfileById(uid)
     }
 
-    override suspend fun getUserProfileById(userId: String): User {
+    override suspend fun getUserProfileById(
+        userId: String
+    ): User {
         val snapshot = db.collection("users")
             .document(userId)
             .get()
@@ -34,7 +37,9 @@ class ProfileRepositoryImpl @Inject constructor(
             ?: error("No se pudo cargar el perfil.")
     }
 
-    override fun getPetsByUser(userId: String): Flow<List<Pet>> = callbackFlow {
+    override fun getPetsByUser(
+        userId: String
+    ): Flow<List<Pet>> = callbackFlow {
         val listener = db.collection("pets")
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
@@ -43,17 +48,22 @@ class ProfileRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val pets = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
+                val pets = snapshot?.documents?.mapNotNull { document ->
+                    document.toObject(Pet::class.java)
+                        ?.copy(id = document.id)
+                }.orEmpty()
 
                 trySend(pets).isSuccess
             }
 
-        awaitClose { listener.remove() }
+        awaitClose {
+            listener.remove()
+        }
     }
 
-    override fun getPostsByUser(userId: String): Flow<List<Post>> = callbackFlow {
+    override fun getPostsByUser(
+        userId: String
+    ): Flow<List<Post>> = callbackFlow {
         val listener = db.collection("posts")
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
@@ -62,21 +72,22 @@ class ProfileRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val posts = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Post::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
+                val posts = snapshot?.documents?.mapNotNull { document ->
+                    document.toObject(Post::class.java)
+                        ?.copy(id = document.id)
+                }.orEmpty()
 
                 trySend(posts).isSuccess
             }
 
-        awaitClose { listener.remove() }
+        awaitClose {
+            listener.remove()
+        }
     }
 
-    override suspend fun getRepliesByUser(userId: String): List<Post> {
-        return emptyList()
-    }
-
-    override fun getLikedPostsByUser(userId: String): Flow<List<Post>> = callbackFlow {
+    override fun getLikedPostsByUser(
+        userId: String
+    ): Flow<List<Post>> = callbackFlow {
         val listener = db.collection("posts")
             .whereArrayContains("likedBy", userId)
             .addSnapshotListener { snapshot, error ->
@@ -85,17 +96,102 @@ class ProfileRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val likedPosts = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Post::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
+                val likedPosts = snapshot?.documents?.mapNotNull { document ->
+                    document.toObject(Post::class.java)
+                        ?.copy(id = document.id)
+                }.orEmpty()
 
                 trySend(likedPosts).isSuccess
             }
 
-        awaitClose { listener.remove() }
+        awaitClose {
+            listener.remove()
+        }
     }
 
-    override suspend fun getFollowersCount(userId: String): Int {
+    override fun getRepliesByUser(
+        userId: String
+    ): Flow<List<Reply>> = callbackFlow {
+        val listener = db.collectionGroup("replies")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val replies = snapshot?.documents
+                    ?.mapNotNull { document ->
+                        document.toObject(Reply::class.java)
+                            ?.copy(
+                                id = document.id,
+                                postId = document.reference.parent.parent?.id.orEmpty()
+                            )
+                    }
+                    ?.sortedByDescending { reply ->
+                        reply.timestamp
+                    }
+                    .orEmpty()
+
+                trySend(replies).isSuccess
+            }
+
+        awaitClose {
+            listener.remove()
+        }
+    }
+    override fun getRepostedPostsByUser(
+        userId: String
+    ): Flow<List<Post>> = callbackFlow {
+        val listener = db.collection("posts")
+            .whereArrayContains("repostedBy", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val repostedPosts = snapshot?.documents
+                    ?.mapNotNull { document ->
+                        document.toObject(Post::class.java)
+                            ?.copy(id = document.id)
+                    }
+                    .orEmpty()
+
+                trySend(repostedPosts).isSuccess
+            }
+
+        awaitClose {
+            listener.remove()
+        }
+    }
+    override fun getAdoptionPetsByProtectora(
+        protectoraId: String
+    ): Flow<List<Pet>> = callbackFlow {
+        val listener = db.collection("adoption_pets")
+            .whereEqualTo("userId", protectoraId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val adoptionPets = snapshot?.documents?.mapNotNull { document ->
+                    document.toObject(Pet::class.java)
+                        ?.copy(id = document.id)
+                }.orEmpty()
+
+                trySend(adoptionPets).isSuccess
+            }
+
+        awaitClose {
+            listener.remove()
+        }
+    }
+
+    override suspend fun getFollowersCount(
+        userId: String
+    ): Int {
         val snapshot = db.collection("follows")
             .whereEqualTo("followedId", userId)
             .count()
@@ -105,7 +201,9 @@ class ProfileRepositoryImpl @Inject constructor(
         return snapshot.count.toInt()
     }
 
-    override suspend fun getFollowingCount(userId: String): Int {
+    override suspend fun getFollowingCount(
+        userId: String
+    ): Int {
         val snapshot = db.collection("follows")
             .whereEqualTo("followerId", userId)
             .count()
@@ -115,26 +213,10 @@ class ProfileRepositoryImpl @Inject constructor(
         return snapshot.count.toInt()
     }
 
-    override fun getAdoptionPetsByProtectora(protectoraId: String): Flow<List<Pet>> = callbackFlow {
-        val listener = db.collection("adoption_pets")
-            .whereEqualTo("userId", protectoraId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-
-                val adoptionPets = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Pet::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
-
-                trySend(adoptionPets).isSuccess
-            }
-
-        awaitClose { listener.remove() }
-    }
-
-    override suspend fun isFollowing(followerId: String, followedId: String): Boolean {
+    override suspend fun isFollowing(
+        followerId: String,
+        followedId: String
+    ): Boolean {
         val snapshot = db.collection("follows")
             .whereEqualTo("followerId", followerId)
             .whereEqualTo("followedId", followedId)
@@ -144,39 +226,37 @@ class ProfileRepositoryImpl @Inject constructor(
         return !snapshot.isEmpty
     }
 
-    override suspend fun followUser(followerId: String, followedId: String) {
-        if (followerId == followedId) return
-
-        val existing = db.collection("follows")
-            .whereEqualTo("followerId", followerId)
-            .whereEqualTo("followedId", followedId)
-            .get()
-            .await()
-
-        if (existing.isEmpty) {
-            val followId = "${followerId}_$followedId"
-            db.collection("follows")
-                .document(followId)
-                .set(
-                    mapOf(
-                        "followerId" to followerId,
-                        "followedId" to followedId,
-                        "createdAt" to System.currentTimeMillis()
-                    )
-                )
-                .await()
+    override suspend fun followUser(
+        followerId: String,
+        followedId: String
+    ) {
+        if (followerId == followedId) {
+            return
         }
+
+        val followId = "${followerId}_$followedId"
+
+        db.collection("follows")
+            .document(followId)
+            .set(
+                mapOf(
+                    "followerId" to followerId,
+                    "followedId" to followedId,
+                    "createdAt" to System.currentTimeMillis()
+                )
+            )
+            .await()
     }
 
-    override suspend fun unfollowUser(followerId: String, followedId: String) {
-        val snapshot = db.collection("follows")
-            .whereEqualTo("followerId", followerId)
-            .whereEqualTo("followedId", followedId)
-            .get()
-            .await()
+    override suspend fun unfollowUser(
+        followerId: String,
+        followedId: String
+    ) {
+        val followId = "${followerId}_$followedId"
 
-        snapshot.documents.forEach { doc ->
-            doc.reference.delete().await()
-        }
+        db.collection("follows")
+            .document(followId)
+            .delete()
+            .await()
     }
 }

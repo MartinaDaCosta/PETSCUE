@@ -89,6 +89,7 @@ dependencies {
     // ---------- Room ----------
     implementation(libs.room.runtime)                // Room runtime
     implementation(libs.room.ktx)
+    implementation(libs.androidx.tv.material)
     ksp(libs.room.compiler)                          // Room compiler
 
     // ---------- Dependency Injection ----------

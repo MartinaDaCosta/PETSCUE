@@ -73,28 +73,75 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun toggleLike(postId: String, userId: String) {
+    override suspend fun toggleLike(
+        postId: String,
+        userId: String
+    ): Boolean {
+        return toggleUserInPostList(
+            postId = postId,
+            userId = userId,
+            fieldName = "likedBy",
+            countFieldName = "likes"
+        )
+    }
+
+    override suspend fun toggleRepost(
+        postId: String,
+        userId: String
+    ): Boolean {
+        return toggleUserInPostList(
+            postId = postId,
+            userId = userId,
+            fieldName = "repostedBy",
+            countFieldName = null
+        )
+    }
+
+    override suspend fun toggleShare(
+        postId: String,
+        userId: String
+    ): Boolean {
+        return toggleUserInPostList(
+            postId = postId,
+            userId = userId,
+            fieldName = "sharedBy",
+            countFieldName = null
+        )
+    }
+
+    private suspend fun toggleUserInPostList(
+        postId: String,
+        userId: String,
+        fieldName: String,
+        countFieldName: String?
+    ): Boolean {
         val postRef = postsRef.document(postId)
 
-        firestore.runTransaction { transaction ->
+        return firestore.runTransaction { transaction ->
             val snapshot = transaction.get(postRef)
-            val post = snapshot.toObject(Post::class.java) ?: return@runTransaction
 
-            val currentLikedBy = post.likedBy.toMutableList()
+            val currentUsers = snapshot.get(fieldName) as? List<*>
+                ?: emptyList<Any>()
 
-            if (currentLikedBy.contains(userId)) {
-                currentLikedBy.remove(userId)
+            val alreadyContainsUser = userId in currentUsers
+
+            val updatedUsers = if (alreadyContainsUser) {
+                currentUsers.filterNot { it == userId }
             } else {
-                currentLikedBy.add(userId)
+                currentUsers + userId
             }
 
-            transaction.update(
-                postRef,
-                mapOf(
-                    "likedBy" to currentLikedBy,
-                    "likes" to currentLikedBy.size
-                )
+            val updateData = mutableMapOf<String, Any>(
+                fieldName to updatedUsers
             )
+
+            if (countFieldName != null) {
+                updateData[countFieldName] = updatedUsers.size
+            }
+
+            transaction.update(postRef, updateData)
+
+            !alreadyContainsUser
         }.await()
     }
 

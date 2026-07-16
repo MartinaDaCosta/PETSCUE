@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,20 +43,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-
-private val BluePrimary = Color(0xFF1976D2)
-private val BlueDark = Color(0xFF0D47A1)
-private val BlueSoft = Color(0xFFEFF6FF)
-private val BlueBorder = Color(0xFFB9D8FF)
-private val BlueText = Color(0xFF215EAC)
-private val BlueHint = Color(0xFF6B8DB8)
 
 @Composable
 fun AdoptionRequestScreen(
@@ -66,6 +61,7 @@ fun AdoptionRequestScreen(
 
     LaunchedEffect(state.submittedConversationId) {
         val conversationId = state.submittedConversationId
+
         if (!conversationId.isNullOrBlank()) {
             onRequestSent(conversationId)
             vm.consumeNavigation()
@@ -74,7 +70,7 @@ fun AdoptionRequestScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF8FBFF)
+        color = MaterialTheme.colorScheme.background
     ) {
         when {
             state.isLoading -> {
@@ -82,7 +78,9 @@ fun AdoptionRequestScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = BluePrimary)
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
@@ -95,7 +93,7 @@ fun AdoptionRequestScreen(
                 ) {
                     Text(
                         text = state.error ?: "No se ha encontrado el animal",
-                        color = BlueDark,
+                        color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -105,97 +103,37 @@ fun AdoptionRequestScreen(
                 val pet = requireNotNull(state.pet)
 
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 40.dp),
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = 16.dp,
+                        top = 24.dp,
                         end = 16.dp,
-                        top = 14.dp,
-                        bottom = 70.dp
+                        bottom = 36.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Volver",
-                                    tint = BlueText
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Column {
-                                Text(
-                                    text = "Solicitud de adopción",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = BlueText,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Envía tu solicitud a la protectora",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = BlueHint
-                                )
-                            }
-                        }
+                        RequestHeader(
+                            onBack = onBack
+                        )
                     }
 
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, BlueBorder)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AsyncImage(
-                                    model = pet.fotos.firstOrNull(),
-                                    contentDescription = pet.nombre,
-                                    modifier = Modifier
-                                        .size(92.dp)
-                                        .background(BlueSoft, RoundedCornerShape(18.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
-
-                                Spacer(modifier = Modifier.width(14.dp))
-
-                                Column {
-                                    Text(
-                                        text = pet.nombre.ifBlank { "Animal" },
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = BlueDark,
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Text(
-                                        text = listOfNotNull(
-                                            pet.especie.takeIf { it.isNotBlank() },
-                                            pet.raza.takeIf { it.isNotBlank() },
-                                            pet.edad.takeIf { it.isNotBlank() }
-                                        ).joinToString(" · "),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = BlueHint
-                                    )
-                                }
-                            }
-                        }
+                        PetSummaryCard(
+                            photoUrl = pet.fotos.firstOrNull(),
+                            petName = pet.nombre,
+                            species = pet.especie,
+                            breed = pet.raza,
+                            age = pet.edad
+                        )
                     }
 
                     item {
-                        FormSection(title = "Cuéntanos sobre ti") {
-                            BlueTextField(
+                        RequestFormSection(
+                            title = "Cuéntanos sobre ti",
+                            subtitle = "Estos datos ayudarán a la protectora a valorar tu solicitud."
+                        ) {
+                            AppTextField(
                                 value = state.mensaje,
                                 onValueChange = vm::onMensajeChange,
                                 label = "Mensaje para la protectora",
@@ -204,12 +142,12 @@ fun AdoptionRequestScreen(
                                     Icon(
                                         imageVector = Icons.Default.Description,
                                         contentDescription = null,
-                                        tint = BluePrimary
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             )
 
-                            BlueTextField(
+                            AppTextField(
                                 value = state.telefono,
                                 onValueChange = vm::onTelefonoChange,
                                 label = "Teléfono",
@@ -218,12 +156,12 @@ fun AdoptionRequestScreen(
                                     Icon(
                                         imageVector = Icons.Default.Phone,
                                         contentDescription = null,
-                                        tint = BluePrimary
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             )
 
-                            BlueTextField(
+                            AppTextField(
                                 value = state.vivienda,
                                 onValueChange = vm::onViviendaChange,
                                 label = "Vivienda",
@@ -232,12 +170,12 @@ fun AdoptionRequestScreen(
                                     Icon(
                                         imageVector = Icons.Default.Home,
                                         contentDescription = null,
-                                        tint = BluePrimary
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             )
 
-                            BlueTextField(
+                            AppTextField(
                                 value = state.experiencia,
                                 onValueChange = vm::onExperienciaChange,
                                 label = "Experiencia con animales",
@@ -246,12 +184,12 @@ fun AdoptionRequestScreen(
                                     Icon(
                                         imageVector = Icons.Default.Pets,
                                         contentDescription = null,
-                                        tint = BluePrimary
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             )
 
-                            BlueTextField(
+                            AppTextField(
                                 value = state.otrosAnimales,
                                 onValueChange = vm::onOtrosAnimalesChange,
                                 label = "Otros animales en casa",
@@ -262,62 +200,18 @@ fun AdoptionRequestScreen(
 
                     state.error?.let { errorMessage ->
                         item {
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color(0xFFFFF1F1)
-                                ),
-                                border = BorderStroke(1.dp, Color(0xFFFFCACA)),
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp)
-                            ) {
-                                Text(
-                                    text = errorMessage,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(14.dp)
-                                )
-                            }
+                            ErrorCard(
+                                message = errorMessage
+                            )
                         }
                     }
 
                     item {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(
-                                onClick = vm::submitRequest,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(54.dp),
-                                enabled = !state.isSubmitting,
-                                shape = RoundedCornerShape(18.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = BluePrimary,
-                                    contentColor = Color.White,
-                                    disabledContainerColor = BlueBorder,
-                                    disabledContentColor = Color.White
-                                )
-                            ) {
-                                if (state.isSubmitting) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color.White
-                                    )
-                                } else {
-                                    Text("Enviar solicitud")
-                                }
-                            }
-
-                            TextButton(
-                                onClick = onBack,
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !state.isSubmitting
-                            ) {
-                                Text("Cancelar", color = BlueText)
-                            }
-                        }
+                        RequestActions(
+                            isSubmitting = state.isSubmitting,
+                            onSubmit = vm::submitRequest,
+                            onCancel = onBack
+                        )
                     }
                 }
             }
@@ -326,33 +220,179 @@ fun AdoptionRequestScreen(
 }
 
 @Composable
-private fun FormSection(
+private fun RequestHeader(
+    onBack: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            onClick = onBack,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Volver",
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(10.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column {
+            Text(
+                text = "Solicitud de adopción",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Envía tu solicitud a la protectora",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PetSummaryCard(
+    photoUrl: String?,
+    petName: String,
+    species: String,
+    breed: String,
+    age: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(92.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (photoUrl.isNullOrBlank()) {
+                    Icon(
+                        imageVector = Icons.Default.Pets,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(38.dp)
+                    )
+                } else {
+                    AsyncImage(
+                        model = photoUrl,
+                        contentDescription = petName,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Quieres adoptar a",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                        alpha = 0.75f
+                    )
+                )
+
+                Text(
+                    text = petName.ifBlank { "Animal" },
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold
+                )
+
+                val details = listOfNotNull(
+                    species.takeIf { it.isNotBlank() },
+                    breed.takeIf { it.isNotBlank() },
+                    age.takeIf { it.isNotBlank() }
+                ).joinToString(" · ")
+
+                if (details.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = details,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                            alpha = 0.82f
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestFormSection(
     title: String,
+    subtitle: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = BlueText,
-                fontWeight = FontWeight.SemiBold
-            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             content()
         }
     }
 }
 
 @Composable
-private fun BlueTextField(
+private fun AppTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -363,22 +403,108 @@ private fun BlueTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        label = {
+            Text(label)
+        },
         modifier = Modifier.fillMaxWidth(),
         singleLine = singleLine,
         minLines = minLines,
         leadingIcon = leadingIcon,
         shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = BluePrimary,
-            unfocusedBorderColor = BlueBorder,
-            focusedLabelColor = BluePrimary,
-            unfocusedLabelColor = Color(0xFF7A9BC4),
-            cursorColor = BluePrimary,
-            focusedTextColor = Color(0xFF173A63),
-            unfocusedTextColor = Color(0xFF173A63),
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color(0xFFFDFEFF)
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface
         )
     )
+}
+
+@Composable
+private fun ErrorCard(
+    message: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.error.copy(alpha = 0.55f)
+        )
+    ) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun RequestActions(
+    isSubmitting: Boolean,
+    onSubmit: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Button(
+            onClick = onSubmit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            enabled = !isSubmitting,
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Send,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Enviar solicitud",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        TextButton(
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isSubmitting
+        ) {
+            Text(
+                text = "Cancelar",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
 }

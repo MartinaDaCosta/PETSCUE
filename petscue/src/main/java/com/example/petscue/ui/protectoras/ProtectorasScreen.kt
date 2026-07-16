@@ -1,5 +1,6 @@
 package com.example.petscue.ui.protectoras
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,22 +46,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.petscue.data.model.User
-import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,70 +72,102 @@ fun ProtectorasScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    val darkBlue = Color(0xFF0D47A1)
-    val primaryBlue = Color(0xFF1565C0)
-    val mediumBlue = Color(0xFF1E88E5)
-    val softBlue = Color(0xFFE3F2FD)
-    val paleBlue = Color(0xFFF1F7FF)
+    var showFiltersSheet by rememberSaveable {
+        mutableStateOf(false)
+    }
 
-    var showFiltersSheet by rememberSaveable { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(
+        state.nombreSort,
+        state.selectedComunidad,
+        state.selectedProvincia,
+        state.selectedMunicipio,
+        state.query
+    ) {
+        listState.scrollToItem(0)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(paleBlue)
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         Text(
             text = "Protectoras",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = darkBlue
+            color = MaterialTheme.colorScheme.primary
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = softBlue),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 1.dp
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
+            Column(
+                modifier = Modifier.padding(14.dp)
+            ) {
                 OutlinedTextField(
                     value = state.query,
                     onValueChange = viewModel::onQueryChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Buscar protectoras") },
-                    placeholder = { Text("Nombre o username") },
+                    label = {
+                        Text("Buscar protectoras")
+                    },
+                    placeholder = {
+                        Text("Nombre o usuario")
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = primaryBlue,
-                        unfocusedBorderColor = mediumBlue,
-                        focusedLabelColor = primaryBlue,
-                        cursorColor = primaryBlue,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
                     )
                 )
 
-                if (state.query.isNotBlank() && state.suggestions.isNotEmpty()) {
+                if (
+                    state.query.isNotBlank() &&
+                    state.suggestions.isNotEmpty()
+                ) {
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         state.suggestions.forEach { suggestion ->
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { viewModel.onSuggestionSelected(suggestion) },
+                                    .clickable {
+                                        viewModel.onSuggestionSelected(suggestion)
+                                    },
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Text(
                                     text = suggestion,
                                     modifier = Modifier.padding(12.dp),
-                                    color = darkBlue
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -147,18 +183,22 @@ fun ProtectorasScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
-                onClick = { showFiltersSheet = true },
+                onClick = {
+                    showFiltersSheet = true
+                },
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryBlue,
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Icon(
                     imageVector = Icons.Default.FilterList,
                     contentDescription = null
                 )
+
                 Spacer(modifier = Modifier.width(8.dp))
+
                 Text("Filtros")
             }
 
@@ -168,41 +208,81 @@ fun ProtectorasScreen(
                 text = buildFilterSummary(state),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall,
-                color = darkBlue,
-                maxLines = 2
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            items(state.filteredProtectoras, key = { it.uid }) { protectora ->
-                ProtectoraCard(
-                    protectora = protectora,
-                    onClick = { onProtectoraClick(protectora.uid) }
+        when {
+            state.isLoading -> {
+                Text(
+                    text = "Cargando protectoras...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            state.error != null -> {
+                state.error?.let { errorMessage ->
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            state.filteredProtectoras.isEmpty() -> {
+                EmptyProtectorasState()
+            }
+
+            else -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(
+                        items = state.filteredProtectoras,
+                        key = { protectora -> protectora.uid }
+                    ) { protectora ->
+                        ProtectoraCard(
+                            protectora = protectora,
+                            onClick = {
+                                onProtectoraClick(protectora.uid)
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 
     if (showFiltersSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showFiltersSheet = false },
-            containerColor = softBlue
+            onDismissRequest = {
+                showFiltersSheet = false
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(
+                        horizontal = 16.dp,
+                        vertical = 8.dp
+                    )
             ) {
                 Text(
                     text = "Filtros",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = darkBlue
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -210,13 +290,6 @@ fun ProtectorasScreen(
                 NombreSortChips(
                     selected = state.nombreSort,
                     onSelected = viewModel::onNombreSortChanged
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                DistanciaSortChips(
-                    selected = state.distanciaSort,
-                    onSelected = viewModel::onDistanciaSortChanged
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -251,23 +324,35 @@ fun ProtectorasScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
-                        onClick = { viewModel.clearFilters() },
+                        onClick = {
+                            viewModel.clearFilters()
+                        },
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = darkBlue,
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Icon(
                             imageVector = Icons.Default.FilterAltOff,
                             contentDescription = null
                         )
+
                         Spacer(modifier = Modifier.width(8.dp))
+
                         Text("Borrar filtros")
                     }
 
-                    TextButton(onClick = { showFiltersSheet = false }) {
-                        Text("Cerrar", color = darkBlue)
+                    TextButton(
+                        onClick = {
+                            showFiltersSheet = false
+                        }
+                    ) {
+                        Text(
+                            text = "Cerrar",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
 
@@ -277,20 +362,72 @@ fun ProtectorasScreen(
     }
 }
 
-private fun buildFilterSummary(state: ProtectorasUiState): String {
+@Composable
+private fun EmptyProtectorasState() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 24.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Groups,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp)
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "No hemos encontrado protectoras",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Prueba a cambiar la búsqueda o borrar los filtros activos.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun buildFilterSummary(
+    state: ProtectorasUiState
+): String {
     val parts = mutableListOf<String>()
 
-    parts += if (state.distanciaSort == DistanciaSort.CERCA_LEJOS) {
-        "Más cerca primero"
+    parts += if (state.nombreSort == NombreSort.A_Z) {
+        "Nombre A-Z"
     } else {
-        "Más lejos primero"
+        "Nombre Z-A"
     }
 
-    parts += if (state.nombreSort == NombreSort.A_Z) "Nombre A-Z" else "Nombre Z-A"
+    state.selectedComunidad?.let {
+        parts += it
+    }
 
-    state.selectedComunidad?.let { parts += it }
-    state.selectedProvincia?.let { parts += it }
-    state.selectedMunicipio?.let { parts += "Municipio: $it" }
+    state.selectedProvincia?.let {
+        parts += it
+    }
+
+    state.selectedMunicipio?.let {
+        parts += "Municipio: $it"
+    }
 
     return parts.joinToString(" · ")
 }
@@ -300,23 +437,27 @@ private fun NombreSortChips(
     selected: NombreSort,
     onSelected: (NombreSort) -> Unit
 ) {
-    val primaryBlue = Color(0xFF1565C0)
-
     Column {
         Text(
             text = "Ordenar por nombre",
             style = MaterialTheme.typography.labelLarge,
-            color = primaryBlue,
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             FilterChip(
                 selected = selected == NombreSort.A_Z,
-                onClick = { onSelected(NombreSort.A_Z) },
-                label = { Text("A-Z") },
+                onClick = {
+                    onSelected(NombreSort.A_Z)
+                },
+                label = {
+                    Text("A-Z")
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.SortByAlpha,
@@ -324,16 +465,17 @@ private fun NombreSortChips(
                         modifier = Modifier.size(18.dp)
                     )
                 },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = primaryBlue,
-                    selectedLabelColor = Color.White
-                )
+                colors = filterChipColors()
             )
 
             FilterChip(
                 selected = selected == NombreSort.Z_A,
-                onClick = { onSelected(NombreSort.Z_A) },
-                label = { Text("Z-A") },
+                onClick = {
+                    onSelected(NombreSort.Z_A)
+                },
+                label = {
+                    Text("Z-A")
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.SortByAlpha,
@@ -341,69 +483,20 @@ private fun NombreSortChips(
                         modifier = Modifier.size(18.dp)
                     )
                 },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = primaryBlue,
-                    selectedLabelColor = Color.White
-                )
+                colors = filterChipColors()
             )
         }
     }
 }
 
 @Composable
-private fun DistanciaSortChips(
-    selected: DistanciaSort,
-    onSelected: (DistanciaSort) -> Unit
-) {
-    val primaryBlue = Color(0xFF1565C0)
-
-    Column {
-        Text(
-            text = "Ordenar por distancia",
-            style = MaterialTheme.typography.labelLarge,
-            color = primaryBlue,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = selected == DistanciaSort.CERCA_LEJOS,
-                onClick = { onSelected(DistanciaSort.CERCA_LEJOS) },
-                label = { Text("Cerca-Lejos") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = primaryBlue,
-                    selectedLabelColor = Color.White
-                )
-            )
-
-            FilterChip(
-                selected = selected == DistanciaSort.LEJOS_CERCA,
-                onClick = { onSelected(DistanciaSort.LEJOS_CERCA) },
-                label = { Text("Lejos-Cerca") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = primaryBlue,
-                    selectedLabelColor = Color.White
-                )
-            )
-        }
-    }
-}
+private fun filterChipColors() = FilterChipDefaults.filterChipColors(
+    containerColor = MaterialTheme.colorScheme.surface,
+    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    selectedContainerColor = MaterialTheme.colorScheme.primary,
+    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -417,7 +510,9 @@ private fun ComunidadDropdown(
         value = selectedComunidad ?: "Todas las comunidades",
         items = listOf("Todas las comunidades") + comunidades,
         onItemSelected = { selected ->
-            onComunidadSelected(if (selected == "Todas las comunidades") null else selected)
+            onComunidadSelected(
+                if (selected == "Todas las comunidades") null else selected
+            )
         }
     )
 }
@@ -434,7 +529,9 @@ private fun ProvinciaDropdown(
         value = selectedProvincia ?: "Todas las provincias",
         items = listOf("Todas las provincias") + provincias,
         onItemSelected = { selected ->
-            onProvinciaSelected(if (selected == "Todas las provincias") null else selected)
+            onProvinciaSelected(
+                if (selected == "Todas las provincias") null else selected
+            )
         }
     )
 }
@@ -451,7 +548,9 @@ private fun MunicipioDropdown(
         value = selectedMunicipio ?: "Todos los municipios",
         items = listOf("Todos los municipios") + municipios,
         onItemSelected = { selected ->
-            onMunicipioSelected(if (selected == "Todos los municipios") null else selected)
+            onMunicipioSelected(
+                if (selected == "Todos los municipios") null else selected
+            )
         }
     )
 }
@@ -464,41 +563,60 @@ private fun BlueDropdownField(
     items: List<String>,
     onItemSelected: (String) -> Unit
 ) {
-    val primaryBlue = Color(0xFF1565C0)
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember {
+        mutableStateOf(false)
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
+        onExpandedChange = {
+            expanded = !expanded
+        }
     ) {
         OutlinedTextField(
             value = value,
             onValueChange = {},
             readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            label = {
+                Text(label)
+            },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(
+                    expanded = expanded
+                )
+            },
             modifier = Modifier
                 .menuAnchor()
                 .fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = primaryBlue,
-                unfocusedBorderColor = primaryBlue,
-                focusedLabelColor = primaryBlue,
-                unfocusedLabelColor = primaryBlue,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
             )
         )
 
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            containerColor = Color(0xFFE3F2FD)
+            onDismissRequest = {
+                expanded = false
+            },
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             items.forEach { item ->
                 DropdownMenuItem(
-                    text = { Text(item) },
+                    text = {
+                        Text(
+                            text = item,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
                     onClick = {
                         onItemSelected(item)
                         expanded = false
@@ -514,17 +632,21 @@ fun ProtectoraCard(
     protectora: User,
     onClick: () -> Unit
 ) {
-    val darkBlue = Color(0xFF0D47A1)
-    val mediumBlue = Color(0xFF1E88E5)
-    val softBlue = Color(0xFFE3F2FD)
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = softBlue),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
     ) {
         Row(
             modifier = Modifier
@@ -532,72 +654,118 @@ fun ProtectoraCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = protectora.photoUrl.ifBlank { null },
-                contentDescription = "Foto de ${protectora.nombreProtectora}",
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(Color.White),
-                contentScale = ContentScale.Crop
-            )
+            if (protectora.photoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = protectora.photoUrl,
+                    contentDescription = "Foto de ${protectora.nombreProtectora}",
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(18.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
-                    text = protectora.nombreProtectora.ifBlank { "Protectora sin nombre" },
+                    text = protectora.nombreProtectora.ifBlank {
+                        "Protectora sin nombre"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = darkBlue
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = "@${protectora.username}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = mediumBlue
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
+                if (protectora.username.isNotBlank()) {
+                    Text(
+                        text = "@${protectora.username}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 val ubicacion = listOf(
                     protectora.ciudad,
                     protectora.provincia,
                     protectora.comunidad
-                ).filter { it.isNotBlank() }.joinToString(", ")
+                ).filter { value ->
+                    value.isNotBlank()
+                }.joinToString(", ")
 
                 if (ubicacion.isNotBlank()) {
-                    Text(
-                        text = ubicacion,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF355C8A)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                } else {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Text(
+                            text = ubicacion,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(
+                            horizontal = 10.dp,
+                            vertical = 6.dp
+                        ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Groups,
                             contentDescription = null,
-                            tint = darkBlue,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.size(16.dp)
                         )
+
                         Spacer(modifier = Modifier.width(6.dp))
+
                         Text(
                             text = "${protectora.followers} seguidores",
                             style = MaterialTheme.typography.bodySmall,
-                            color = darkBlue,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.SemiBold
                         )
                     }

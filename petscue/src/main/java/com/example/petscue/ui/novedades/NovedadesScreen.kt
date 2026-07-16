@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -83,13 +85,11 @@ import coil.compose.AsyncImage
 import com.example.petscue.data.model.Post
 import com.example.petscue.ui.novedades.location.LocationPickerScreen
 import com.example.petscue.ui.novedades.location.SelectedLocation
+import com.example.petscue.ui.theme.PetscueBlue
+import com.example.petscue.ui.theme.PetscueBlueDark
 import java.util.UUID
 
-private val BluePrimary = Color(0xFF4A90E2)
-private val BlueBorder = Color(0xFF6CA9F0)
-private val CardBackground = Color(0xFFF7F7F8)
 private val DeleteRed = Color(0xFFD32F2F)
-private val BlueSoft = Color(0xFFEAF3FF)
 
 private val SelectedLocationSaver: Saver<SelectedLocation, Any> = mapSaver(
     save = { location ->
@@ -117,16 +117,22 @@ fun NovedadesScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentUser = uiState.currentUser
     val snackbarHostState = remember { SnackbarHostState() }
-
-    val currentUserName = listOf(currentUser.nombre, currentUser.apellido)
-        .filter { it.isNotBlank() }
-        .joinToString(" ")
-        .ifBlank { "Usuario Petscue" }
-
-    val currentUserHandle = currentUser.username.trim()
-        .let { if (it.isBlank()) "@usuario" else "@$it" }
-
     val context = LocalContext.current
+
+    val currentUserName = listOf(
+        currentUser.nombre,
+        currentUser.apellido
+    ).filter {
+        it.isNotBlank()
+    }.joinToString(" ").ifBlank {
+        "Usuario Petscue"
+    }
+
+    val currentUserHandle = currentUser.username
+        .trim()
+        .let { username ->
+            if (username.isBlank()) "@usuario" else "@$username"
+        }
 
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(
@@ -135,12 +141,12 @@ fun NovedadesScreen(
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
+            val permissionGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!permissionGranted) {
                 notificationPermissionLauncher.launch(
                     Manifest.permission.POST_NOTIFICATIONS
                 )
@@ -148,117 +154,198 @@ fun NovedadesScreen(
         }
     }
 
-    var mostrarComposer by rememberSaveable { mutableStateOf(false) }
-    var mostrarLocationPicker by rememberSaveable { mutableStateOf(false) }
-    var postAComentar by rememberSaveable { mutableStateOf<Post?>(null) }
-    var filtroSeleccionado by rememberSaveable { mutableStateOf("Todos") }
+    var mostrarComposer by rememberSaveable {
+        mutableStateOf(false)
+    }
 
-    var selectedLocation by rememberSaveable(stateSaver = SelectedLocationSaver) {
+    var mostrarLocationPicker by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var postAComentar by rememberSaveable {
+        mutableStateOf<Post?>(null)
+    }
+
+    var filtroSeleccionado by rememberSaveable {
+        mutableStateOf("Todos")
+    }
+
+    var selectedLocation by rememberSaveable(
+        stateSaver = SelectedLocationSaver
+    ) {
         mutableStateOf(SelectedLocation())
     }
 
     val imagenesSeleccionadas = rememberSaveable(
         saver = listSaver(
-            save = { stateList -> stateList.toList() },
-            restore = { restored -> mutableStateListOf<String>().apply { addAll(restored) } }
+            save = { stateList ->
+                stateList.toList()
+            },
+            restore = { restored ->
+                mutableStateListOf<String>().apply {
+                    addAll(restored)
+                }
+            }
         )
-    ) { mutableStateListOf<String>() }
+    ) {
+        mutableStateListOf<String>()
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(
+            maxItems = 4
+        )
     ) { uris ->
-        val nuevasUris = uris.map { it.toString() }.take(4)
+        val nuevasUris = uris
+            .map { uri -> uri.toString() }
+            .take(4)
+
         imagenesSeleccionadas.clear()
         imagenesSeleccionadas.addAll(nuevasUris)
-        if (nuevasUris.isNotEmpty()) mostrarComposer = true
+
+        if (nuevasUris.isNotEmpty()) {
+            mostrarComposer = true
+        }
     }
 
     LaunchedEffect(uiState.error) {
-        uiState.error?.let { snackbarHostState.showSnackbar(it) }
+        uiState.error?.let { error ->
+            snackbarHostState.showSnackbar(error)
+        }
     }
 
     val filtros = listOf(
-        "Todos", "Perdido", "Encontrado", "Visto",
-        "Urgente", "Adopción", "Acogida", "Recaudación", "Comunidad"
+        "Todos",
+        "Perdido",
+        "Encontrado",
+        "Visto",
+        "Urgente",
+        "Adopción",
+        "Acogida",
+        "Recaudación",
+        "Comunidad"
     )
 
-    val postsFiltrados = uiState.posts.filter { post ->
-        filtroSeleccionado == "Todos" ||
-                post.tipo.equals(filtroSeleccionado, ignoreCase = true)
-    }.sortedByDescending { it.timestamp }
+    val postsFiltrados = uiState.posts
+        .filter { post ->
+            filtroSeleccionado == "Todos" ||
+                    post.tipo.equals(
+                        filtroSeleccionado,
+                        ignoreCase = true
+                    )
+        }
+        .sortedByDescending { post ->
+            post.timestamp
+        }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = BluePrimary)
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = PetscueBlue
+                )
             }
-
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    item {
-                        CrearPublicacionCard(
-                            photoUrl = currentUser.photoUrl,
-                            displayName = currentUserName,
-                            onTextClick = {
-                                imagenesSeleccionadas.clear()
-                                mostrarComposer = true
-                            },
-                            onPhotoClick = {
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(
-                                        ActivityResultContracts.PickVisualMedia.ImageOnly
-                                    )
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(
+                    top = 8.dp,
+                    bottom = 20.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                item {
+                    CrearPublicacionCard(
+                        photoUrl = currentUser.photoUrl,
+                        displayName = currentUserName,
+                        onTextClick = {
+                            imagenesSeleccionadas.clear()
+                            mostrarComposer = true
+                        },
+                        onPhotoClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts
+                                        .PickVisualMedia
+                                        .ImageOnly
                                 )
+                            )
+                        }
+                    )
+                }
+
+                item {
+                    FiltrosNovedadesSticky(
+                        filtros = filtros,
+                        filtroSeleccionado = filtroSeleccionado,
+                        onFiltroSelected = { filtro ->
+                            filtroSeleccionado = filtro
+                        }
+                    )
+                }
+
+                if (postsFiltrados.isEmpty()) {
+                    item {
+                        EmptyNovedadesState(
+                            filtroSeleccionado = filtroSeleccionado
+                        )
+                    }
+                } else {
+                    items(
+                        items = postsFiltrados,
+                        key = { post ->
+                            post.id
+                        }
+                    ) { post ->
+                        PostCard(
+                            post = post,
+                            isLiked = post.likedBy.contains(
+                                uiState.currentUser?.uid.orEmpty()
+                            ),
+                            isReposted = post.repostedBy.contains(
+                                uiState.currentUser.uid
+                            ),
+                            isOwner = post.userId == uiState.currentUser?.uid,
+                            onDeleteClick = {
+                                viewModel.deletePost(post)
+                            },
+                            onCommentClick = {
+                                postAComentar = post
+                            },
+                            onLikeClick = {
+                                viewModel.toggleLike(post)
+                            },
+                            onRepostClick = {
+                                viewModel.toggleRepost(post)
+                            },
+                            onShareClick = {
+                                viewModel.sharePost(post)
+                            },
+                            onOpenDetail = {
+                                onOpenDetail(post.id)
+                            },
+                            onOpenProfile = {
+                                val targetUserId = post.userId.ifBlank {
+                                    currentUser.uid
+                                }
+
+                                onOpenProfile(targetUserId)
                             }
                         )
                     }
+                }
 
-                    item {
-                        FiltrosNovedadesSticky(
-                            filtros = filtros,
-                            filtroSeleccionado = filtroSeleccionado,
-                            onFiltroSelected = { filtroSeleccionado = it }
-                        )
-                    }
-
-                    if (postsFiltrados.isEmpty()) {
-                        item {
-                            EmptyNovedadesState(filtroSeleccionado = filtroSeleccionado)
-                        }
-                    } else {
-                        items(
-                            items = postsFiltrados,
-                            key = { post: Post -> post.id }
-                        ) { post: Post ->
-                            PostCard(
-                                post = post,
-                                isLiked = uiState.likedPostIds.contains(post.id),
-                                isReposted = uiState.repostedPostIds.contains(post.id),
-                                isOwner = post.userId == currentUser.uid,
-                                onDeleteClick = { viewModel.deletePost(post) },
-                                onCommentClick = { onOpenDetail(post.id) },
-                                onLikeClick = { viewModel.toggleLike(post) },
-                                onRepostClick = { viewModel.toggleRepost(post) },
-                                onShareClick = { viewModel.sharePost(post) },
-                                onOpenDetail = { onOpenDetail(post.id) },
-                                onOpenProfile = {
-                                    val targetUserId = post.userId.ifBlank { currentUser.uid }
-                                    onOpenProfile(targetUserId)
-                                }
-                            )
-                        }
-                    }
-
-                    item { Spacer(modifier = Modifier.height(12.dp)) }
+                item {
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
                 }
             }
         }
@@ -283,15 +370,21 @@ fun NovedadesScreen(
                 onAddPhotos = {
                     photoPickerLauncher.launch(
                         PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                            ActivityResultContracts
+                                .PickVisualMedia
+                                .ImageOnly
                         )
                     )
                 },
-                onOpenLocationPicker = { mostrarLocationPicker = true },
+                onOpenLocationPicker = {
+                    mostrarLocationPicker = true
+                },
                 onPublicar = { texto, tipo, fotos ->
                     val post = Post(
                         id = UUID.randomUUID().toString(),
-                        userId = currentUser.uid.ifBlank { "demo_user" },
+                        userId = currentUser.uid.ifBlank {
+                            "demo_user"
+                        },
                         userName = currentUserName,
                         userHandle = currentUserHandle,
                         userAvatar = currentUser.photoUrl,
@@ -303,7 +396,12 @@ fun NovedadesScreen(
                         likes = 0,
                         comentarios = 0
                     )
-                    viewModel.insertPost(post = post, localImageUris = fotos.take(4))
+
+                    viewModel.insertPost(
+                        post = post,
+                        localImageUris = fotos.take(4)
+                    )
+
                     mostrarComposer = false
                     imagenesSeleccionadas.clear()
                 }
@@ -312,7 +410,9 @@ fun NovedadesScreen(
 
         if (mostrarLocationPicker) {
             LocationPickerScreen(
-                onDismiss = { mostrarLocationPicker = false },
+                onDismiss = {
+                    mostrarLocationPicker = false
+                },
                 onLocationSelected = { location ->
                     selectedLocation = location
                     mostrarLocationPicker = false
@@ -323,7 +423,9 @@ fun NovedadesScreen(
         postAComentar?.let { post ->
             CommentSheet(
                 post = post,
-                onDismiss = { postAComentar = null },
+                onDismiss = {
+                    postAComentar = null
+                },
                 onSendComment = { texto ->
                     viewModel.addComment(post, texto)
                     postAComentar = null
@@ -341,64 +443,109 @@ private fun FiltrosNovedadesSticky(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = BlueSoft.copy(alpha = 0.96f),
-        shadowElevation = 4.dp
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 6.dp, bottom = 8.dp)
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(
+                start = 14.dp,
+                end = 14.dp,
+                top = 8.dp,
+                bottom = 10.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(filtros) { filtro ->
-                    FilterChip(
-                        selected = filtroSeleccionado == filtro,
-                        onClick = { onFiltroSelected(filtro) },
-                        label = { Text(filtro) },
-                        shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            if (filtroSeleccionado == filtro) BluePrimary.copy(alpha = 0.35f)
-                            else BlueBorder.copy(alpha = 0.55f)
-                        ),
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = Color.White,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selectedContainerColor = BluePrimary,
-                            selectedLabelColor = Color.White
+            items(filtros) { filtro ->
+                val selected = filtroSeleccionado == filtro
+
+                FilterChip(
+                    selected = selected,
+                    onClick = {
+                        onFiltroSelected(filtro)
+                    },
+                    label = {
+                        Text(
+                            text = filtro,
+                            fontWeight = if (selected) {
+                                FontWeight.Bold
+                            } else {
+                                FontWeight.Medium
+                            }
                         )
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (selected) {
+                            PetscueBlue
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        }
+                    ),
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedContainerColor = PetscueBlue,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
-                }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun EmptyNovedadesState(filtroSeleccionado: String) {
-    Column(
+private fun EmptyNovedadesState(
+    filtroSeleccionado: String
+) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 30.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(
+                horizontal = 16.dp,
+                vertical = 30.dp
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = if (filtroSeleccionado == "Todos") "No hay novedades aún"
-            else "No hay publicaciones de tipo $filtroSeleccionado",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = if (filtroSeleccionado == "Todos") "Sé el primero en publicar una novedad"
-            else "Prueba con otro filtro o crea una nueva publicación",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (filtroSeleccionado == "Todos") {
+                        "No hay novedades aún"
+                    } else {
+                        "No hay publicaciones de tipo $filtroSeleccionado"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = PetscueBlueDark,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (filtroSeleccionado == "Todos") {
+                        "Sé el primero en publicar una novedad."
+                    } else {
+                        "Prueba con otro filtro o crea una nueva publicación."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -413,9 +560,14 @@ private fun CrearPublicacionCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.5.dp, BlueBorder),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
             modifier = Modifier
@@ -427,18 +579,27 @@ private fun CrearPublicacionCard(
                 AsyncImage(
                     model = photoUrl,
                     contentDescription = "Foto de perfil",
-                    modifier = Modifier.size(44.dp).clip(CircleShape),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Surface(
-                    modifier = Modifier.size(44.dp).clip(CircleShape),
-                    color = BluePrimary.copy(alpha = 0.15f)
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape),
+                    color = PetscueBlue.copy(alpha = 0.14f)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = displayName.firstOrNull()?.uppercase() ?: "U",
-                            color = BluePrimary,
+                            text = displayName
+                                .firstOrNull()
+                                ?.uppercase()
+                                ?: "U",
+                            color = PetscueBlue,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -448,19 +609,28 @@ private fun CrearPublicacionCard(
             Spacer(modifier = Modifier.size(10.dp))
 
             Surface(
-                modifier = Modifier.weight(1f).clickable { onTextClick() },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onTextClick),
                 shape = RoundedCornerShape(24.dp),
-                color = CardBackground
+                color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Text(
                     text = "¿Qué estás pensando?",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             IconButton(onClick = onPhotoClick) {
-                Icon(Icons.Default.Image, contentDescription = "Añadir fotos", tint = BluePrimary)
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = "Añadir fotos",
+                    tint = PetscueBlue
+                )
             }
         }
     }
@@ -472,9 +642,15 @@ private fun CommentSheet(
     onDismiss: () -> Unit,
     onSendComment: (String) -> Unit
 ) {
-    var comment by rememberSaveable { mutableStateOf("") }
+    var comment by rememberSaveable {
+        mutableStateOf("")
+    }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -485,20 +661,41 @@ private fun CommentSheet(
             Text(
                 text = "Responder a ${post.userName}",
                 style = MaterialTheme.typography.titleMedium,
+                color = PetscueBlueDark,
                 fontWeight = FontWeight.Bold
             )
+
             OutlinedTextField(
                 value = comment,
-                onValueChange = { comment = it },
+                onValueChange = {
+                    comment = it
+                },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 4,
-                placeholder = { Text("Escribe tu comentario") }
+                placeholder = {
+                    Text("Escribe tu comentario")
+                },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PetscueBlue,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    focusedLabelColor = PetscueBlue,
+                    cursorColor = PetscueBlue,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                )
             )
+
             Button(
-                onClick = { onSendComment(comment) },
+                onClick = {
+                    onSendComment(comment)
+                },
                 enabled = comment.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PetscueBlue,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
                 Text("Comentar")
             }
@@ -521,23 +718,53 @@ fun PostCard(
     onOpenProfile: () -> Unit
 ) {
     val context = LocalContext.current
-    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+
+    var showDeleteDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Eliminar publicación") },
-            text = { Text("¿Seguro que quieres borrar esta publicación? Esta acción no se puede deshacer.") },
+            onDismissRequest = {
+                showDeleteDialog = false
+            },
+            title = {
+                Text("Eliminar publicación")
+            },
+            text = {
+                Text(
+                    "¿Seguro que quieres borrar esta publicación? " +
+                            "Esta acción no se puede deshacer."
+                )
+            },
             confirmButton = {
-                TextButton(onClick = { showDeleteDialog = false; onDeleteClick() }) {
-                    Text("Eliminar", color = DeleteRed)
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteClick()
+                    }
+                ) {
+                    Text(
+                        text = "Eliminar",
+                        color = DeleteRed
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancelar")
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text(
+                        text = "Cancelar",
+                        color = PetscueBlue
+                    )
                 }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = PetscueBlueDark,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 
@@ -545,9 +772,14 @@ fun PostCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.5.dp, BlueBorder),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
             modifier = Modifier
@@ -565,7 +797,7 @@ fun PostCard(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .clickable { onOpenProfile() },
+                            .clickable(onClick = onOpenProfile),
                         contentScale = ContentScale.Crop
                     )
                 } else {
@@ -573,13 +805,18 @@ fun PostCard(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .clickable { onOpenProfile() },
-                        color = BluePrimary.copy(alpha = 0.14f)
+                            .clickable(onClick = onOpenProfile),
+                        color = PetscueBlue.copy(alpha = 0.14f)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                text = post.userName.firstOrNull()?.toString() ?: "?",
-                                color = BluePrimary,
+                                text = post.userName
+                                    .firstOrNull()
+                                    ?.uppercase()
+                                    ?: "?",
+                                color = PetscueBlue,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -591,18 +828,23 @@ fun PostCard(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { onOpenProfile() }
+                        .clickable(onClick = onOpenProfile)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = post.userName,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+
                         if (post.userHandle.isNotBlank()) {
                             Spacer(modifier = Modifier.width(6.dp))
+
                             Text(
                                 text = post.userHandle,
                                 style = MaterialTheme.typography.bodySmall,
@@ -621,15 +863,17 @@ fun PostCard(
                             Text(
                                 text = post.tipo,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = BluePrimary,
+                                color = PetscueBlue,
                                 fontWeight = FontWeight.SemiBold
                             )
+
                             Text(
                                 text = "·",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+
                         Text(
                             text = tiempoRelativo(post.timestamp),
                             style = MaterialTheme.typography.labelSmall,
@@ -649,7 +893,11 @@ fun PostCard(
                 }
 
                 if (isOwner) {
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    IconButton(
+                        onClick = {
+                            showDeleteDialog = true
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Eliminar publicación",
@@ -662,13 +910,17 @@ fun PostCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Column(
-                modifier = Modifier.clickable { onOpenDetail() }
+                modifier = Modifier.clickable(
+                    onClick = onOpenDetail
+                )
             ) {
                 if (post.mensaje.isNotBlank()) {
                     Text(
                         text = post.mensaje,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+
                     Spacer(modifier = Modifier.height(10.dp))
                 }
 
@@ -683,12 +935,17 @@ fun PostCard(
             }
         }
 
-        HorizontalDivider(color = BlueBorder.copy(alpha = 0.5f))
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(
+                    horizontal = 12.dp,
+                    vertical = 10.dp
+                ),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -698,30 +955,46 @@ fun PostCard(
                 selected = false,
                 onClick = onCommentClick
             )
+
             PostActionItem(
                 icon = Icons.Default.Repeat,
                 text = if (isReposted) "Publicado" else "Repost",
                 selected = isReposted,
                 onClick = onRepostClick
             )
+
             PostActionItem(
-                icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                icon = if (isLiked) {
+                    Icons.Default.Favorite
+                } else {
+                    Icons.Default.FavoriteBorder
+                },
                 text = post.likes.toString(),
                 selected = isLiked,
                 onClick = onLikeClick
             )
+
             PostActionItem(
                 icon = Icons.Default.Share,
                 text = "Compartir",
+                selected = false,
                 onClick = {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, "${post.userName}: ${post.mensaje}")
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            "${post.userName}: ${post.mensaje}"
+                        )
                         type = "text/plain"
                     }
+
                     context.startActivity(
-                        Intent.createChooser(sendIntent, "Compartir publicación")
+                        Intent.createChooser(
+                            sendIntent,
+                            "Compartir publicación"
+                        )
                     )
+
                     onShareClick()
                 }
             )
@@ -736,38 +1009,49 @@ private fun PostImagesGrid(
 ) {
     when (images.size) {
         0 -> Unit
-        1 -> AsyncImage(
-            model = images.first(),
-            contentDescription = "Foto del post",
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .clickable { onImageClick() },
-            contentScale = ContentScale.Crop
-        )
-        else -> Column(
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            images.chunked(2).forEach { fila ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    fila.forEach { foto ->
-                        AsyncImage(
-                            model = foto,
-                            contentDescription = "Foto del post",
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(170.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onImageClick() },
-                            contentScale = ContentScale.Crop
-                        )
+
+        1 -> {
+            AsyncImage(
+                model = images.first(),
+                contentDescription = "Foto del post",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable(onClick = onImageClick),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        else -> {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                images.chunked(2).forEach { fila ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        fila.forEach { foto ->
+                            AsyncImage(
+                                model = foto,
+                                contentDescription = "Foto del post",
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(170.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(onClick = onImageClick),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        if (fila.size == 1) {
+                            Spacer(
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
-                    if (fila.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -781,13 +1065,20 @@ private fun PostActionItem(
     selected: Boolean = false,
     onClick: () -> Unit
 ) {
-    val tint = if (selected) BluePrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val tint = if (selected) {
+        PetscueBlue
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .clickable { onClick() }
-            .padding(vertical = 4.dp, horizontal = 6.dp)
+            .clickable(onClick = onClick)
+            .padding(
+                vertical = 4.dp,
+                horizontal = 6.dp
+            )
     ) {
         Icon(
             imageVector = icon,
@@ -795,7 +1086,9 @@ private fun PostActionItem(
             tint = tint,
             modifier = Modifier.size(18.dp)
         )
+
         Spacer(modifier = Modifier.width(4.dp))
+
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,

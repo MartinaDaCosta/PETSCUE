@@ -24,6 +24,7 @@ object Routes {
     const val MY_ALERTS = "my_alerts"
     const val ADOPTION_REQUEST = "adoption_request/{petId}"
     const val MAIN_WITH_TAB = "main?tab={tab}"
+    const val EDIT_PROFILE = "edit_profile"
 
     fun mainRoute(tab: String) = "main?tab=$tab"
     fun adoptionRequestRoute(petId: String) = "adoption_request/$petId"
@@ -35,4 +36,5 @@ object Routes {
     fun postDetailRoute(postId: String) = "post_detail/$postId"
     fun chatDetailRoute(conversationId: String) = "chat_detail/$conversationId"
     fun alertDetailRoute(petId: String) = "alert_detail/$petId"
+
 }

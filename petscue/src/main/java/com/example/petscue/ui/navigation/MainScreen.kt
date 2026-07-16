@@ -20,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -35,7 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,17 +48,42 @@ import com.example.petscue.ui.notifications.NotificationsScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
 import com.example.petscue.ui.profile.ProfileScreen
 import com.example.petscue.ui.protectoras.ProtectorasScreen
+import com.example.petscue.ui.theme.PetscueBlue
 
 sealed class BottomTab(
     val route: String,
     val icon: ImageVector,
     val label: String
 ) {
-    object Mapa : BottomTab("mapa", Icons.Default.LocationOn, "Mapa")
-    object Protectoras : BottomTab("protectoras", Icons.Default.Pets, "Protectoras")
-    object Novedades : BottomTab("novedades", Icons.Default.Campaign, "Novedades")
-    object Mensajes : BottomTab("mensajes", Icons.AutoMirrored.Filled.Chat, "Mensajes")
-    object Perfil : BottomTab("profile", Icons.Default.Person, "Perfil")
+    data object Mapa : BottomTab(
+        route = "mapa",
+        icon = Icons.Default.LocationOn,
+        label = "Mapa"
+    )
+
+    data object Protectoras : BottomTab(
+        route = "protectoras",
+        icon = Icons.Default.Pets,
+        label = "Protectoras"
+    )
+
+    data object Novedades : BottomTab(
+        route = "novedades",
+        icon = Icons.Default.Campaign,
+        label = "Novedades"
+    )
+
+    data object Mensajes : BottomTab(
+        route = "mensajes",
+        icon = Icons.AutoMirrored.Filled.Chat,
+        label = "Mensajes"
+    )
+
+    data object Perfil : BottomTab(
+        route = "profile",
+        icon = Icons.Default.Person,
+        label = "Perfil"
+    )
 }
 
 private val tabs = listOf(
@@ -68,7 +94,9 @@ private val tabs = listOf(
     BottomTab.Perfil
 )
 
-fun userProfileRoute(userId: String): String = "user_profile/$userId"
+fun userProfileRoute(userId: String): String {
+    return "user_profile/$userId"
+}
 
 @Composable
 fun MainScreen(
@@ -76,31 +104,50 @@ fun MainScreen(
     initialTabRoute: String = BottomTab.Novedades.route,
     onLogout: () -> Unit = {}
 ) {
-    var currentTabRoute by rememberSaveable { mutableStateOf(BottomTab.Novedades.route) }
-    val currentTab = tabs.firstOrNull { it.route == currentTabRoute } ?: BottomTab.Novedades
+    var currentTabRoute by rememberSaveable {
+        mutableStateOf(initialTabRoute)
+    }
+
+    val currentTab = tabs.firstOrNull {
+        it.route == currentTabRoute
+    } ?: BottomTab.Novedades
+
+    val backStackEntry = navController.currentBackStackEntry
+
+    val profileUpdated by backStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow("profile_updated", false)
+        ?.collectAsState()
+        ?: rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             PetscueTopBar(
                 onLogout = onLogout,
                 onOpenAlert = { petId ->
-                    navController.navigate(Routes.alertDetailRoute(petId))
+                    navController.navigate(
+                        Routes.alertDetailRoute(petId)
+                    )
                 }
             )
         },
         bottomBar = {
             PetscueBottomBar(
                 currentTab = currentTab,
-                onTabSelected = { currentTabRoute = it.route }
+                onTabSelected = { selectedTab ->
+                    currentTabRoute = selectedTab.route
+                }
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    navController.navigate(Routes.SELECT_PET_FOR_ALERT)
+                    navController.navigate(
+                        Routes.SELECT_PET_FOR_ALERT
+                    )
                 },
-                containerColor = Color(0xFF1565C0),
-                contentColor = Color.White
+                containerColor = PetscueBlue,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(
                     imageVector = Icons.Default.Warning,
@@ -108,64 +155,103 @@ fun MainScreen(
                 )
             }
         },
-        containerColor = Color(0xFFF0F4FF)
-    ) { padding ->
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(paddingValues)
         ) {
             when (currentTab) {
-                BottomTab.Mapa -> MapaScreen(
-                    onOpenAlertDetail = { petId ->
-                        navController.navigate(Routes.alertDetailRoute(petId))
-                    },
-                    onOpenMyAlerts = {
-                        navController.navigate(Routes.MY_ALERTS)
-                    }
-                )
-
-                BottomTab.Novedades -> NovedadesScreen(
-                    onOpenDetail = { postId ->
-                        navController.navigate(Routes.postDetailRoute(postId))
-                    },
-                    onOpenProfile = { userId ->
-                        val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                        if (userId == currentUid) {
-                            currentTabRoute = BottomTab.Perfil.route
-                        } else {
-                            navController.navigate(userProfileRoute(userId))
+                BottomTab.Mapa -> {
+                    MapaScreen(
+                        onOpenAlertDetail = { petId ->
+                            navController.navigate(
+                                Routes.alertDetailRoute(petId)
+                            )
+                        },
+                        onOpenMyAlerts = {
+                            navController.navigate(
+                                Routes.MY_ALERTS
+                            )
                         }
-                    }
-                )
+                    )
+                }
 
-                BottomTab.Protectoras -> ProtectorasScreen()
+                BottomTab.Protectoras -> {
+                    ProtectorasScreen(
+                        onProtectoraClick = { protectoraId ->
+                            navController.navigate(
+                                userProfileRoute(protectoraId)
+                            )
+                        }
+                    )
+                }
 
-                BottomTab.Mensajes -> MensajesScreen(
-                    onConversationClick = { conversationId ->
-                        navController.navigate(Routes.chatDetailRoute(conversationId))
-                    }
-                )
+                BottomTab.Novedades -> {
+                    NovedadesScreen(
+                        onOpenDetail = { postId ->
+                            navController.navigate(
+                                Routes.postDetailRoute(postId)
+                            )
+                        },
+                        onOpenProfile = { userId ->
+                            val currentUid = com.google.firebase.auth.FirebaseAuth
+                                .getInstance()
+                                .currentUser
+                                ?.uid
 
-                BottomTab.Perfil -> ProfileScreen(
-                    isOwnProfile = true,
-                    onAddPetClick = {
-                        navController.navigate(Routes.ADD_PET)
-                    },
-                    onPetClick = { petId ->
-                        navController.navigate(Routes.petDetailRoute(petId))
-                    },
-                    onAdoptionPetClick = { petId ->
-                        navController.navigate(Routes.adoptionDetailRoute(petId))
-                    },
-                    onOpenPostDetail = { postId ->
-                        navController.navigate(Routes.postDetailRoute(postId))
-                    },
-                    onOpenProfile = { userId ->
-                        navController.navigate(userProfileRoute(userId))
-                    },
-                    onMessageClick = {}
-                )
+                            if (userId == currentUid) {
+                                currentTabRoute = BottomTab.Perfil.route
+                            } else {
+                                navController.navigate(
+                                    userProfileRoute(userId)
+                                )
+                            }
+                        }
+                    )
+                }
+
+                BottomTab.Mensajes -> {
+                    MensajesScreen(
+                        onConversationClick = { conversationId ->
+                            navController.navigate(
+                                Routes.chatDetailRoute(conversationId)
+                            )
+                        }
+                    )
+                }
+
+                BottomTab.Perfil -> {
+                    ProfileScreen(
+                        isOwnProfile = true,
+                        onAddPetClick = {
+                            navController.navigate(Routes.ADD_PET)
+                        },
+                        onPetClick = { petId ->
+                            navController.navigate(Routes.petDetailRoute(petId))
+                        },
+                        onAdoptionPetClick = { petId ->
+                            navController.navigate(Routes.adoptionDetailRoute(petId))
+                        },
+                        onOpenPostDetail = { postId ->
+                            navController.navigate(Routes.postDetailRoute(postId))
+                        },
+                        onOpenProfile = { userId ->
+                            navController.navigate(userProfileRoute(userId))
+                        },
+                        onEditProfile = {
+                            navController.navigate(Routes.EDIT_PROFILE)
+                        },
+                        onMessageClick = {},
+                        profileUpdated = profileUpdated,
+                        onProfileUpdatedConsumed = {
+                            backStackEntry
+                                ?.savedStateHandle
+                                ?.set("profile_updated", false)
+                        }
+                    )
+                }
             }
         }
     }
@@ -177,7 +263,9 @@ fun PetscueTopBar(
     onLogout: () -> Unit = {},
     onOpenAlert: (String) -> Unit
 ) {
-    var showSettingsMenu by rememberSaveable { mutableStateOf(false) }
+    var showSettingsMenu by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     TopAppBar(
         title = {
@@ -188,7 +276,7 @@ fun PetscueTopBar(
             ) {
                 Text(
                     text = "PETSCUE 🐾",
-                    color = Color(0xFF1565C0),
+                    color = PetscueBlue,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 20.sp,
                     letterSpacing = 1.sp
@@ -202,20 +290,28 @@ fun PetscueTopBar(
         },
         actions = {
             Box {
-                IconButton(onClick = { showSettingsMenu = true }) {
+                IconButton(
+                    onClick = {
+                        showSettingsMenu = true
+                    }
+                ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "Ajustes",
-                        tint = Color(0xFF1565C0)
+                        tint = PetscueBlue
                     )
                 }
 
                 DropdownMenu(
                     expanded = showSettingsMenu,
-                    onDismissRequest = { showSettingsMenu = false }
+                    onDismissRequest = {
+                        showSettingsMenu = false
+                    }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Cerrar sesión") },
+                        text = {
+                            Text("Cerrar sesión")
+                        },
                         onClick = {
                             showSettingsMenu = false
                             onLogout()
@@ -224,7 +320,9 @@ fun PetscueTopBar(
                 }
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     )
 }
 
@@ -234,14 +332,16 @@ fun PetscueBottomBar(
     onTabSelected: (BottomTab) -> Unit
 ) {
     NavigationBar(
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         modifier = Modifier.shadow(8.dp)
     ) {
         tabs.forEach { tab ->
             NavigationBarItem(
                 selected = currentTab == tab,
-                onClick = { onTabSelected(tab) },
+                onClick = {
+                    onTabSelected(tab)
+                },
                 icon = {
                     Icon(
                         imageVector = tab.icon,
@@ -255,11 +355,11 @@ fun PetscueBottomBar(
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color(0xFF1565C0),
-                    selectedTextColor = Color(0xFF1565C0),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray,
-                    indicatorColor = Color(0xFF1565C0).copy(alpha = 0.12f)
+                    selectedIconColor = PetscueBlue,
+                    selectedTextColor = PetscueBlue,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = PetscueBlue.copy(alpha = 0.12f)
                 )
             )
         }

@@ -43,18 +43,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.petscue.ui.profile.pet.petdetail.PetDetailViewModel
-
-private val BluePrimary = Color(0xFF1976D2)
-private val BlueDark = Color(0xFF0D47A1)
-private val BlueSoft = Color(0xFFEFF6FF)
-private val BlueBorder = Color(0xFFB9D8FF)
 
 @Composable
 fun PetDetailScreen(
@@ -65,7 +60,10 @@ fun PetDetailScreen(
     vm: PetDetailViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
-    val showDeleteDialog = remember { mutableStateOf(false) }
+
+    val showDeleteDialog = remember {
+        mutableStateOf(false)
+    }
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) {
@@ -74,46 +72,28 @@ fun PetDetailScreen(
     }
 
     LaunchedEffect(state.openChatConversationId) {
-        val conversationId = state.openChatConversationId ?: return@LaunchedEffect
+        val conversationId = state.openChatConversationId
+            ?: return@LaunchedEffect
+
         onMessageClick(conversationId)
         vm.consumeOpenChatEvent()
     }
 
     if (showDeleteDialog.value) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog.value = false },
-            title = {
-                Text(
-                    text = "Eliminar mascota",
-                    color = MaterialTheme.colorScheme.error
-                )
+        DeletePetDialog(
+            onDismiss = {
+                showDeleteDialog.value = false
             },
-            text = {
-                Text("¿Seguro que quieres eliminar esta mascota? Esta acción no se puede deshacer.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog.value = false
-                        vm.deletePet()
-                    }
-                ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDeleteDialog.value = false }
-                ) {
-                    Text("Cancelar")
-                }
+            onConfirm = {
+                showDeleteDialog.value = false
+                vm.deletePet()
             }
         )
     }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF8FBFF)
+        color = MaterialTheme.colorScheme.background
     ) {
         when {
             state.isLoading -> {
@@ -121,18 +101,23 @@ fun PetDetailScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = BluePrimary)
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
             state.pet == null -> {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = state.error ?: "No se encontró la mascota",
-                        color = BlueDark
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
@@ -142,148 +127,53 @@ fun PetDetailScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 16.dp,
+                        bottom = 28.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowBack,
-                                    contentDescription = "Volver",
-                                    tint = BlueDark
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Column {
-                                Text(
-                                    text = pet.nombre.ifBlank { "Mascota" },
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = BlueDark,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Ficha de la mascota",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = BluePrimary
-                                )
-                            }
-                        }
+                        PetDetailHeader(
+                            petName = pet.nombre,
+                            onBack = onBack
+                        )
                     }
 
                     if (pet.fotos.isNotEmpty()) {
                         item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, BlueBorder)
-                            ) {
-                                LazyRow(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    items(pet.fotos) { photo ->
-                                        AsyncImage(
-                                            model = photo,
-                                            contentDescription = "Foto de ${pet.nombre}",
-                                            modifier = Modifier
-                                                .size(220.dp)
-                                                .background(
-                                                    color = BlueSoft,
-                                                    shape = RoundedCornerShape(20.dp)
-                                                ),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    }
-                                }
-                            }
+                            PetPhotosSection(
+                                petName = pet.nombre,
+                                photos = pet.fotos
+                            )
                         }
                     }
 
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, BlueBorder)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Text(
-                                    text = "Información",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = BlueDark,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                Text("Género: ${pet.genero.ifBlank { "-" }}", color = BluePrimary)
-                                Text("Raza: ${pet.raza.ifBlank { "-" }}", color = BluePrimary)
-                                Text("Edad: ${pet.edad.ifBlank { "-" }}", color = BluePrimary)
-                                Text("Estado: ${pet.estado.ifBlank { "-" }}", color = BluePrimary)
-                                Text("Descripción: ${pet.descripcion.ifBlank { "-" }}", color = BluePrimary)
-                            }
-                        }
+                        PetInformationCard(
+                            genero = pet.genero,
+                            raza = pet.raza,
+                            edad = pet.edad,
+                            estado = pet.estado,
+                            descripcion = pet.descripcion
+                        )
                     }
 
                     item {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (state.isOwner) {
-                                Button(
-                                    onClick = { onEditPet(pet.id) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(54.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = BluePrimary,
-                                        contentColor = Color.White
-                                    )
-                                ) {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Editar mascota")
-                                }
-
-                                OutlinedButton(
-                                    onClick = { showDeleteDialog.value = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(54.dp),
-                                    shape = RoundedCornerShape(18.dp)
-                                ) {
-                                    Icon(Icons.Default.Delete, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Eliminar mascota")
-                                }
-                            } else {
-                                Button(
-                                    onClick = { vm.openOrCreateGeneralChat() },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(54.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = BluePrimary,
-                                        contentColor = Color.White
-                                    )
-                                ) {
-                                    Text("Enviar mensaje")
-                                }
+                        PetActions(
+                            isOwner = state.isOwner,
+                            onEdit = {
+                                onEditPet(pet.id)
+                            },
+                            onDelete = {
+                                showDeleteDialog.value = true
+                            },
+                            onMessage = {
+                                vm.openOrCreateGeneralChat()
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -292,18 +182,290 @@ fun PetDetailScreen(
 }
 
 @Composable
-private fun DetailLine(label: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+private fun PetDetailHeader(
+    petName: String,
+    onBack: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Volver",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column {
+            Text(
+                text = petName.ifBlank { "Mascota" },
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Ficha de la mascota",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PetPhotosSection(
+    petName: String,
+    photos: List<String>
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        LazyRow(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(
+                items = photos,
+                key = { photo -> photo }
+            ) { photo ->
+                AsyncImage(
+                    model = photo,
+                    contentDescription = "Foto de $petName",
+                    modifier = Modifier
+                        .size(220.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(20.dp)
+                        ),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PetInformationCard(
+    genero: String,
+    raza: String,
+    edad: String,
+    estado: String,
+    descripcion: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "Información",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+
+            DetailLine(
+                label = "Género",
+                value = genero
+            )
+
+            DetailLine(
+                label = "Raza",
+                value = raza
+            )
+
+            DetailLine(
+                label = "Edad",
+                value = edad
+            )
+
+            DetailLine(
+                label = "Estado",
+                value = estado
+            )
+
+            DetailLine(
+                label = "Descripción",
+                value = descripcion
+            )
+        }
+    }
+}
+
+@Composable
+private fun PetActions(
+    isOwner: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onMessage: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (isOwner) {
+            Button(
+                onClick = onEdit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Editar mascota",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            OutlinedButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.error
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Eliminar mascota",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            Button(
+                onClick = onMessage,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(
+                    text = "Enviar mensaje",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailLine(
+    label: String,
+    value: String
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = BluePrimary,
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold
         )
+
         Text(
-            text = if (value.isBlank()) "-" else value,
+            text = value.ifBlank { "-" },
             style = MaterialTheme.typography.bodyLarge,
-            color = BlueDark
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
+}
+
+@Composable
+private fun DeletePetDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        title = {
+            Text(
+                text = "Eliminar mascota",
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = "¿Seguro que quieres eliminar esta mascota? " +
+                        "Esta acción no se puede deshacer."
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm
+            ) {
+                Text(
+                    text = "Eliminar",
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text(
+                    text = "Cancelar",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    )
 }

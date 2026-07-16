@@ -35,13 +35,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-
-private val BluePrimary = Color(0xFF4A90E2)
-private val BlueSoft    = Color(0xFFEAF3FF)
 
 @Composable
 fun PostDetailScreen(
@@ -53,48 +49,73 @@ fun PostDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.error) {
-        uiState.error?.let { snackbarHostState.showSnackbar(it) }
+        uiState.error?.let { errorMessage ->
+            snackbarHostState.showSnackbar(errorMessage)
+        }
     }
 
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlueSoft)
+            .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.systemBars),
-        containerColor = BlueSoft,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = {
+            SnackbarHost(snackbarHostState)
+        },
         topBar = {
-            Surface(color = Color.White, shadowElevation = 2.dp) {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shadowElevation = 2.dp
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                        .padding(
+                            horizontal = 8.dp,
+                            vertical = 8.dp
+                        ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
-                            tint = BluePrimary
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
+
                     Text(
                         text = "Publicación",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
         },
         bottomBar = {
-            ReplyComposer(
-                text = uiState.replyText,
-                replyingTo = uiState.replyingTo,
-                isSending = uiState.isSending,
-                onTextChange = viewModel::updateReplyText,
-                onCancelReply = { viewModel.setReplyingTo(null) },
-                onSend = { viewModel.sendReply() }
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shadowElevation = 8.dp
+            ) {
+                ReplyComposer(
+                    text = uiState.replyText,
+                    replyingTo = uiState.replyingTo,
+                    isSending = uiState.isSending,
+                    requestFocus = uiState.shouldFocusReply,
+                    onFocusConsumed = viewModel::consumeReplyFocus,
+                    onTextChange = viewModel::updateReplyText,
+                    onCancelReply = {
+                        viewModel.setReplyingTo(null)
+                    },
+                    onSend = {
+                        viewModel.sendReply()
+                    }
+                )
+            }
         }
     ) { innerPadding ->
         when {
@@ -105,7 +126,9 @@ fun PostDetailScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = BluePrimary)
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
@@ -116,29 +139,57 @@ fun PostDetailScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No se encontró la publicación")
+                    Text(
+                        text = "No se encontró la publicación",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
             else -> {
-                val rootReplies = uiState.replies.filter { it.parentReplyId == null }
+                val rootReplies = uiState.replies.filter {
+                    it.parentReplyId == null
+                }
+
                 val groupedChildren = uiState.replies
-                    .filter { it.parentReplyId != null }
-                    .groupBy { it.parentReplyId }
+                    .filter {
+                        it.parentReplyId != null
+                    }
+                    .groupBy {
+                        it.parentReplyId
+                    }
 
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
-                    contentPadding = PaddingValues(vertical = 8.dp),
+                    contentPadding = PaddingValues(
+                        top = 8.dp,
+                        bottom = 16.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item {
                         PostDetailCard(
                             post = uiState.post!!,
                             isLiked = uiState.isLikedByCurrentUser,
+                            isReposted = uiState.post!!.repostedBy.contains(
+                                uiState.currentUserId
+                            ),
                             isLiking = uiState.isLiking,
-                            onToggleLike = { viewModel.toggleLike() },
+                            onCommentClick = {
+                                viewModel.focusReplyComposer()
+                            },
+                            onToggleLike = {
+                                viewModel.toggleLike()
+                            },
+                            onToggleRepost = {
+                                viewModel.toggleRepost()
+                            },
+                            onShare = {
+                                viewModel.registerShare()
+                            },
                             onOpenProfile = onOpenProfile
                         )
                     }
@@ -146,23 +197,38 @@ fun PostDetailScreen(
                     item {
                         Text(
                             text = "Respuestas",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(
+                                horizontal = 16.dp,
+                                vertical = 8.dp
+                            ),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = BluePrimary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
                     if (rootReplies.isEmpty()) {
                         item {
-                            Text(
-                                text = "Todavía no hay respuestas. Sé la primera persona en comentar.",
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Text(
+                                    text = "Todavía no hay respuestas. Sé la primera persona en comentar.",
+                                    modifier = Modifier.padding(16.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     } else {
-                        items(rootReplies, key = { it.id }) { reply ->
+                        items(
+                            items = rootReplies,
+                            key = { reply -> reply.id }
+                        ) { reply ->
                             ReplyThreadItem(
                                 reply = reply,
                                 childReplies = groupedChildren[reply.id].orEmpty(),
@@ -178,7 +244,9 @@ fun PostDetailScreen(
                         }
                     }
 
-                    item { Spacer(modifier = Modifier.height(12.dp)) }
+                    item {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
                 }
             }
         }

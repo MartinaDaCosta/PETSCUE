@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,24 +47,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.tv.material3.OutlinedButtonDefaults
 import coil.compose.AsyncImage
 import com.example.petscue.data.model.Pet
 import com.example.petscue.data.model.Post
+import com.example.petscue.data.model.Reply
 import com.example.petscue.data.model.UserRole
 import com.example.petscue.ui.novedades.PostCard
-
-private val BluePrimary = Color(0xFF1565C0)
-private val BlueDark = Color(0xFF0D47A1)
-private val BlueSoft = Color(0xFFEFF4FF)
-private val BlueBorder = Color(0xFFB8D3FF)
-private val BlueTextSoft = Color(0xFF5E7FAE)
 
 @Composable
 fun ProfileScreen(
@@ -73,32 +69,23 @@ fun ProfileScreen(
     onAdoptionPetClick: (String) -> Unit,
     onOpenPostDetail: (String) -> Unit,
     onOpenProfile: (String) -> Unit,
+    onEditProfile: () -> Unit = {},
     isOwnProfile: Boolean = true,
     onMessageClick: (String) -> Unit = {},
+    profileUpdated: Boolean = false,
+    onProfileUpdatedConsumed: () -> Unit = {},
     vm: ProfileViewModel = hiltViewModel()
-){
+) {
     val state by vm.uiState.collectAsState()
     val user = state.user
     val chatToOpen by vm.openChatEvent.collectAsState()
 
-    if (user == null) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BlueSoft),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Cargando perfil...",
-                color = BlueDark,
-                style = MaterialTheme.typography.bodyLarge
-            )
+    LaunchedEffect(profileUpdated) {
+        if (profileUpdated) {
+            vm.refreshProfile()
+            onProfileUpdatedConsumed()
         }
-        return
     }
-
-    val isProtectora = user.role == UserRole.PROTECTORA
-    val viewerUserId = state.currentUserId
 
     LaunchedEffect(chatToOpen) {
         val conversationId = chatToOpen ?: return@LaunchedEffect
@@ -106,19 +93,35 @@ fun ProfileScreen(
         vm.consumeOpenChatEvent()
     }
 
+    if (user == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Cargando perfil...",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+        return
+    }
+
+    val isProtectora = user.role == UserRole.PROTECTORA
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlueSoft)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (!isOwnProfile) {
             OtherProfileTopBar(onBack = onBack)
         }
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BlueSoft),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             item {
@@ -137,9 +140,9 @@ fun ProfileScreen(
                         followingCount = state.followingCount,
                         isOwnProfile = isOwnProfile,
                         isFollowing = state.isFollowing,
-                        onEditProfile = { },
+                        onEditProfile = onEditProfile,
                         onFollowClick = vm::toggleFollow,
-                        onMessageClick = { vm.openOrCreateGeneralChat() }
+                        onMessageClick = vm::openOrCreateGeneralChat
                     )
                 } else {
                     UserProfileHeader(
@@ -150,9 +153,9 @@ fun ProfileScreen(
                         followingCount = state.followingCount,
                         isOwnProfile = isOwnProfile,
                         isFollowing = state.isFollowing,
-                        onEditProfile = { },
+                        onEditProfile = onEditProfile,
                         onFollowClick = vm::toggleFollow,
-                        onMessageClick = { vm.openOrCreateGeneralChat() }
+                        onMessageClick = vm::openOrCreateGeneralChat
                     )
                 }
             }
@@ -185,37 +188,52 @@ fun ProfileScreen(
                         }
                     }
 
-                    ProfileTab.POSTS -> ProfilePostsPanel(
-                        posts = state.posts,
-                        viewerUserId = viewerUserId,
-                        onOpenDetail = onOpenPostDetail,
-                        onOpenProfile = onOpenProfile,
-                        onDeletePost = { }
-                    )
+                    ProfileTab.POSTS -> {
+                        ProfilePostsPanel(
+                            posts = state.posts,
+                            viewerUserId = state.currentUserId,
+                            onOpenDetail = onOpenPostDetail,
+                            onOpenProfile = onOpenProfile,
+                            onDeletePost = {},
+                            onLikeClick = vm::toggleLike,
+                            onRepostClick = vm::toggleRepost,
+                            onShareClick = vm::toggleShare
+                        )
+                    }
 
-                    ProfileTab.REPLIES -> ProfilePostsPanel(
-                        posts = state.replies,
-                        viewerUserId = viewerUserId,
-                        onOpenDetail = onOpenPostDetail,
-                        onOpenProfile = onOpenProfile,
-                        onDeletePost = { }
-                    )
+                    ProfileTab.REPLIES -> {
+                        ProfileRepliesPanel(
+                            replies = state.replies,
+                            onOpenDetail = onOpenPostDetail,
+                            onOpenProfile = onOpenProfile
+                        )
+                    }
 
-                    ProfileTab.MEDIA -> ProfilePostsPanel(
-                        posts = state.mediaPosts.filter { it.fotos.isNotEmpty() },
-                        viewerUserId = viewerUserId,
-                        onOpenDetail = onOpenPostDetail,
-                        onOpenProfile = onOpenProfile,
-                        onDeletePost = { }
-                    )
+                    ProfileTab.MEDIA -> {
+                        ProfilePostsPanel(
+                            posts = state.mediaPosts,
+                            viewerUserId = state.currentUserId,
+                            onOpenDetail = onOpenPostDetail,
+                            onOpenProfile = onOpenProfile,
+                            onDeletePost = {},
+                            onLikeClick = vm::toggleLike,
+                            onRepostClick = vm::toggleRepost,
+                            onShareClick = vm::toggleShare
+                        )
+                    }
 
-                    ProfileTab.LIKES -> ProfilePostsPanel(
-                        posts = state.likedPosts,
-                        viewerUserId = viewerUserId,
-                        onOpenDetail = onOpenPostDetail,
-                        onOpenProfile = onOpenProfile,
-                        onDeletePost = { }
-                    )
+                    ProfileTab.LIKES -> {
+                        ProfilePostsPanel(
+                            posts = state.likedPosts,
+                            viewerUserId = state.currentUserId,
+                            onOpenDetail = onOpenPostDetail,
+                            onOpenProfile = onOpenProfile,
+                            onDeletePost = {},
+                            onLikeClick = vm::toggleLike,
+                            onRepostClick = vm::toggleRepost,
+                            onShareClick = vm::toggleShare
+                        )
+                    }
                 }
             }
         }
@@ -240,14 +258,21 @@ private fun UserProfileHeader(
             .fillMaxWidth()
             .padding(16.dp),
         shape = RoundedCornerShape(30.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 if (photoUrl.isNotBlank()) {
                     AsyncImage(
                         model = photoUrl,
@@ -262,13 +287,15 @@ private fun UserProfileHeader(
                         modifier = Modifier
                             .size(92.dp)
                             .clip(CircleShape)
-                            .background(BluePrimary.copy(alpha = 0.14f)),
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = fullName.firstOrNull()?.uppercase() ?: "?",
                             style = MaterialTheme.typography.headlineMedium,
-                            color = BluePrimary,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -276,11 +303,13 @@ private fun UserProfileHeader(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
                         text = fullName.ifBlank { "Usuario" },
                         style = MaterialTheme.typography.headlineSmall,
-                        color = BlueDark,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -288,16 +317,27 @@ private fun UserProfileHeader(
 
             HorizontalDivider(
                 thickness = 1.dp,
-                color = BlueBorder
+                color = MaterialTheme.colorScheme.outlineVariant
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ProfileStat(postsCount.toString(), "Publicaciones")
-                ProfileStat(followersCount.toString(), "Seguidores")
-                ProfileStat(followingCount.toString(), "Seguidos")
+                ProfileStat(
+                    value = postsCount.toString(),
+                    label = "Publicaciones"
+                )
+
+                ProfileStat(
+                    value = followersCount.toString(),
+                    label = "Seguidores"
+                )
+
+                ProfileStat(
+                    value = followingCount.toString(),
+                    label = "Seguidos"
+                )
             }
 
             if (isOwnProfile) {
@@ -306,37 +346,18 @@ private fun UserProfileHeader(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = BluePrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text("Editar perfil")
                 }
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = onFollowClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BluePrimary,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text(if (isFollowing) "Dejar de seguir" else "Seguir")
-                    }
-
-                    OutlinedButton(
-                        onClick = onMessageClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("Enviar mensaje")
-                    }
-                }
+                ProfileActionButtons(
+                    isFollowing = isFollowing,
+                    onFollowClick = onFollowClick,
+                    onMessageClick = onMessageClick
+                )
             }
         }
     }
@@ -366,14 +387,21 @@ private fun ProtectoraProfileHeader(
             .fillMaxWidth()
             .padding(16.dp),
         shape = RoundedCornerShape(30.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.Top) {
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
                 if (photoUrl.isNotBlank()) {
                     AsyncImage(
                         model = photoUrl,
@@ -388,13 +416,15 @@ private fun ProtectoraProfileHeader(
                         modifier = Modifier
                             .size(92.dp)
                             .clip(CircleShape)
-                            .background(BluePrimary.copy(alpha = 0.14f)),
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = nombreProtectora.firstOrNull()?.uppercase() ?: "?",
                             style = MaterialTheme.typography.headlineMedium,
-                            color = BluePrimary,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -402,11 +432,13 @@ private fun ProtectoraProfileHeader(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
                         text = nombreProtectora.ifBlank { "Protectora" },
                         style = MaterialTheme.typography.headlineSmall,
-                        color = BlueDark,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.offset(y = (-2).dp)
                     )
@@ -414,12 +446,19 @@ private fun ProtectoraProfileHeader(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     if (telefono.isNotBlank()) {
-                        InlineProfileInfo("📞", telefono)
+                        InlineProfileInfo(
+                            icon = "📞",
+                            value = telefono
+                        )
                     }
 
                     if (direccion.isNotBlank()) {
                         Spacer(modifier = Modifier.height(6.dp))
-                        InlineProfileInfo("📍", direccion)
+
+                        InlineProfileInfo(
+                            icon = "📍",
+                            value = direccion
+                        )
                     }
                 }
             }
@@ -427,13 +466,13 @@ private fun ProtectoraProfileHeader(
             if (descripcion.isNotBlank()) {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = BlueSoft
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
                         text = descripcion,
                         modifier = Modifier.padding(14.dp),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = BlueDark
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -446,16 +485,27 @@ private fun ProtectoraProfileHeader(
 
             HorizontalDivider(
                 thickness = 1.dp,
-                color = BlueBorder
+                color = MaterialTheme.colorScheme.outlineVariant
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ProfileStat(postsCount.toString(), "Publicaciones")
-                ProfileStat(followersCount.toString(), "Seguidores")
-                ProfileStat(followingCount.toString(), "Seguidos")
+                ProfileStat(
+                    value = postsCount.toString(),
+                    label = "Publicaciones"
+                )
+
+                ProfileStat(
+                    value = followersCount.toString(),
+                    label = "Seguidores"
+                )
+
+                ProfileStat(
+                    value = followingCount.toString(),
+                    label = "Seguidos"
+                )
             }
 
             if (isOwnProfile) {
@@ -464,55 +514,88 @@ private fun ProtectoraProfileHeader(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = BluePrimary,
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text("Editar perfil")
                 }
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = onFollowClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BluePrimary,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text(if (isFollowing) "Dejar de seguir" else "Seguir")
-                    }
-
-                    OutlinedButton(
-                        onClick = onMessageClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text("Enviar mensaje")
-                    }
-                }
+                ProfileActionButtons(
+                    isFollowing = isFollowing,
+                    onFollowClick = onFollowClick,
+                    onMessageClick = onMessageClick
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ProfileStat(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun ProfileActionButtons(
+    isFollowing: Boolean,
+    onFollowClick: () -> Unit,
+    onMessageClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = onFollowClick,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(20.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
+            Text(
+                text = if (isFollowing) {
+                    "Dejar de seguir"
+                } else {
+                    "Seguir"
+                }
+            )
+        }
+
+        OutlinedButton(
+            onClick = onMessageClick,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.primary
+            ),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            Text("Enviar mensaje")
+        }
+    }
+}
+
+@Composable
+private fun ProfileStat(
+    value: String,
+    label: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
-            color = BluePrimary,
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
         )
+
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = BlueTextSoft,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp
         )
     }
@@ -523,16 +606,20 @@ private fun InlineProfileInfo(
     icon: String,
     value: String
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(
             text = icon,
             style = MaterialTheme.typography.bodyMedium
         )
+
         Spacer(modifier = Modifier.width(8.dp))
+
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = BlueDark,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -553,7 +640,9 @@ private fun ProtectoraBottomInfo(
 
     if (items.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         items.forEach { (icon, value) ->
             InlineProfileInfo(
                 icon = icon,
@@ -579,29 +668,41 @@ private fun ProfileTabsRow(
         ProfileTab.LIKES to "Me gusta"
     )
 
-    val selectedIndex = tabs.indexOfFirst { it.first == selectedTab }.coerceAtLeast(0)
+    val selectedIndex = tabs
+        .indexOfFirst { it.first == selectedTab }
+        .coerceAtLeast(0)
 
     PrimaryScrollableTabRow(
         selectedTabIndex = selectedIndex,
         edgePadding = 0.dp,
-        containerColor = Color.White,
-        contentColor = BluePrimary,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.primary,
         divider = {
             HorizontalDivider(
                 thickness = 1.dp,
-                color = BlueBorder
+                color = MaterialTheme.colorScheme.outlineVariant
             )
         }
     ) {
         tabs.forEach { (tab, label) ->
             Tab(
                 selected = selectedTab == tab,
-                onClick = { onTabSelected(tab) },
+                onClick = {
+                    onTabSelected(tab)
+                },
                 text = {
                     Text(
                         text = label,
-                        color = if (selectedTab == tab) BluePrimary else BlueTextSoft,
-                        fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium
+                        color = if (selectedTab == tab) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        fontWeight = if (selectedTab == tab) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Medium
+                        }
                     )
                 }
             )
@@ -629,15 +730,17 @@ private fun PetsPanel(
             Text(
                 text = "Tus mascotas",
                 style = MaterialTheme.typography.titleLarge,
-                color = BlueDark,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
 
             if (canAdd) {
-                TextButton(onClick = onAddPet) {
+                TextButton(
+                    onClick = onAddPet
+                ) {
                     Text(
                         text = "Añadir",
-                        color = BluePrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -647,9 +750,13 @@ private fun PetsPanel(
         Spacer(modifier = Modifier.height(12.dp))
 
         if (pets.isEmpty()) {
-            EmptyPanel("Todavía no hay mascotas en este perfil.")
+            EmptyPanel(
+                message = "Todavía no hay mascotas en este perfil."
+            )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 pets.forEach { pet ->
                     PetHorizontalCard(
                         pet = pet,
@@ -684,15 +791,17 @@ private fun AdoptaSection(
             Text(
                 text = "Adopta",
                 style = MaterialTheme.typography.titleLarge,
-                color = BlueDark,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
 
             if (canAdd) {
-                TextButton(onClick = onAddPet) {
+                TextButton(
+                    onClick = onAddPet
+                ) {
                     Text(
                         text = "Añadir",
-                        color = BluePrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -702,7 +811,9 @@ private fun AdoptaSection(
         Spacer(modifier = Modifier.height(12.dp))
 
         if (pets.isEmpty()) {
-            EmptyPanel("No hay animales ahora mismo.")
+            EmptyPanel(
+                message = "No hay animales ahora mismo."
+            )
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -716,7 +827,9 @@ private fun AdoptaSection(
                 items(pets) { pet ->
                     AdoptPetCard(
                         pet = pet,
-                        onClick = { onPetClick(pet.id) }
+                        onClick = {
+                            onPetClick(pet.id)
+                        }
                     )
                 }
             }
@@ -734,8 +847,13 @@ private fun AdoptPetCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column {
             val petImage = pet.fotos.firstOrNull()
@@ -754,13 +872,13 @@ private fun AdoptPetCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(150.dp)
-                        .background(BlueSoft),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Pets,
                         contentDescription = null,
-                        tint = BluePrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -773,7 +891,7 @@ private fun AdoptPetCard(
                 Text(
                     text = pet.nombre.ifBlank { "Sin nombre" },
                     style = MaterialTheme.typography.titleMedium,
-                    color = BlueDark,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -796,7 +914,7 @@ private fun AdoptPetInfoLine(
     Text(
         text = "$label: ${value.ifBlank { "-" }}",
         style = MaterialTheme.typography.bodySmall,
-        color = BluePrimary,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis
     )
@@ -808,47 +926,237 @@ private fun ProfilePostsPanel(
     viewerUserId: String,
     onOpenDetail: (String) -> Unit,
     onOpenProfile: (String) -> Unit,
-    onDeletePost: (Post) -> Unit
+    onDeletePost: (Post) -> Unit,
+    onLikeClick: (Post) -> Unit,
+    onRepostClick: (Post) -> Unit,
+    onShareClick: (Post) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        if (posts.isEmpty()) {
-            EmptyPanel("No hay posts ahora mismo.")
-            return
-        }
-        }
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Spacer(modifier = Modifier.height(12.dp))
 
-        posts.forEach { post ->
-            PostCard(
-                post = post,
-                isLiked = false,
-                isReposted = false,
-                isOwner = post.userId == viewerUserId,
-                onDeleteClick = { onDeletePost(post) },
-                onCommentClick = { onOpenDetail(post.id) },
-                onLikeClick = { },
-                onRepostClick = { },
-                onShareClick = { },
-                onOpenDetail = { onOpenDetail(post.id) },
-                onOpenProfile = {
-                    val targetUserId = post.userId.ifBlank { viewerUserId }
-                    if (targetUserId.isNotBlank()) {
-                        onOpenProfile(targetUserId)
-                    }
-                }
+        if (posts.isEmpty()) {
+            EmptyPanel(
+                message = "No hay publicaciones ahora mismo."
             )
+        } else {
+            posts.forEachIndexed { index, post ->
+                PostCard(
+                    post = post,
+                    isLiked = post.likedBy.contains(viewerUserId),
+                    isReposted = post.repostedBy.contains(viewerUserId),
+                    isOwner = post.userId == viewerUserId,
+                    onDeleteClick = {
+                        onDeletePost(post)
+                    },
+                    onCommentClick = {
+                        onOpenDetail(post.id)
+                    },
+                    onLikeClick = {
+                        onLikeClick(post)
+                    },
+                    onRepostClick = {
+                        onRepostClick(post)
+                    },
+                    onShareClick = {
+                        onShareClick(post)
+                    },
+                    onOpenDetail = {
+                        onOpenDetail(post.id)
+                    },
+                    onOpenProfile = {
+                        if (post.userId.isNotBlank()) {
+                            onOpenProfile(post.userId)
+                        }
+                    }
+                )
+
+                if (index < posts.lastIndex) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
         }
     }
-
+}
 
 @Composable
-private fun EmptyPanel(message: String) {
+private fun ProfileRepliesPanel(
+    replies: List<Reply>,
+    onOpenDetail: (String) -> Unit,
+    onOpenProfile: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (replies.isEmpty()) {
+            EmptyPanel(
+                message = "Todavía no has respondido a ninguna publicación."
+            )
+        } else {
+            replies.forEach { reply ->
+                ReplyProfileCard(
+                    reply = reply,
+                    onOpenDetail = onOpenDetail,
+                    onOpenProfile = onOpenProfile
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReplyProfileCard(
+    reply: Reply,
+    onOpenDetail: (String) -> Unit,
+    onOpenProfile: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable(
+                enabled = reply.postId.isNotBlank()
+            ) {
+                onOpenDetail(reply.postId)
+            },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (reply.userAvatar.isNotBlank()) {
+                    AsyncImage(
+                        model = reply.userAvatar,
+                        contentDescription = "Avatar de ${reply.userName}",
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                enabled = reply.userId.isNotBlank()
+                            ) {
+                                onOpenProfile(reply.userId)
+                            },
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer
+                            )
+                            .clickable(
+                                enabled = reply.userId.isNotBlank()
+                            ) {
+                                onOpenProfile(reply.userId)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = reply.userName
+                                .firstOrNull()
+                                ?.uppercase()
+                                ?: "U",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = reply.userName.ifBlank { "Usuario" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (reply.userHandle.isNotBlank()) {
+                        Text(
+                            text = reply.userHandle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = reply.mensaje,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ChatBubbleOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Text(
+                    text = "Ver publicación",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyPanel(
+    message: String
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Box(
             modifier = Modifier
@@ -858,7 +1166,7 @@ private fun EmptyPanel(message: String) {
         ) {
             Text(
                 text = message,
-                color = BlueTextSoft,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -873,10 +1181,17 @@ private fun PetHorizontalCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(pet.id) },
+            .clickable {
+                onClick(pet.id)
+            },
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Row(
             modifier = Modifier
@@ -891,22 +1206,30 @@ private fun PetHorizontalCard(
                     model = petImage,
                     contentDescription = "Foto de ${pet.nombre}",
                     modifier = Modifier
-                        .size(width = 132.dp, height = 132.dp)
+                        .size(
+                            width = 132.dp,
+                            height = 132.dp
+                        )
                         .clip(RoundedCornerShape(22.dp)),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(width = 132.dp, height = 132.dp)
+                        .size(
+                            width = 132.dp,
+                            height = 132.dp
+                        )
                         .clip(RoundedCornerShape(22.dp))
-                        .background(BlueSoft),
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Pets,
                         contentDescription = null,
-                        tint = BluePrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(42.dp)
                     )
                 }
@@ -921,14 +1244,29 @@ private fun PetHorizontalCard(
                 Text(
                     text = pet.nombre.ifBlank { "Sin nombre" },
                     style = MaterialTheme.typography.headlineSmall,
-                    color = BluePrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
                 )
 
-                PetInfoLine("Género", pet.genero.ifBlank { "-" })
-                PetInfoLine("Raza", pet.raza.ifBlank { "-" })
-                PetInfoLine("Edad", pet.edad.ifBlank { "-" })
-                PetInfoLine("Estado", pet.estado.ifBlank { "-" })
+                PetInfoLine(
+                    label = "Género",
+                    value = pet.genero.ifBlank { "-" }
+                )
+
+                PetInfoLine(
+                    label = "Raza",
+                    value = pet.raza.ifBlank { "-" }
+                )
+
+                PetInfoLine(
+                    label = "Edad",
+                    value = pet.edad.ifBlank { "-" }
+                )
+
+                PetInfoLine(
+                    label = "Estado",
+                    value = pet.estado.ifBlank { "-" }
+                )
             }
         }
     }
@@ -942,7 +1280,7 @@ private fun PetInfoLine(
     Text(
         text = "$label: $value",
         style = MaterialTheme.typography.bodyLarge,
-        color = BluePrimary
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -951,27 +1289,33 @@ private fun OtherProfileTopBar(
     onBack: () -> Unit
 ) {
     Surface(
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .padding(
+                    horizontal = 8.dp,
+                    vertical = 10.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(
+                onClick = onBack
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Volver",
-                    tint = BlueDark
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
             Text(
                 text = "Perfil",
                 style = MaterialTheme.typography.titleLarge,
-                color = BlueDark,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
         }

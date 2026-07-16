@@ -15,5 +15,7 @@ data class Post(
     val timestamp: Long = 0L,
     val likes: Int = 0,
     val likedBy: List<String> = emptyList(),
+    val repostedBy: List<String> = emptyList(),
+    val sharedBy: List<String> = emptyList(),
     val comentarios: Int = 0
 )

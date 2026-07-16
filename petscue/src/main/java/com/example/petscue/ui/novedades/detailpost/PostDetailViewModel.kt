@@ -97,9 +97,13 @@ class PostDetailViewModel @Inject constructor(
     }
 
     fun setReplyingTo(reply: Reply?) {
-        _uiState.update { it.copy(replyingTo = reply) }
+        _uiState.update {
+            it.copy(
+                replyingTo = reply,
+                shouldFocusReply = reply != null
+            )
+        }
     }
-
     fun toggleLike() {
         val currentState = _uiState.value
         val currentPost = currentState.post ?: return
@@ -168,9 +172,13 @@ class PostDetailViewModel @Inject constructor(
                     .await()
 
                 val delta = -(1 + children.size())
+
                 db.collection("posts")
                     .document(postId)
-                    .update("comentarios", FieldValue.increment(delta.toLong()))
+                    .update(
+                        "comentarios",
+                        FieldValue.increment(delta.toLong())
+                    )
                     .await()
 
             }.onFailure { e ->
@@ -178,7 +186,99 @@ class PostDetailViewModel @Inject constructor(
             }
         }
     }
+    fun toggleRepost() {
+        val state = _uiState.value
+        val post = state.post ?: return
+        val userId = state.currentUserId
 
+        if (post.id.isBlank() || userId.isBlank()) return
+
+        val isReposted = post.repostedBy.contains(userId)
+
+        val optimisticPost = post.copy(
+            repostedBy = if (isReposted) {
+                post.repostedBy - userId
+            } else {
+                post.repostedBy + userId
+            }
+        )
+
+        _uiState.update {
+            it.copy(
+                post = optimisticPost,
+                error = null
+            )
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                postRepository.toggleRepost(
+                    postId = post.id,
+                    userId = userId
+                )
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        post = post,
+                        error = error.message
+                            ?: "No se pudo actualizar el repost"
+                    )
+                }
+            }
+        }
+    }
+    fun focusReplyComposer() {
+        _uiState.update {
+            it.copy(shouldFocusReply = true)
+        }
+    }
+
+    fun consumeReplyFocus() {
+        _uiState.update {
+            it.copy(shouldFocusReply = false)
+        }
+    }
+    fun registerShare() {
+        val state = _uiState.value
+        val post = state.post ?: return
+        val userId = state.currentUserId
+
+        if (post.id.isBlank() || userId.isBlank()) return
+
+        val isShared = post.sharedBy.contains(userId)
+
+        val optimisticPost = post.copy(
+            sharedBy = if (isShared) {
+                post.sharedBy - userId
+            } else {
+                post.sharedBy + userId
+            }
+        )
+
+        _uiState.update {
+            it.copy(
+                post = optimisticPost,
+                error = null
+            )
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                postRepository.toggleShare(
+                    postId = post.id,
+                    userId = userId
+                )
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        post = post,
+                        error = error.message
+                            ?: "No se pudo registrar el contenido compartido"
+                    )
+                }
+            }
+        }
+    }
     fun sendReply() {
         val state = _uiState.value
         val post = state.post ?: return
@@ -213,7 +313,10 @@ class PostDetailViewModel @Inject constructor(
                 replyRepository.insertReply(post.id, reply)
                 db.collection("posts")
                     .document(post.id)
-                    .update("comentarios", post.comentarios + 1)
+                    .update(
+                        "comentarios",
+                        FieldValue.increment(1)
+                    )
                     .await()
             }.onSuccess {
                 _uiState.update {

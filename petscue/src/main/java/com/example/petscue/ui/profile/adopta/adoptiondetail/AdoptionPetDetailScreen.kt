@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -58,7 +59,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,15 +69,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
-private val BgColor = Color(0xFFF3F4F6)
-private val CardColor = Color(0xFFFFFFFF)
-private val AccentBlue = Color(0xFF5B9BF3)
-private val AccentBlueDark = Color(0xFF2E6FD8)
-private val AccentBlueSoft = Color(0xFFEAF3FF)
-private val TextPrimary = Color(0xFF1F2937)
-private val TextSecondary = Color(0xFF6B7280)
-private val BorderSoft = Color(0xFFDCE8FF)
-
 @Composable
 fun AdoptionPetDetailScreen(
     onBack: () -> Unit,
@@ -86,84 +77,47 @@ fun AdoptionPetDetailScreen(
     onPetDeleted: () -> Unit,
     vm: AdoptionPetDetailViewModel = hiltViewModel(),
     auth: FirebaseAuth = FirebaseAuth.getInstance()
-){
+) {
     val state by vm.uiState.collectAsState()
-    val showDeleteDialog = remember { mutableStateOf(false) }
-    val fullScreenImage = remember { mutableStateOf<String?>(null) }
+
+    val showDeleteDialog = remember {
+        mutableStateOf(false)
+    }
+
+    val fullScreenImage = remember {
+        mutableStateOf<String?>(null)
+    }
 
     LaunchedEffect(state.isDeleted) {
-        if (state.isDeleted) onPetDeleted()
+        if (state.isDeleted) {
+            onPetDeleted()
+        }
     }
 
     if (showDeleteDialog.value) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog.value = false },
-            title = {
-                Text(
-                    text = "Eliminar mascota",
-                    color = MaterialTheme.colorScheme.error
-                )
+        DeleteAdoptionPetDialog(
+            onDismiss = {
+                showDeleteDialog.value = false
             },
-            text = {
-                Text("¿Seguro que quieres eliminar esta mascota en adopción? Esta acción no se puede deshacer.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog.value = false
-                        vm.deletePet()
-                    }
-                ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog.value = false }) {
-                    Text("Cancelar")
-                }
+            onConfirm = {
+                showDeleteDialog.value = false
+                vm.deletePet()
             }
         )
     }
 
-    if (fullScreenImage.value != null) {
-        Dialog(
-            onDismissRequest = { fullScreenImage.value = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-                    .clickable { fullScreenImage.value = null },
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = fullScreenImage.value,
-                    contentDescription = "Imagen ampliada",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-
-                IconButton(
-                    onClick = { fullScreenImage.value = null },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(16.dp)
-                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Cerrar",
-                        tint = Color.White
-                    )
-                }
+    fullScreenImage.value?.let { imageUrl ->
+        FullScreenImageDialog(
+            imageUrl = imageUrl,
+            onDismiss = {
+                fullScreenImage.value = null
             }
-        }
+        )
     }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = BgColor
+        color = MaterialTheme.colorScheme.background
     ) {
         when {
             state.isLoading -> {
@@ -171,30 +125,39 @@ fun AdoptionPetDetailScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AccentBlue)
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
             state.pet == null -> {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = state.error ?: "No se encontró la mascota",
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onBackground,
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
             }
 
             else -> {
-                val pet = state.pet!!
+                val pet = requireNotNull(state.pet)
                 val isOwner = auth.currentUser?.uid == pet.userId
                 val photos = pet.fotos
+
                 val pagerState = rememberPagerState(
                     initialPage = 0,
-                    pageCount = { if (photos.isNotEmpty()) photos.size else 1 }
+                    pageCount = {
+                        if (photos.isNotEmpty()) photos.size else 1
+                    }
                 )
+
                 val scope = rememberCoroutineScope()
 
                 LazyColumn(
@@ -208,253 +171,81 @@ fun AdoptionPetDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Volver",
-                                    tint = AccentBlue
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Column {
-                                Text(
-                                    text = "Ficha de adopción",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = AccentBlue,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Consulta la información y las fotos",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF6B8DB8)
-                                )
-                            }
-                        }
+                        AdoptionHeader(
+                            onBack = onBack
+                        )
                     }
 
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(28.dp),
-                            colors = CardDefaults.cardColors(containerColor = CardColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(1.15f)
-                                        .clip(RoundedCornerShape(24.dp))
-                                        .background(AccentBlueSoft),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (photos.isNotEmpty()) {
-                                        HorizontalPager(
-                                            state = pagerState,
-                                            modifier = Modifier.fillMaxSize()
-                                        ) { page ->
-                                            AsyncImage(
-                                                model = photos[page],
-                                                contentDescription = "Foto de ${pet.nombre}",
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .clickable {
-                                                        fullScreenImage.value = photos[page]
-                                                    },
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        }
+                        AdoptionHeroCard(
+                            petName = pet.nombre,
+                            photos = photos,
+                            pagerState = pagerState,
+                            onPrevious = {
+                                scope.launch {
+                                    val previous = (
+                                            pagerState.currentPage - 1
+                                            ).coerceAtLeast(0)
 
-                                        if (photos.size > 1) {
-                                            IconButton(
-                                                onClick = {
-                                                    scope.launch {
-                                                        val previous =
-                                                            (pagerState.currentPage - 1).coerceAtLeast(0)
-                                                        pagerState.animateScrollToPage(previous)
-                                                    }
-                                                },
-                                                modifier = Modifier
-                                                    .align(Alignment.CenterStart)
-                                                    .padding(start = 10.dp)
-                                                    .background(
-                                                        Color.White.copy(alpha = 0.82f),
-                                                        CircleShape
-                                                    )
-                                                    .size(38.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                    contentDescription = "Foto anterior",
-                                                    tint = AccentBlueDark
-                                                )
-                                            }
-
-                                            IconButton(
-                                                onClick = {
-                                                    scope.launch {
-                                                        val next =
-                                                            (pagerState.currentPage + 1).coerceAtMost(
-                                                                photos.lastIndex
-                                                            )
-                                                        pagerState.animateScrollToPage(next)
-                                                    }
-                                                },
-                                                modifier = Modifier
-                                                    .align(Alignment.CenterEnd)
-                                                    .padding(end = 10.dp)
-                                                    .background(
-                                                        Color.White.copy(alpha = 0.82f),
-                                                        CircleShape
-                                                    )
-                                                    .size(38.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                    contentDescription = "Foto siguiente",
-                                                    tint = AccentBlueDark,
-                                                    modifier = Modifier.rotate(180f)
-                                                )
-                                            }
-
-                                            Row(
-                                                modifier = Modifier
-                                                    .align(Alignment.BottomCenter)
-                                                    .padding(bottom = 12.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                photos.forEachIndexed { index, _ ->
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(
-                                                                if (index == pagerState.currentPage) 9.dp else 7.dp
-                                                            )
-                                                            .background(
-                                                                color = if (index == pagerState.currentPage) {
-                                                                    AccentBlue
-                                                                } else {
-                                                                    Color.White.copy(alpha = 0.75f)
-                                                                },
-                                                                shape = CircleShape
-                                                            )
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Pets,
-                                            contentDescription = null,
-                                            tint = AccentBlueDark,
-                                            modifier = Modifier.size(58.dp)
+                                    pagerState.animateScrollToPage(
+                                        previous
+                                    )
+                                }
+                            },
+                            onNext = {
+                                scope.launch {
+                                    val next = (
+                                            pagerState.currentPage + 1
+                                            ).coerceAtMost(
+                                            photos.lastIndex
                                         )
-                                    }
+
+                                    pagerState.animateScrollToPage(next)
                                 }
-
-                                Spacer(modifier = Modifier.height(18.dp))
-
-                                Text(
-                                    text = pet.nombre.ifBlank { "Mascota" },
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
-                                )
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    StatusChip(text = pet.estado.ifBlank { "Disponible" })
-                                    if (pet.especie.isNotBlank()) {
-                                        SoftChip(text = pet.especie)
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(18.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    SummaryCard(
-                                        modifier = Modifier.weight(1f),
-                                        title = "Género",
-                                        value = pet.genero.ifBlank { "-" },
-                                        icon = {
-                                            Icon(
-                                                imageVector = if (pet.genero.equals("hembra", true)) {
-                                                    Icons.Default.Female
-                                                } else {
-                                                    Icons.Default.Male
-                                                },
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    )
-
-                                    SummaryCard(
-                                        modifier = Modifier.weight(1f),
-                                        title = "Edad",
-                                        value = pet.edad.ifBlank { "-" },
-                                        icon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Schedule,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    )
-
-                                    SummaryCard(
-                                        modifier = Modifier.weight(1f),
-                                        title = "Peso",
-                                        value = pet.peso.ifBlank { "-" },
-                                        icon = {
-                                            Icon(
-                                                imageVector = Icons.Default.MonitorWeight,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                            },
+                            onImageClick = { selectedImage ->
+                                fullScreenImage.value = selectedImage
+                            },
+                            petNameTitle = pet.nombre,
+                            petStatus = pet.estado,
+                            petSpecies = pet.especie,
+                            petGender = pet.genero,
+                            petAge = pet.edad,
+                            petWeight = pet.peso
+                        )
                     }
 
                     item {
                         InfoSectionCard(
                             title = "Detalles"
                         ) {
-                            DetailRow("Raza", pet.raza)
-                            DetailRow("Especie", pet.especie)
                             DetailRow(
-                                "Ubicación",
-                                pet.ubicacion,
+                                label = "Raza",
+                                value = pet.raza
+                            )
+
+                            DetailRow(
+                                label = "Especie",
+                                value = pet.especie
+                            )
+
+                            DetailRow(
+                                label = "Ubicación",
+                                value = pet.ubicacion,
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.LocationOn,
                                         contentDescription = null,
-                                        tint = AccentBlue,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
                             )
-                            DetailRow("Estado", pet.estado)
+
+                            DetailRow(
+                                label = "Estado",
+                                value = pet.estado
+                            )
                         }
                     }
 
@@ -463,89 +254,327 @@ fun AdoptionPetDetailScreen(
                             title = "Descripción"
                         ) {
                             Text(
-                                text = pet.descripcion.ifBlank { "Sin descripción disponible." },
+                                text = pet.descripcion.ifBlank {
+                                    "Sin descripción disponible."
+                                },
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = TextPrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
                     item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .navigationBarsPadding(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (state.isOwner) {
-                                Button(
-                                    onClick = { onEditClick(pet.id) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(56.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = AccentBlue,
-                                        contentColor = Color.White
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = null
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Editar información",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-
-                                OutlinedButton(
-                                    onClick = { showDeleteDialog.value = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(56.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFFFCACA)),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = null
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Eliminar mascota",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            } else {
-                                Button(
-                                    onClick = { onRequestAdoption(pet.id) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(56.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = AccentBlue,
-                                        contentColor = Color.White
-                                    )
-                                ) {
-                                    Text(
-                                        text = "Solicitar adopción",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
+                        AdoptionActions(
+                            isOwner = isOwner,
+                            onEdit = {
+                                onEditClick(pet.id)
+                            },
+                            onDelete = {
+                                showDeleteDialog.value = true
+                            },
+                            onRequestAdoption = {
+                                onRequestAdoption(pet.id)
                             }
-                        }
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AdoptionHeader(
+    onBack: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Volver",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column {
+            Text(
+                text = "Ficha de adopción",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Consulta la información y las fotos",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun AdoptionHeroCard(
+    petName: String,
+    photos: List<String>,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onImageClick: (String) -> Unit,
+    petNameTitle: String,
+    petStatus: String,
+    petSpecies: String,
+    petGender: String,
+    petAge: String,
+    petWeight: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp)
+        ) {
+            PhotoPager(
+                petName = petName,
+                photos = photos,
+                pagerState = pagerState,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onImageClick = onImageClick
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = petNameTitle.ifBlank { "Mascota" },
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StatusChip(
+                    text = petStatus.ifBlank { "Disponible" }
+                )
+
+                if (petSpecies.isNotBlank()) {
+                    SoftChip(
+                        text = petSpecies
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SummaryCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Género",
+                    value = petGender,
+                    icon = {
+                        Icon(
+                            imageVector = if (
+                                petGender.equals(
+                                    "hembra",
+                                    ignoreCase = true
+                                )
+                            ) {
+                                Icons.Default.Female
+                            } else {
+                                Icons.Default.Male
+                            },
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+
+                SummaryCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Edad",
+                    value = petAge,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+
+                SummaryCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Peso",
+                    value = petWeight,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.MonitorWeight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoPager(
+    petName: String,
+    photos: List<String>,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onImageClick: (String) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1.15f)
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center
+    ) {
+        if (photos.isEmpty()) {
+            Icon(
+                imageVector = Icons.Default.Pets,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(58.dp)
+            )
+            return@Box
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            AsyncImage(
+                model = photos[page],
+                contentDescription = "Foto de $petName",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        onImageClick(photos[page])
+                    },
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        if (photos.size > 1) {
+            PhotoPagerControls(
+                photosCount = photos.size,
+                currentPage = pagerState.currentPage,
+                onPrevious = onPrevious,
+                onNext = onNext
+            )
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.PhotoPagerControls(
+    photosCount: Int,
+    currentPage: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit
+) {
+    IconButton(
+        onClick = onPrevious,
+        modifier = Modifier
+            .align(Alignment.CenterStart)
+            .padding(start = 10.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surface.copy(
+                    alpha = 0.88f
+                ),
+                shape = CircleShape
+            )
+            .size(38.dp)
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Foto anterior",
+            tint = MaterialTheme.colorScheme.primary
+        )
+    }
+
+    IconButton(
+        onClick = onNext,
+        modifier = Modifier
+            .align(Alignment.CenterEnd)
+            .padding(end = 10.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surface.copy(
+                    alpha = 0.88f
+                ),
+                shape = CircleShape
+            )
+            .size(38.dp)
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Foto siguiente",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.rotate(180f)
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        repeat(photosCount) { index ->
+            Box(
+                modifier = Modifier
+                    .size(
+                        if (index == currentPage) {
+                            9.dp
+                        } else {
+                            7.dp
+                        }
+                    )
+                    .background(
+                        color = if (index == currentPage) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(
+                                alpha = 0.78f
+                            )
+                        },
+                        shape = CircleShape
+                    )
+            )
         }
     }
 }
@@ -560,13 +589,20 @@ private fun SummaryCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AccentBlue),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primary
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 14.dp, horizontal = 10.dp),
+                .padding(
+                    vertical = 14.dp,
+                    horizontal = 10.dp
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -575,7 +611,9 @@ private fun SummaryCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.onPrimary.copy(
+                    alpha = 0.88f
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -583,7 +621,7 @@ private fun SummaryCard(
             Text(
                 text = value.ifBlank { "-" },
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -600,8 +638,13 @@ private fun InfoSectionCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = CardColor),
-        border = BorderStroke(1.dp, BorderSoft)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -610,9 +653,10 @@ private fun InfoSectionCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
+
             content()
         }
     }
@@ -632,15 +676,16 @@ private fun DetailRow(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            leadingIcon?.invoke()
+
             if (leadingIcon != null) {
-                leadingIcon()
                 Spacer(modifier = Modifier.width(6.dp))
             }
 
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -648,25 +693,29 @@ private fun DetailRow(
         Text(
             text = value.ifBlank { "-" },
             style = MaterialTheme.typography.bodyLarge,
-            color = TextPrimary,
-            fontWeight = FontWeight.SemiBold
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
 @Composable
-private fun StatusChip(text: String) {
-    Box(
-        modifier = Modifier
-            .background(
-                color = AccentBlueSoft,
-                shape = RoundedCornerShape(999.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+private fun StatusChip(
+    text: String
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.primaryContainer
     ) {
         Text(
             text = text,
-            color = AccentBlueDark,
+            modifier = Modifier.padding(
+                horizontal = 12.dp,
+                vertical = 7.dp
+            ),
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold
         )
@@ -674,20 +723,200 @@ private fun StatusChip(text: String) {
 }
 
 @Composable
-private fun SoftChip(text: String) {
-    Box(
-        modifier = Modifier
-            .background(
-                color = Color(0xFFF3F4F6),
-                shape = RoundedCornerShape(999.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+private fun SoftChip(
+    text: String
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Text(
             text = text,
-            color = TextSecondary,
+            modifier = Modifier.padding(
+                horizontal = 12.dp,
+                vertical = 7.dp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+private fun AdoptionActions(
+    isOwner: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onRequestAdoption: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (isOwner) {
+            Button(
+                onClick = onEdit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Editar información",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            OutlinedButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.error
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Eliminar mascota",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        } else {
+            Button(
+                onClick = onRequestAdoption,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(
+                    text = "Solicitar adopción",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeleteAdoptionPetDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        title = {
+            Text(
+                text = "Eliminar mascota",
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = "¿Seguro que quieres eliminar esta mascota en adopción? " +
+                        "Esta acción no se puede deshacer."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = "Eliminar",
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancelar",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun FullScreenImageDialog(
+    imageUrl: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim)
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "Imagen ampliada",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface.copy(
+                            alpha = 0.85f
+                        ),
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Cerrar",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
     }
 }

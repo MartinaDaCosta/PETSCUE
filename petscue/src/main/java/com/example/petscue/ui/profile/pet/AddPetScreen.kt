@@ -60,7 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,15 +67,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 
-private val BluePrimary = Color(0xFF1976D2)
-private val BlueDark = Color(0xFF0D47A1)
-private val BlueSoft = Color(0xFFEFF6FF)
-private val BlueBorder = Color(0xFFB9D8FF)
-private val BlueText = Color(0xFF215EAC)
-private val BlueHint = Color(0xFF6B8DB8)
+private val especies = listOf(
+    "Perro",
+    "Gato"
+)
 
-private val especies = listOf("Perro", "Gato")
-private val generos = listOf("Macho", "Hembra")
+private val generos = listOf(
+    "Macho",
+    "Hembra"
+)
 
 private val razasPerro = listOf(
     "Labrador Retriever",
@@ -132,126 +131,58 @@ fun AddPetScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF8FBFF)
+        color = MaterialTheme.colorScheme.background
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 40.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 70.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 14.dp,
+                bottom = 70.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = BlueText
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Column {
-                        Text(
-                            text = "Añadir mascota",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = BlueText,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Completa los datos y añade fotos",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = BlueHint
-                        )
-                    }
-                }
+                AddPetHeader(
+                    onBack = onBack
+                )
             }
 
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = BlueSoft),
-                    border = BorderStroke(1.dp, BlueBorder)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Fotos de tu mascota",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = BlueText,
-                            fontWeight = FontWeight.SemiBold
-                        )
-
-                        Text(
-                            text = "La primera foto será la principal y se mostrará en el perfil.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = BlueHint
-                        )
-
-                        Button(
-                            onClick = { photosLauncher.launch("image/*") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BluePrimary,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AddPhotoAlternate,
-                                contentDescription = null
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Seleccionar fotos")
-                        }
-
-                        if (state.photoUris.isNotEmpty()) {
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(state.photoUris) { uri ->
-                                    PhotoItem(
-                                        uri = uri,
-                                        isMain = state.photoUris.firstOrNull() == uri,
-                                        onRemove = {
-                                            vm.removePhoto(uri)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                PhotosSection(
+                    photoUris = state.photoUris,
+                    onAddPhotos = {
+                        photosLauncher.launch("image/*")
+                    },
+                    onRemovePhoto = vm::removePhoto
+                )
             }
 
             item {
-                FormSection(title = "Información básica") {
-                    BlueTextField(
+                FormSection(
+                    title = "Información básica"
+                ) {
+                    AppTextField(
                         value = state.nombre,
                         onValueChange = vm::onNombreChange,
                         label = "Nombre",
                         singleLine = true
                     )
 
-                    BlueDropdownField(
+                    AppDropdownField(
                         label = "Especie",
                         selectedValue = state.especie,
                         options = especies,
-                        onValueSelected = {
-                            vm.onEspecieChange(it)
+                        onValueSelected = { especie ->
+                            vm.onEspecieChange(especie)
                             vm.onRazaChange("")
                         }
                     )
 
-                    BlueDropdownField(
+                    AppDropdownField(
                         label = "Raza",
                         selectedValue = state.raza,
                         options = razasDisponibles,
@@ -259,47 +190,51 @@ fun AddPetScreen(
                         onValueSelected = vm::onRazaChange
                     )
 
-                    BlueDropdownField(
+                    AppDropdownField(
                         label = "Género",
                         selectedValue = state.genero,
                         options = generos,
                         onValueSelected = vm::onGeneroChange
                     )
 
-                    BlueTextField(
+                    AppTextField(
                         value = state.edad,
                         onValueChange = vm::onEdadChange,
                         label = "Edad",
                         singleLine = true
                     )
 
-                    BlueTextField(
+                    AppTextField(
                         value = state.peso,
                         onValueChange = vm::onPesoChange,
                         label = "Peso",
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text
+                        )
                     )
                 }
             }
 
             item {
-                FormSection(title = "Más detalles") {
-                    BlueTextField(
+                FormSection(
+                    title = "Más detalles"
+                ) {
+                    AppTextField(
                         value = state.ubicacion,
                         onValueChange = vm::onUbicacionChange,
                         label = "Ubicación",
                         singleLine = true
                     )
 
-                    BlueTextField(
+                    AppTextField(
                         value = state.estado,
                         onValueChange = vm::onEstadoChange,
                         label = "Estado",
                         singleLine = true
                     )
 
-                    BlueTextField(
+                    AppTextField(
                         value = state.descripcion,
                         onValueChange = vm::onDescripcionChange,
                         label = "Descripción",
@@ -310,65 +245,126 @@ fun AddPetScreen(
 
             state.error?.let { errorMessage ->
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFFF1F1)
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFFFFCACA)),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text(
-                            text = errorMessage,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(14.dp)
-                        )
-                    }
+                    ErrorCard(
+                        message = errorMessage
+                    )
                 }
             }
 
             item {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Button(
-                        onClick = vm::savePet,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        enabled = !state.isLoading,
-                        shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BluePrimary,
-                            contentColor = Color.White,
-                            disabledContainerColor = BlueBorder,
-                            disabledContentColor = Color.White
-                        )
-                    ) {
-                        if (state.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Pets,
-                                contentDescription = null
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Guardar mascota")
-                        }
-                    }
+                SavePetActions(
+                    isLoading = state.isLoading,
+                    onSave = vm::savePet,
+                    onCancel = onBack
+                )
+            }
+        }
+    }
+}
 
-                    TextButton(
-                        onClick = onBack,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !state.isLoading
-                    ) {
-                        Text("Cancelar", color = BlueText)
+@Composable
+private fun AddPetHeader(
+    onBack: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Volver",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column {
+            Text(
+                text = "Añadir mascota",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Completa los datos y añade fotos",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PhotosSection(
+    photoUris: List<Uri>,
+    onAddPhotos: () -> Unit,
+    onRemovePhoto: (Uri) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Fotos de tu mascota",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = "La primera foto será la principal y se mostrará en el perfil.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+
+            Button(
+                onClick = onAddPhotos,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AddPhotoAlternate,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text("Seleccionar fotos")
+            }
+
+            if (photoUris.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(
+                        items = photoUris,
+                        key = { uri -> uri.toString() }
+                    ) { uri ->
+                        PhotoItem(
+                            uri = uri,
+                            isMain = photoUris.firstOrNull() == uri,
+                            onRemove = {
+                                onRemovePhoto(uri)
+                            }
+                        )
                     }
                 }
             }
@@ -392,48 +388,51 @@ private fun PhotoItem(
             contentScale = ContentScale.Crop
         )
 
-        Box(
+        Surface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(6.dp)
                 .size(28.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.92f))
-                .clickable { onRemove() },
-            contentAlignment = Alignment.Center
+                .clickable(onClick = onRemove),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 2.dp
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Eliminar foto",
-                tint = BlueDark,
-                modifier = Modifier.size(16.dp)
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(6.dp)
             )
         }
 
         if (isMain) {
-            Box(
+            Surface(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(8.dp)
-                    .background(
-                        color = BluePrimary,
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    .padding(8.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(
+                        horizontal = 8.dp,
+                        vertical = 4.dp
+                    ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = "Foto principal",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(12.dp)
                     )
+
                     Spacer(modifier = Modifier.width(4.dp))
+
                     Text(
                         text = "Principal",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -450,8 +449,13 @@ private fun FormSection(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, BlueBorder)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -460,16 +464,17 @@ private fun FormSection(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = BlueText,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold
             )
+
             content()
         }
     }
 }
 
 @Composable
-private fun BlueTextField(
+private fun AppTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -480,91 +485,114 @@ private fun BlueTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        label = {
+            Text(label)
+        },
         modifier = Modifier.fillMaxWidth(),
         singleLine = singleLine,
         minLines = minLines,
         keyboardOptions = keyboardOptions,
         shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = BluePrimary,
-            unfocusedBorderColor = BlueBorder,
-            focusedLabelColor = BluePrimary,
-            unfocusedLabelColor = Color(0xFF7A9BC4),
-            cursorColor = BluePrimary,
-            focusedTextColor = Color(0xFF173A63),
-            unfocusedTextColor = Color(0xFF173A63),
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color(0xFFFDFEFF)
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface
         )
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BlueDropdownField(
+private fun AppDropdownField(
     label: String,
     selectedValue: String,
     options: List<String>,
     enabled: Boolean = true,
     onValueSelected: (String) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember {
+        mutableStateOf(false)
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded && enabled,
-        onExpandedChange = { if (enabled) expanded = !expanded }
+        onExpandedChange = {
+            if (enabled) {
+                expanded = !expanded
+            }
+        }
     ) {
         OutlinedTextField(
             value = selectedValue,
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
-            label = { Text(label) },
+            label = {
+                Text(label)
+            },
             placeholder = {
                 Text(
-                    text = if (enabled) "Selecciona una opción" else "Selecciona primero la especie"
+                    text = if (enabled) {
+                        "Selecciona una opción"
+                    } else {
+                        "Selecciona primero la especie"
+                    }
                 )
             },
             trailingIcon = {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = if (enabled) BluePrimary else BlueHint
+                    tint = if (enabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable, true),
+                .menuAnchor(
+                    type = MenuAnchorType.PrimaryNotEditable,
+                    enabled = enabled
+                ),
             shape = RoundedCornerShape(18.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = BluePrimary,
-                unfocusedBorderColor = BlueBorder,
-                focusedLabelColor = BluePrimary,
-                unfocusedLabelColor = Color(0xFF7A9BC4),
-                cursorColor = BluePrimary,
-                focusedTextColor = Color(0xFF173A63),
-                unfocusedTextColor = Color(0xFF173A63),
-                disabledTextColor = BlueHint,
-                disabledBorderColor = BlueBorder,
-                disabledLabelColor = BlueHint,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color(0xFFFDFEFF),
-                disabledContainerColor = Color(0xFFF4F8FF)
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
 
         ExposedDropdownMenu(
             expanded = expanded && enabled,
-            onDismissRequest = { expanded = false },
-            containerColor = Color.White
+            onDismissRequest = {
+                expanded = false
+            },
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
                     text = {
                         Text(
                             text = option,
-                            color = BlueDark
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     },
                     onClick = {
@@ -574,6 +602,88 @@ private fun BlueDropdownField(
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ErrorCard(
+    message: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.error
+        )
+    ) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(14.dp)
+        )
+    }
+}
+
+@Composable
+private fun SavePetActions(
+    isLoading: Boolean,
+    onSave: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Button(
+            onClick = onSave,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            enabled = !isLoading,
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Pets,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "Guardar mascota",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        TextButton(
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
+        ) {
+            Text(
+                text = "Cancelar",
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

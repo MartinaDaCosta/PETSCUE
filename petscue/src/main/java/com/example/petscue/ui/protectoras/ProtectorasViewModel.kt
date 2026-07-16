@@ -10,19 +10,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.Normalizer
 import javax.inject.Inject
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 @HiltViewModel
 class ProtectorasViewModel @Inject constructor(
     private val repository: ProtectorasRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ProtectorasUiState(isLoading = true))
+    private val _uiState = MutableStateFlow(
+        ProtectorasUiState(isLoading = true)
+    )
+
     val uiState: StateFlow<ProtectorasUiState> = _uiState.asStateFlow()
 
     init {
@@ -31,37 +30,46 @@ class ProtectorasViewModel @Inject constructor(
 
     private fun loadProtectoras() {
         viewModelScope.launch {
-            runCatching { repository.getProtectoras() }
-                .onSuccess { protectoras ->
-                    _uiState.update {
-                        it.copy(
-                            allProtectoras = protectoras,
-                            isLoading = false,
-                            error = null,
-                            comunidadesDisponibles = protectoras
-                                .map { user -> user.comunidad.trim() }
-                                .filter { value -> value.isNotBlank() }
-                                .distinct()
-                                .sorted()
-                        )
-                    }
-                    refreshLocationFilters()
-                    updateSuggestions()
-                    applyFilters()
+            runCatching {
+                repository.getProtectoras()
+            }.onSuccess { protectoras ->
+                _uiState.update {
+                    it.copy(
+                        allProtectoras = protectoras,
+                        comunidadesDisponibles = protectoras
+                            .map { user -> user.comunidad.trim() }
+                            .filter { comunidad -> comunidad.isNotBlank() }
+                            .distinctBy { comunidad ->
+                                normalize(comunidad)
+                            }
+                            .sortedBy { comunidad ->
+                                normalize(comunidad)
+                            },
+                        isLoading = false,
+                        error = null
+                    )
                 }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: "Error al cargar protectoras"
-                        )
-                    }
+
+                refreshLocationFilters()
+                updateSuggestions()
+                applyFilters()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = error.message
+                            ?: "No se han podido cargar las protectoras"
+                    )
                 }
+            }
         }
     }
 
     fun onQueryChanged(query: String) {
-        _uiState.update { it.copy(query = query) }
+        _uiState.update {
+            it.copy(query = query)
+        }
+
         updateSuggestions()
         applyFilters()
     }
@@ -73,16 +81,15 @@ class ProtectorasViewModel @Inject constructor(
                 suggestions = emptyList()
             )
         }
+
         applyFilters()
     }
 
     fun onNombreSortChanged(sort: NombreSort) {
-        _uiState.update { it.copy(nombreSort = sort) }
-        applyFilters()
-    }
+        _uiState.update {
+            it.copy(nombreSort = sort)
+        }
 
-    fun onDistanciaSortChanged(sort: DistanciaSort) {
-        _uiState.update { it.copy(distanciaSort = sort) }
         applyFilters()
     }
 
@@ -94,6 +101,7 @@ class ProtectorasViewModel @Inject constructor(
                 selectedMunicipio = null
             )
         }
+
         refreshLocationFilters()
         applyFilters()
     }
@@ -105,12 +113,16 @@ class ProtectorasViewModel @Inject constructor(
                 selectedMunicipio = null
             )
         }
+
         refreshLocationFilters()
         applyFilters()
     }
 
     fun onMunicipioChanged(municipio: String?) {
-        _uiState.update { it.copy(selectedMunicipio = municipio) }
+        _uiState.update {
+            it.copy(selectedMunicipio = municipio)
+        }
+
         applyFilters()
     }
 
@@ -120,23 +132,13 @@ class ProtectorasViewModel @Inject constructor(
                 query = "",
                 suggestions = emptyList(),
                 nombreSort = NombreSort.A_Z,
-                distanciaSort = DistanciaSort.CERCA_LEJOS,
                 selectedComunidad = null,
                 selectedProvincia = null,
                 selectedMunicipio = null
             )
         }
-        refreshLocationFilters()
-        applyFilters()
-    }
 
-    fun setUserLocation(latitude: Double, longitude: Double) {
-        _uiState.update {
-            it.copy(
-                userLatitude = latitude,
-                userLongitude = longitude
-            )
-        }
+        refreshLocationFilters()
         applyFilters()
     }
 
@@ -144,17 +146,36 @@ class ProtectorasViewModel @Inject constructor(
         val state = _uiState.value
 
         if (state.query.isBlank()) {
-            _uiState.update { it.copy(suggestions = emptyList()) }
+            _uiState.update {
+                it.copy(suggestions = emptyList())
+            }
             return
         }
 
+        val normalizedQuery = normalize(state.query)
+
         val suggestions = state.allProtectoras
-            .flatMap { listOf(it.nombreProtectora, it.username) }
-            .filter { it.isNotBlank() && it.contains(state.query, ignoreCase = true) }
-            .distinct()
+            .flatMap { protectora ->
+                listOf(
+                    protectora.nombreProtectora.trim(),
+                    protectora.username.trim()
+                )
+            }
+            .filter { value ->
+                value.isNotBlank() &&
+                        normalize(value).contains(normalizedQuery)
+            }
+            .distinctBy { value ->
+                normalize(value)
+            }
+            .sortedBy { value ->
+                normalize(value)
+            }
             .take(5)
 
-        _uiState.update { it.copy(suggestions = suggestions) }
+        _uiState.update {
+            it.copy(suggestions = suggestions)
+        }
     }
 
     private fun refreshLocationFilters() {
@@ -162,28 +183,53 @@ class ProtectorasViewModel @Inject constructor(
 
         val provincias = state.allProtectoras
             .asSequence()
-            .filter { user ->
+            .filter { protectora ->
                 state.selectedComunidad.isNullOrBlank() ||
-                        user.comunidad.equals(state.selectedComunidad, ignoreCase = true)
+                        sameText(
+                            protectora.comunidad,
+                            state.selectedComunidad
+                        )
             }
-            .map { it.provincia.trim() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
+            .map { protectora ->
+                protectora.provincia.trim()
+            }
+            .filter { provincia ->
+                provincia.isNotBlank()
+            }
+            .distinctBy { provincia ->
+                normalize(provincia)
+            }
+            .sortedBy { provincia ->
+                normalize(provincia)
+            }
             .toList()
 
         val municipios = state.allProtectoras
             .asSequence()
-            .filter { user ->
+            .filter { protectora ->
                 (state.selectedComunidad.isNullOrBlank() ||
-                        user.comunidad.equals(state.selectedComunidad, ignoreCase = true)) &&
+                        sameText(
+                            protectora.comunidad,
+                            state.selectedComunidad
+                        )) &&
                         (state.selectedProvincia.isNullOrBlank() ||
-                                user.provincia.equals(state.selectedProvincia, ignoreCase = true))
+                                sameText(
+                                    protectora.provincia,
+                                    state.selectedProvincia
+                                ))
             }
-            .map { it.ciudad.trim() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
+            .map { protectora ->
+                protectora.ciudad.trim()
+            }
+            .filter { municipio ->
+                municipio.isNotBlank()
+            }
+            .distinctBy { municipio ->
+                normalize(municipio)
+            }
+            .sortedBy { municipio ->
+                normalize(municipio)
+            }
             .toList()
 
         _uiState.update {
@@ -196,74 +242,69 @@ class ProtectorasViewModel @Inject constructor(
 
     private fun applyFilters() {
         val state = _uiState.value
+        val normalizedQuery = normalize(state.query)
 
-        var filtered = state.allProtectoras.asSequence()
+        val filtered = state.allProtectoras
+            .asSequence()
+            .filter { protectora ->
+                normalizedQuery.isBlank() ||
+                        normalize(protectora.nombreProtectora)
+                            .contains(normalizedQuery) ||
+                        normalize(protectora.username)
+                            .contains(normalizedQuery)
+            }
+            .filter { protectora ->
+                state.selectedComunidad.isNullOrBlank() ||
+                        sameText(
+                            protectora.comunidad,
+                            state.selectedComunidad
+                        )
+            }
+            .filter { protectora ->
+                state.selectedProvincia.isNullOrBlank() ||
+                        sameText(
+                            protectora.provincia,
+                            state.selectedProvincia
+                        )
+            }
+            .filter { protectora ->
+                state.selectedMunicipio.isNullOrBlank() ||
+                        sameText(
+                            protectora.ciudad,
+                            state.selectedMunicipio
+                        )
+            }
+            .toList()
 
-        if (state.query.isNotBlank()) {
-            filtered = filtered.filter { user ->
-                user.nombreProtectora.contains(state.query, ignoreCase = true) ||
-                        user.username.contains(state.query, ignoreCase = true)
+        val sorted = when (state.nombreSort) {
+            NombreSort.A_Z -> filtered.sortedBy { protectora ->
+                normalize(protectora.nombreProtectora)
+            }
+
+            NombreSort.Z_A -> filtered.sortedByDescending { protectora ->
+                normalize(protectora.nombreProtectora)
             }
         }
-
-        state.selectedComunidad?.let { comunidad ->
-            filtered = filtered.filter {
-                it.comunidad.equals(comunidad, ignoreCase = true)
-            }
-        }
-
-        state.selectedProvincia?.let { provincia ->
-            filtered = filtered.filter {
-                it.provincia.equals(provincia, ignoreCase = true)
-            }
-        }
-
-        state.selectedMunicipio?.let { municipio ->
-            filtered = filtered.filter {
-                it.ciudad.equals(municipio, ignoreCase = true)
-            }
-        }
-
-        val finalList = filtered.toList().sortedWith(
-            when (state.distanciaSort) {
-                DistanciaSort.CERCA_LEJOS -> compareBy<User> {
-                    estimateDistanceKm(it, state.userLatitude, state.userLongitude)
-                }
-
-                DistanciaSort.LEJOS_CERCA -> compareByDescending<User> {
-                    estimateDistanceKm(it, state.userLatitude, state.userLongitude)
-                }
-            }.then(
-                when (state.nombreSort) {
-                    NombreSort.A_Z -> compareBy { it.nombreProtectora.lowercase() }
-                    NombreSort.Z_A -> compareByDescending { it.nombreProtectora.lowercase() }
-                }
-            )
-        )
 
         _uiState.update {
-            it.copy(filteredProtectoras = finalList)
+            it.copy(filteredProtectoras = sorted)
         }
     }
 
-    private fun estimateDistanceKm(
-        protectora: User,
-        userLatitude: Double?,
-        userLongitude: Double?
-    ): Double {
-        if (userLatitude == null || userLongitude == null) return Double.MAX_VALUE
-        if (protectora.latitude == 0.0 && protectora.longitude == 0.0) return Double.MAX_VALUE
+    private fun sameText(
+        first: String,
+        second: String?
+    ): Boolean {
+        return !second.isNullOrBlank() &&
+                normalize(first) == normalize(second)
+    }
 
-        val earthRadius = 6371.0
-        val dLat = Math.toRadians(protectora.latitude - userLatitude)
-        val dLng = Math.toRadians(protectora.longitude - userLongitude)
-
-        val a = sin(dLat / 2).pow(2.0) +
-                cos(Math.toRadians(userLatitude)) *
-                cos(Math.toRadians(protectora.latitude)) *
-                sin(dLng / 2).pow(2.0)
-
-        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        return earthRadius * c
+    private fun normalize(value: String): String {
+        return Normalizer
+            .normalize(
+                value.trim().lowercase(),
+                Normalizer.Form.NFD
+            )
+            .replace("\\p{M}+".toRegex(), "")
     }
 }
