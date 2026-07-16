@@ -1,4 +1,4 @@
-package com.example.petscue.notifications
+package com.example.petscue.data.notifications
 
 import android.Manifest
 import android.os.Build
@@ -13,7 +13,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.tasks.await
 
 @Composable
 fun NotificationsBootstrap() {

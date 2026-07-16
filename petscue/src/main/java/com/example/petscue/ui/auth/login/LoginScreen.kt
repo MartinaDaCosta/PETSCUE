@@ -36,11 +36,11 @@ import com.example.petscue.data.model.UserRole
 import com.example.petscue.ui.navigation.Routes
 import com.example.petscue.ui.theme.AuthCardShape
 import com.example.petscue.ui.theme.AuthScreenContainer
+import com.example.petscue.ui.theme.AuthTextFieldShape
 import com.example.petscue.ui.theme.PetscueError
 import com.example.petscue.ui.theme.PetscueSuccess
 import com.example.petscue.ui.theme.authFieldColors
 import com.example.petscue.ui.theme.authPrimaryButtonColors
-import com.example.petscue.ui.theme.AuthTextFieldShape
 
 @Composable
 fun LoginScreen(
@@ -50,34 +50,57 @@ fun LoginScreen(
 ) {
     val state by vm.uiState.collectAsState()
 
-    // Redirige según el tipo de usuario y su estado de validación
-    LaunchedEffect(state.isSuccess, state.userRole, state.approvalStatus) {
-        if (state.isSuccess) {
-            val destination = if (
-                state.userRole == UserRole.PROTECTORA &&
-                state.approvalStatus == ApprovalStatus.PENDING
-            ) {
-                Routes.PENDING_APPROVAL
-            } else {
+    LaunchedEffect(
+        state.isSuccess,
+        state.userRole,
+        state.approvalStatus
+    ) {
+        if (!state.isSuccess) return@LaunchedEffect
+
+        val destination = when {
+            state.userRole == UserRole.PROTECTORA &&
+                    state.approvalStatus == ApprovalStatus.APPROVED -> {
                 Routes.MAIN
             }
-            onLoginSuccess(destination)
+
+            state.userRole == UserRole.PROTECTORA &&
+                    state.approvalStatus == ApprovalStatus.PENDING -> {
+                Routes.PENDING_APPROVAL
+            }
+
+            state.userRole == UserRole.PROTECTORA &&
+                    state.approvalStatus == ApprovalStatus.REJECTED -> {
+                Routes.PENDING_APPROVAL
+            }
+
+            else -> {
+                Routes.MAIN
+            }
         }
+
+        onLoginSuccess(destination)
     }
 
-    // Diálogo para enviar correo de recuperación de contraseña
     if (state.showForgotPasswordDialog) {
         AlertDialog(
-            onDismissRequest = { vm.hideForgotPasswordDialog() },
-            title = { Text("Recuperar contraseña") },
+            onDismissRequest = vm::hideForgotPasswordDialog,
+            title = {
+                Text("Recuperar contraseña")
+            },
             text = {
                 Column {
-                    Text("Te enviaremos un correo para restablecer la contraseña a la dirección indicada.")
+                    Text(
+                        text = "Te enviaremos un correo para restablecer la contraseña a la dirección indicada."
+                    )
+
                     Spacer(modifier = Modifier.height(12.dp))
+
                     OutlinedTextField(
                         value = state.email,
                         onValueChange = vm::onEmailChange,
-                        label = { Text("Email") },
+                        label = {
+                            Text("Email")
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = AuthTextFieldShape,
@@ -86,19 +109,22 @@ fun LoginScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { vm.onForgotPasswordConfirm() }) {
+                TextButton(
+                    onClick = vm::onForgotPasswordConfirm
+                ) {
                     Text("Enviar")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { vm.hideForgotPasswordDialog() }) {
+                TextButton(
+                    onClick = vm::hideForgotPasswordDialog
+                ) {
                     Text("Cancelar")
                 }
             }
         )
     }
 
-    // Contenedor base compartido para las pantallas de autenticación
     AuthScreenContainer {
         Column(
             modifier = Modifier
@@ -107,7 +133,6 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Título principal de la pantalla
             Text(
                 text = "Iniciar sesión",
                 color = MaterialTheme.colorScheme.onPrimary,
@@ -116,7 +141,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Texto de apoyo bajo el título
             Text(
                 text = "Bienvenido de vuelta a Petscue",
                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
@@ -125,11 +149,12 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Campo de email con colores reutilizados del tema auth
             OutlinedTextField(
                 value = state.email,
                 onValueChange = vm::onEmailChange,
-                label = { Text("Email") },
+                label = {
+                    Text("Email")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = AuthTextFieldShape,
@@ -138,11 +163,12 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Campo de contraseña con botón para mostrar u ocultar texto
             OutlinedTextField(
                 value = state.password,
                 onValueChange = vm::onPasswordChange,
-                label = { Text("Contraseña") },
+                label = {
+                    Text("Contraseña")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = AuthTextFieldShape,
@@ -152,7 +178,9 @@ fun LoginScreen(
                     PasswordVisualTransformation()
                 },
                 trailingIcon = {
-                    IconButton(onClick = vm::onTogglePasswordVisibility) {
+                    IconButton(
+                        onClick = vm::onTogglePasswordVisibility
+                    ) {
                         Icon(
                             imageVector = if (state.passwordVisible) {
                                 Icons.Default.Visibility
@@ -166,7 +194,6 @@ fun LoginScreen(
                 colors = authFieldColors()
             )
 
-            // Acceso al flujo de recuperación de contraseña
             TextButton(
                 onClick = vm::showForgotPasswordDialog,
                 modifier = Modifier.align(Alignment.End)
@@ -177,29 +204,28 @@ fun LoginScreen(
                 )
             }
 
-            // Mensaje de error devuelto por el ViewModel
-            state.errorMessage?.let {
+            state.errorMessage?.let { message ->
                 Text(
-                    text = it,
+                    text = message,
                     color = PetscueError,
                     style = MaterialTheme.typography.bodyMedium
                 )
+
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Mensaje de éxito, por ejemplo en recuperación de contraseña
-            state.successMessage?.let {
+            state.successMessage?.let { message ->
                 Text(
-                    text = it,
+                    text = message,
                     color = PetscueSuccess,
                     style = MaterialTheme.typography.bodyMedium
                 )
+
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Botón principal de acceso a la aplicación
             Button(
                 onClick = vm::onLoginClick,
                 modifier = Modifier
@@ -224,8 +250,9 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Navegación a la pantalla de registro
-            TextButton(onClick = onNavigateToSignup) {
+            TextButton(
+                onClick = onNavigateToSignup
+            ) {
                 Text(
                     text = "¿No tienes cuenta? Regístrate",
                     color = MaterialTheme.colorScheme.onPrimary

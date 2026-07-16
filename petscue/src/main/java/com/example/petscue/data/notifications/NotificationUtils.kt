@@ -1,4 +1,4 @@
-package com.example.petscue.notifications
+package com.example.petscue.data.notifications
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

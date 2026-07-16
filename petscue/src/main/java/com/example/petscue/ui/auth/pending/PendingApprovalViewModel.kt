@@ -114,14 +114,26 @@ class PendingApprovalViewModel @Inject constructor(
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     _uiState.update {
-                        it.copy(errorMessage = error.message ?: "Error al comprobar el estado.")
+                        it.copy(
+                            errorMessage = error.message
+                                ?: "Error al comprobar el estado."
+                        )
                     }
                     return@addSnapshotListener
                 }
 
                 val approvalStatus = snapshot?.getString("approvalStatus")
-                if (approvalStatus == ApprovalStatus.APPROVED.name) {
-                    _uiState.update { it.copy(isApproved = true) }
+                    ?: ApprovalStatus.PENDING.name
+
+                val motivoRevision = snapshot?.getString("motivoRevision")
+                    .orEmpty()
+
+                _uiState.update {
+                    it.copy(
+                        isApproved = approvalStatus == ApprovalStatus.APPROVED.name,
+                        isRejected = approvalStatus == ApprovalStatus.REJECTED.name,
+                        rejectionReason = motivoRevision
+                    )
                 }
             }
     }
@@ -161,9 +173,12 @@ class PendingApprovalViewModel @Inject constructor(
                         isUploading = false,
                         selectedFiles = emptyList(),
                         documentSubmitted = true,
-                        infoMessage = "Documentación enviada correctamente."
+                        isRejected = false,
+                        rejectionReason = "",
+                        infoMessage = "Documentación reenviada correctamente. Tu solicitud vuelve a estar pendiente de revisión."
                     )
                 }
+
                 loadCurrentDocuments()
             }.onFailure { e ->
                 _uiState.update {

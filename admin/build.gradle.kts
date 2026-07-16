@@ -54,7 +54,8 @@ dependencies {
     implementation(libs.hilt.android) // Hilt
     ksp(libs.hilt.android.compiler)  // Hilt
     implementation(libs.hilt.navigation.compose)
-
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.core.splashscreen)  // Splash screen API
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

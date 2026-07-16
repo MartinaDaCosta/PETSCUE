@@ -10,8 +10,8 @@ data class ProtectoraRequest(
     val comunidad: String = "",
     val provincia: String = "",
     val ciudad: String = "",
-    val documentUrls: List<String> = emptyList(),
-    val estado: String = "pendiente",
+    val documentos: List<ProtectoraDocument> = emptyList(),
+    val estado: String = "PENDING",
     val motivoRechazo: String = "",
     val createdAt: Long = 0L,
     val reviewedAt: Long? = null

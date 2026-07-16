@@ -1,4 +1,4 @@
-package com.example.petscue.notifications
+package com.example.petscue.data.notifications
 
 import android.Manifest
 import android.content.pm.PackageManager

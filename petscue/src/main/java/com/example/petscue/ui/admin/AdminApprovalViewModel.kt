@@ -1,3 +1,4 @@
+// ui/admin/AdminApprovalViewModel.kt
 package com.example.petscue.ui.admin
 
 import androidx.lifecycle.ViewModel
@@ -5,16 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.petscue.data.model.User
 import com.example.petscue.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// Estado de la pantalla de revisión de protectoras
 data class AdminApprovalUiState(
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val users: List<User> = emptyList(),
     val errorMessage: String? = null,
     val successMessage: String? = null
@@ -25,29 +27,40 @@ class AdminApprovalViewModel @Inject constructor(
     private val repository: AuthRepository
 ) : ViewModel() {
 
-    // Estado mutable interno del ViewModel
-    private val _uiState = MutableStateFlow(AdminApprovalUiState())
+    private val _uiState = MutableStateFlow(
+        AdminApprovalUiState()
+    )
 
-    // Estado público solo lectura para la UI
     val uiState: StateFlow<AdminApprovalUiState> = _uiState.asStateFlow()
 
+    private var pendingRequestsJob: Job? = null
+
     init {
-        loadPendingProtectoras()
+        observePendingProtectoras()
     }
 
-    // Carga todas las protectoras pendientes de validación
-    fun loadPendingProtectoras() {
-        viewModelScope.launch {
+    private fun observePendingProtectoras() {
+        pendingRequestsJob?.cancel()
+
+        pendingRequestsJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isLoading = true,
-                    errorMessage = null,
-                    successMessage = null
+                    errorMessage = null
                 )
             }
 
-            repository.getPendingProtectoras()
-                .onSuccess { users ->
+            repository.observePendingProtectoras()
+                .catch { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = error.message
+                                ?: "No se pudieron cargar las solicitudes."
+                        )
+                    }
+                }
+                .collect { users ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -55,19 +68,13 @@ class AdminApprovalViewModel @Inject constructor(
                         )
                     }
                 }
-                .onFailure { e ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = e.message
-                                ?: "No se pudieron cargar las protectoras pendientes."
-                        )
-                    }
-                }
         }
     }
 
-    // Aprueba una protectora y recarga la lista
+    fun refresh() {
+        observePendingProtectoras()
+    }
+
     fun approve(uid: String) {
         viewModelScope.launch {
             repository.approveProtectora(uid)
@@ -78,12 +85,12 @@ class AdminApprovalViewModel @Inject constructor(
                             errorMessage = null
                         )
                     }
-                    loadPendingProtectoras()
                 }
-                .onFailure { e ->
+                .onFailure { error ->
                     _uiState.update {
                         it.copy(
-                            errorMessage = e.message ?: "No se pudo aprobar la protectora.",
+                            errorMessage = error.message
+                                ?: "No se pudo aprobar la protectora.",
                             successMessage = null
                         )
                     }
@@ -91,23 +98,25 @@ class AdminApprovalViewModel @Inject constructor(
         }
     }
 
-    // Rechaza una protectora con un motivo simple por defecto
-    fun reject(uid: String, reason: String = "Solicitud rechazada") {
+    fun reject(
+        uid: String,
+        reason: String
+    ) {
         viewModelScope.launch {
             repository.rejectProtectora(uid, reason)
                 .onSuccess {
                     _uiState.update {
                         it.copy(
-                            successMessage = "Protectora rechazada correctamente.",
+                            successMessage = "Solicitud rechazada correctamente.",
                             errorMessage = null
                         )
                     }
-                    loadPendingProtectoras()
                 }
-                .onFailure { e ->
+                .onFailure { error ->
                     _uiState.update {
                         it.copy(
-                            errorMessage = e.message ?: "No se pudo rechazar la protectora.",
+                            errorMessage = error.message
+                                ?: "No se pudo rechazar la protectora.",
                             successMessage = null
                         )
                     }

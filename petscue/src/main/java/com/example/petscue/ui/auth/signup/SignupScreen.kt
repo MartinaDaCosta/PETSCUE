@@ -2,7 +2,11 @@ package com.example.petscue.ui.auth.signup
 
 import android.Manifest
 import android.annotation.SuppressLint
-import com.example.petscue.BuildConfig
+import android.content.Context
+import android.location.Address
+import android.location.Geocoder
+import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,7 +73,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.petscue.BuildConfig
 import com.example.petscue.data.model.UserRole
+import com.example.petscue.domain.usecase.getCurrentLocation
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -79,17 +85,18 @@ import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Locale
-import android.content.Context
-import android.location.Address
-import android.location.Geocoder
-import android.os.Build
-import com.example.petscue.domain.usecase.getCurrentLocation
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.Locale
 import kotlin.coroutines.resume
 
 private val SignupBlueDark = Color(0xFF1565C0)
 private val SignupBlueLight = Color(0xFF64B5F6)
+
+private data class ResolvedAddressData(
+    val fullAddress: String,
+    val provincia: String,
+    val ciudad: String
+)
 
 @OptIn(ExperimentalPermissionsApi::class)
 @SuppressLint("MissingPermission")
@@ -141,7 +148,6 @@ fun SignupScreen(
             } else {
                 "Cuenta creada correctamente. Revisa tu correo para verificar la cuenta."
             }
-
             snackbarHostState.showSnackbar(message = message)
             delay(1500)
             onSignupSuccess()
@@ -156,10 +162,7 @@ fun SignupScreen(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        listOf(
-                            SignupBlueLight,
-                            SignupBlueDark
-                        )
+                        listOf(SignupBlueLight, SignupBlueDark)
                     )
                 )
                 .verticalScroll(rememberScrollState())
@@ -322,13 +325,29 @@ fun SignupScreen(
                             val place = response.place
                             val latLng = place.latLng
 
-                            vm.onAddressSuggestionSelected(
-                                suggestion.copy(
-                                    fullAddress = place.address ?: suggestion.fullAddress,
-                                    latitude = latLng?.latitude,
-                                    longitude = latLng?.longitude
+                            scope.launch {
+                                val resolved = if (latLng != null) {
+                                    getResolvedAddressData(
+                                        context = context,
+                                        lat = latLng.latitude,
+                                        lng = latLng.longitude
+                                    )
+                                } else {
+                                    null
+                                }
+
+                                val finalAddress = place.address
+                                    ?: resolved?.fullAddress
+                                    ?: suggestion.fullAddress
+
+                                vm.onResolvedLocationData(
+                                    direccion = finalAddress,
+                                    provincia = resolved?.provincia.orEmpty(),
+                                    ciudad = resolved?.ciudad.orEmpty(),
+                                    lat = latLng?.latitude,
+                                    lng = latLng?.longitude
                                 )
-                            )
+                            }
                         }
                         .addOnFailureListener {
                             vm.onAddressSuggestionSelected(suggestion)
@@ -342,20 +361,23 @@ fun SignupScreen(
                             val loc = getCurrentLocation(context)
 
                             if (loc != null) {
-                                val readableAddress = getReadableAddress(
+                                val resolved = getResolvedAddressData(
                                     context = context,
                                     lat = loc.lat,
                                     lng = loc.lng
                                 )
 
-                                val textoFinal = readableAddress
+                                val textoFinal = resolved?.fullAddress
+                                    .takeUnless { it.isNullOrBlank() }
                                     ?: loc.direccion.takeIf { it.isNotBlank() }
                                     ?: "Ubicación actual"
 
-                                vm.onCurrentLocationResolved(
-                                    textoFinal,
-                                    loc.lat,
-                                    loc.lng
+                                vm.onResolvedLocationData(
+                                    direccion = textoFinal,
+                                    provincia = resolved?.provincia.orEmpty(),
+                                    ciudad = resolved?.ciudad.orEmpty(),
+                                    lat = loc.lat,
+                                    lng = loc.lng
                                 )
                             } else {
                                 snackbarHostState.showSnackbar("No se pudo obtener tu ubicación actual")
@@ -387,6 +409,22 @@ fun SignupScreen(
                     value = state.nombreProtectora,
                     onValueChange = vm::onNombreProtectoraChange,
                     label = "Nombre de la protectora *"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AppField(
+                    value = state.provincia,
+                    onValueChange = vm::onProvinciaChange,
+                    label = "Provincia *"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AppField(
+                    value = state.ciudad,
+                    onValueChange = vm::onCiudadChange,
+                    label = "Ciudad *"
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -804,25 +842,39 @@ private fun fieldColors() = OutlinedTextFieldDefaults.colors(
     unfocusedPrefixColor = Color.White.copy(alpha = 0.85f)
 )
 
-
-
-private suspend fun getReadableAddress(
+private suspend fun getResolvedAddressData(
     context: Context,
     lat: Double,
     lng: Double
-): String? = suspendCancellableCoroutine { cont ->
+): ResolvedAddressData? = suspendCancellableCoroutine { cont ->
     val geocoder = Geocoder(context, Locale.getDefault())
 
     try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             geocoder.getFromLocation(lat, lng, 1) { addresses ->
                 val address = addresses.firstOrNull()
-                cont.resume(address.toReadableText())
+                cont.resume(
+                    address?.let {
+                        ResolvedAddressData(
+                            fullAddress = it.toReadableText().orEmpty(),
+                            provincia = it.adminArea.orEmpty(),
+                            ciudad = it.locality.orEmpty()
+                        )
+                    }
+                )
             }
         } else {
             @Suppress("DEPRECATION")
             val address = geocoder.getFromLocation(lat, lng, 1)?.firstOrNull()
-            cont.resume(address.toReadableText())
+            cont.resume(
+                address?.let {
+                    ResolvedAddressData(
+                        fullAddress = it.toReadableText().orEmpty(),
+                        provincia = it.adminArea.orEmpty(),
+                        ciudad = it.locality.orEmpty()
+                    )
+                }
+            )
         }
     } catch (_: Exception) {
         cont.resume(null)

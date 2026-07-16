@@ -96,7 +96,6 @@ class SignupViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 addressQuery = value,
-                direccion = value,
                 errorMessage = null
             )
         }
@@ -123,9 +122,10 @@ class SignupViewModel @Inject constructor(
         }
     }
 
-    // Guarda la dirección resuelta desde ubicación actual
-    fun onCurrentLocationResolved(
+    fun onResolvedLocationData(
         direccion: String,
+        provincia: String,
+        ciudad: String,
         lat: Double?,
         lng: Double?
     ) {
@@ -133,6 +133,8 @@ class SignupViewModel @Inject constructor(
             it.copy(
                 direccion = direccion,
                 addressQuery = direccion,
+                provincia = provincia,
+                ciudad = ciudad,
                 latitude = lat,
                 longitude = lng,
                 addressSuggestions = emptyList(),
@@ -145,13 +147,14 @@ class SignupViewModel @Inject constructor(
     fun onRegisterClick() {
         viewModelScope.launch {
             val s = _uiState.value
+            val direccionFinal = s.direccion.trim()
 
             if (
-                s.nombre.isBlank() ||
-                s.apellido.isBlank() ||
-                s.email.isBlank() ||
+                s.nombre.trim().isBlank() ||
+                s.apellido.trim().isBlank() ||
+                s.email.trim().isBlank() ||
                 s.password.isBlank() ||
-                s.username.isBlank()
+                s.username.trim().isBlank()
             ) {
                 _uiState.update {
                     it.copy(
@@ -162,17 +165,36 @@ class SignupViewModel @Inject constructor(
                 return@launch
             }
 
-            if (
-                s.selectedRole == UserRole.PROTECTORA &&
-                s.verificationDocuments.isEmpty()
-            ) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Adjunta al menos un documento de verificación de la protectora."
-                    )
+            if (s.selectedRole == UserRole.PROTECTORA) {
+                if (s.nombreProtectora.trim().isBlank()) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Completa el nombre de la protectora."
+                        )
+                    }
+                    return@launch
                 }
-                return@launch
+
+                if (direccionFinal.isBlank()) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Completa la ubicación de la protectora."
+                        )
+                    }
+                    return@launch
+                }
+
+                if (s.verificationDocuments.isEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Adjunta al menos un documento de verificación de la protectora."
+                        )
+                    }
+                    return@launch
+                }
             }
 
             _uiState.update {
@@ -188,7 +210,7 @@ class SignupViewModel @Inject constructor(
                 username = s.username.trim().lowercase(),
                 email = s.email.trim(),
                 telefono = s.telefono.trim(),
-                direccion = s.direccion.trim(),
+                direccion = direccionFinal,
                 role = s.selectedRole,
                 approvalStatus = if (s.selectedRole == UserRole.PROTECTORA) {
                     ApprovalStatus.PENDING

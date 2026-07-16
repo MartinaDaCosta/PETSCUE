@@ -1,3 +1,4 @@
+// data/model/User.kt
 package com.example.petscue.data.model
 
 data class User(

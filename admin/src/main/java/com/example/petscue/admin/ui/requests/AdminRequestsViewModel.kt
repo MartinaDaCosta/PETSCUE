@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.petscue.admin.data.model.ProtectoraRequest
 import com.example.petscue.admin.data.repository.AdminRepositoryImpl
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,39 +18,66 @@ class AdminRequestsViewModel(
         AdminRepositoryImpl(FirebaseFirestore.getInstance())
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AdminRequestsUiState(isLoading = true))
-    val uiState: StateFlow<AdminRequestsUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(
+        AdminRequestsUiState(isLoading = true)
+    )
+
+    val uiState: StateFlow<AdminRequestsUiState> =
+        _uiState.asStateFlow()
+
+    private var requestsJob: Job? = null
 
     init {
         observeRequests()
     }
 
     private fun observeRequests() {
-        viewModelScope.launch {
+        requestsJob?.cancel()
+
+        requestsJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null
+                )
+            }
+
             repository.observePendingRequests()
-                .catch { e ->
-                    _uiState.value = AdminRequestsUiState(
-                        isLoading = false,
-                        requests = emptyList(),
-                        errorMessage = e.message ?: "Error al escuchar solicitudes."
-                    )
+                .catch { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            requests = emptyList(),
+                            errorMessage = error.message
+                                ?: "Error al cargar solicitudes."
+                        )
+                    }
                 }
-                .collect { list ->
-                    _uiState.value = AdminRequestsUiState(
-                        isLoading = false,
-                        requests = list,
-                        errorMessage = null
-                    )
+                .collect { requests ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            requests = requests,
+                            errorMessage = null
+                        )
+                    }
                 }
         }
+    }
+
+    fun refresh() {
+        observeRequests()
     }
 
     fun approveRequest(request: ProtectoraRequest) {
         viewModelScope.launch {
             repository.approveRequest(request.id)
-                .onFailure { e ->
+                .onFailure { error ->
                     _uiState.update {
-                        it.copy(errorMessage = e.message ?: "Error al aprobar solicitud.")
+                        it.copy(
+                            errorMessage = error.message
+                                ?: "Error al aprobar la solicitud."
+                        )
                     }
                 }
         }
@@ -57,13 +85,28 @@ class AdminRequestsViewModel(
 
     fun rejectRequest(
         requestId: String,
-        motivo: String = "Solicitud rechazada por el administrador"
+        motivo: String
     ) {
+        if (motivo.trim().isBlank()) {
+            _uiState.update {
+                it.copy(
+                    errorMessage = "Debes indicar el motivo del rechazo."
+                )
+            }
+            return
+        }
+
         viewModelScope.launch {
-            repository.rejectRequest(requestId, motivo)
-                .onFailure { e ->
+            repository.rejectRequest(
+                requestId = requestId,
+                motivo = motivo.trim()
+            )
+                .onFailure { error ->
                     _uiState.update {
-                        it.copy(errorMessage = e.message ?: "Error al rechazar solicitud.")
+                        it.copy(
+                            errorMessage = error.message
+                                ?: "Error al rechazar la solicitud."
+                        )
                     }
                 }
         }

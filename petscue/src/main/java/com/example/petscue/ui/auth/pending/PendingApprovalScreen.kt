@@ -107,6 +107,54 @@ fun PendingApprovalScreen(
                 style = MaterialTheme.typography.bodyLarge
             )
 
+            if (state.isRejected) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Solicitud rechazada",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Motivo del administrador:",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = state.rejectionReason.ifBlank {
+                            "No se ha indicado un motivo concreto."
+                        },
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Corrige la documentación necesaria y vuelve a enviarla. La solicitud volverá a quedar pendiente de revisión.",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
@@ -259,17 +307,6 @@ fun PendingApprovalScreen(
                     }
                 }
             }
-
-            // Campo para añadir notas de revisión
-            OutlinedTextField(
-                value = state.notes,
-                onValueChange = vm::onNotesChange,
-                label = { Text("Notas o información adicional") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                shape = AuthTextFieldShape,
-                colors = authFieldColors()
-            )
 
             state.infoMessage?.let {
                 Text(

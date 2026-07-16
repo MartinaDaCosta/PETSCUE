@@ -20,7 +20,7 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCeWkMeZ-sZcAloA6rcyP9ZAKhmFFxMHd8" />
         <service
-            android:name=".notifications.PetscueMessagingService"
+            android:name=".data.notifications.PetscueMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

@@ -8,7 +8,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.petscue.notifications.saveCurrentFcmToken
+import com.example.petscue.data.notifications.saveCurrentFcmToken
 import com.example.petscue.ui.admin.AdminApprovalScreen
 import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
@@ -25,9 +25,9 @@ import com.example.petscue.ui.onboarding.OnboardingScreen
 import com.example.petscue.ui.pet.PetDetailScreen
 import com.example.petscue.ui.profile.ProfileScreen
 import com.example.petscue.ui.profile.adopta.adoptiondetail.AdoptionPetDetailScreen
-import com.example.petscue.ui.profile.pet.AddPetScreen
 import com.example.petscue.ui.profile.adopta.edit.EditAdoptionPetScreen
 import com.example.petscue.ui.profile.adopta.request.AdoptionRequestScreen
+import com.example.petscue.ui.profile.pet.AddPetScreen
 import com.example.petscue.ui.profile.pet.petdetail.EditPetScreen
 import com.example.petscue.ui.splash.SplashScreen
 import com.google.firebase.auth.FirebaseAuth
@@ -37,8 +37,27 @@ fun PetscueNavHost(
     navController: NavHostController
 ) {
     val context = LocalContext.current
-    val prefs = context.getSharedPreferences("petscue_prefs", Context.MODE_PRIVATE)
-    val isFirstLaunch = prefs.getBoolean("first_launch", true)
+
+    val prefs = context.getSharedPreferences(
+        "petscue_prefs",
+        Context.MODE_PRIVATE
+    )
+
+    val isFirstLaunch = prefs.getBoolean(
+        "first_launch",
+        true
+    )
+
+    fun logoutAndNavigateToAuth() {
+        FirebaseAuth.getInstance().signOut()
+
+        navController.navigate(Routes.AUTH) {
+            popUpTo(0) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -46,25 +65,75 @@ fun PetscueNavHost(
     ) {
         composable(Routes.SPLASH) {
             SplashScreen {
-                val isLoggedIn = FirebaseAuth.getInstance().currentUser != null
+                val currentUser = FirebaseAuth.getInstance().currentUser
 
                 when {
-                    isLoggedIn -> {
-                        navController.navigate(Routes.MAIN) {
-                            popUpTo(Routes.SPLASH) { inclusive = true }
+                    currentUser == null && isFirstLaunch -> {
+                        navController.navigate(Routes.ONBOARDING) {
+                            popUpTo(Routes.SPLASH) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
                         }
                     }
 
-                    isFirstLaunch -> {
-                        navController.navigate(Routes.ONBOARDING) {
-                            popUpTo(Routes.SPLASH) { inclusive = true }
+                    currentUser == null -> {
+                        navController.navigate(Routes.AUTH) {
+                            popUpTo(Routes.SPLASH) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
                         }
                     }
 
                     else -> {
-                        navController.navigate(Routes.AUTH) {
-                            popUpTo(Routes.SPLASH) { inclusive = true }
-                        }
+                        val uid = currentUser.uid
+
+                        com.google.firebase.firestore.FirebaseFirestore
+                            .getInstance()
+                            .collection("users")
+                            .document(uid)
+                            .get()
+                            .addOnSuccessListener { document ->
+                                val role = document.getString("role").orEmpty()
+
+                                val approvalStatus = document
+                                    .getString("approvalStatus")
+                                    .orEmpty()
+
+                                val destination = when {
+                                    role == "PROTECTORA" &&
+                                            approvalStatus == "PENDING" -> {
+                                        Routes.PENDING_APPROVAL
+                                    }
+
+                                    role == "PROTECTORA" &&
+                                            approvalStatus == "REJECTED" -> {
+                                        Routes.PENDING_APPROVAL
+                                    }
+
+                                    else -> {
+                                        Routes.MAIN
+                                    }
+                                }
+
+                                navController.navigate(destination) {
+                                    popUpTo(Routes.SPLASH) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
+                            .addOnFailureListener {
+                                FirebaseAuth.getInstance().signOut()
+
+                                navController.navigate(Routes.AUTH) {
+                                    popUpTo(Routes.SPLASH) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
                     }
                 }
             }
@@ -72,9 +141,15 @@ fun PetscueNavHost(
 
         composable(Routes.ONBOARDING) {
             OnboardingScreen {
-                prefs.edit().putBoolean("first_launch", false).apply()
+                prefs.edit()
+                    .putBoolean("first_launch", false)
+                    .apply()
+
                 navController.navigate(Routes.AUTH) {
-                    popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    popUpTo(Routes.ONBOARDING) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
                 }
             }
         }
@@ -82,10 +157,14 @@ fun PetscueNavHost(
         composable(Routes.AUTH) {
             AuthScreen(
                 onNavigateToLogin = {
-                    navController.navigate(Routes.LOGIN)
+                    navController.navigate(Routes.LOGIN) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToSignup = {
-                    navController.navigate(Routes.SIGNUP)
+                    navController.navigate(Routes.SIGNUP) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -94,13 +173,18 @@ fun PetscueNavHost(
             LoginScreen(
                 onLoginSuccess = { destination ->
                     saveCurrentFcmToken()
+
                     navController.navigate(destination) {
-                        popUpTo(Routes.AUTH) { inclusive = true }
+                        popUpTo(Routes.AUTH) {
+                            inclusive = true
+                        }
                         launchSingleTop = true
                     }
                 },
                 onNavigateToSignup = {
-                    navController.navigate(Routes.SIGNUP)
+                    navController.navigate(Routes.SIGNUP) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -109,11 +193,16 @@ fun PetscueNavHost(
             SignupScreen(
                 onSignupSuccess = {
                     navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.SIGNUP) { inclusive = true }
+                        popUpTo(Routes.SIGNUP) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
                     }
                 },
                 onNavigateToLogin = {
-                    navController.navigate(Routes.LOGIN)
+                    navController.navigate(Routes.LOGIN) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -122,21 +211,20 @@ fun PetscueNavHost(
             PendingApprovalScreen(
                 onApproved = {
                     navController.navigate(Routes.MAIN) {
-                        popUpTo(Routes.PENDING_APPROVAL) { inclusive = true }
+                        popUpTo(Routes.PENDING_APPROVAL) {
+                            inclusive = true
+                        }
                         launchSingleTop = true
                     }
                 },
                 onLogout = {
-                    navController.navigate(Routes.AUTH) {
-                        popUpTo(Routes.PENDING_APPROVAL) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    logoutAndNavigateToAuth()
                 }
             )
         }
 
         composable(
-            route = "main?tab={tab}",
+            route = Routes.MAIN_WITH_TAB,
             arguments = listOf(
                 navArgument("tab") {
                     type = NavType.StringType
@@ -145,24 +233,24 @@ fun PetscueNavHost(
                 }
             )
         ) { backStackEntry ->
-            val initialTab = backStackEntry.arguments?.getString("tab")
+            val initialTab = backStackEntry.arguments
+                ?.getString("tab")
                 ?: BottomTab.Novedades.route
 
             MainScreen(
                 navController = navController,
                 initialTabRoute = initialTab,
                 onLogout = {
-                    navController.navigate(Routes.AUTH) {
-                        popUpTo(Routes.MAIN) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    logoutAndNavigateToAuth()
                 }
             )
         }
 
         composable(Routes.ADD_PET) {
             AddPetScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 onPetSaved = {
                     navController.previousBackStackEntry
                         ?.savedStateHandle
@@ -182,12 +270,18 @@ fun PetscueNavHost(
             )
         ) {
             PetDetailScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 onEditPet = { petId ->
-                    navController.navigate(Routes.editPetRoute(petId))
+                    navController.navigate(
+                        Routes.editPetRoute(petId)
+                    )
                 },
                 onMessageClick = { conversationId ->
-                    navController.navigate(Routes.chatDetailRoute(conversationId))
+                    navController.navigate(
+                        Routes.chatDetailRoute(conversationId)
+                    )
                 },
                 onPetDeleted = {
                     navController.popBackStack()
@@ -204,8 +298,12 @@ fun PetscueNavHost(
             )
         ) {
             EditPetScreen(
-                onBack = { navController.popBackStack() },
-                onPetUpdated = { navController.popBackStack() }
+                onBack = {
+                    navController.popBackStack()
+                },
+                onPetUpdated = {
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -218,18 +316,25 @@ fun PetscueNavHost(
             )
         ) {
             AdoptionPetDetailScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 onEditClick = { petId ->
-                    navController.navigate(Routes.editAdoptionPetRoute(petId))
+                    navController.navigate(
+                        Routes.editAdoptionPetRoute(petId)
+                    )
                 },
                 onRequestAdoption = { petId ->
-                    navController.navigate(Routes.adoptionRequestRoute(petId))
+                    navController.navigate(
+                        Routes.adoptionRequestRoute(petId)
+                    )
                 },
                 onPetDeleted = {
                     navController.popBackStack()
                 }
             )
         }
+
         composable(
             route = Routes.ADOPTION_REQUEST,
             arguments = listOf(
@@ -239,14 +344,21 @@ fun PetscueNavHost(
             )
         ) {
             AdoptionRequestScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 onRequestSent = { conversationId ->
-                    navController.navigate(Routes.chatDetailRoute(conversationId)) {
-                        popUpTo(Routes.ADOPTION_REQUEST) { inclusive = true }
+                    navController.navigate(
+                        Routes.chatDetailRoute(conversationId)
+                    ) {
+                        popUpTo(Routes.ADOPTION_REQUEST) {
+                            inclusive = true
+                        }
                     }
                 }
             )
         }
+
         composable(
             route = Routes.EDIT_ADOPTION_PET,
             arguments = listOf(
@@ -256,8 +368,12 @@ fun PetscueNavHost(
             )
         ) {
             EditAdoptionPetScreen(
-                onBack = { navController.popBackStack() },
-                onPetUpdated = { navController.popBackStack() }
+                onBack = {
+                    navController.popBackStack()
+                },
+                onPetUpdated = {
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -266,51 +382,87 @@ fun PetscueNavHost(
         }
 
         composable("novedades") {
-            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+            val currentUserId = FirebaseAuth.getInstance()
+                .currentUser
+                ?.uid
+                .orEmpty()
 
             NovedadesScreen(
                 onOpenDetail = { postId ->
-                    navController.navigate(Routes.postDetailRoute(postId))
+                    navController.navigate(
+                        Routes.postDetailRoute(postId)
+                    )
                 },
                 onOpenProfile = { userId ->
                     if (userId == currentUserId) {
-                        navController.navigate(Routes.mainRoute(BottomTab.Perfil.route)) {
-                            popUpTo(Routes.MAIN) { inclusive = false }
+                        navController.navigate(
+                            Routes.mainRoute(BottomTab.Perfil.route)
+                        ) {
+                            popUpTo(Routes.MAIN) {
+                                inclusive = false
+                            }
                             launchSingleTop = true
                         }
                     } else {
-                        navController.navigate(userProfileRoute(userId))
+                        navController.navigate(
+                            userProfileRoute(userId)
+                        )
                     }
                 }
             )
         }
 
-        composable(Routes.POST_DETAIL) {
-            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+        composable(
+            route = Routes.POST_DETAIL,
+            arguments = listOf(
+                navArgument("postId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            val currentUserId = FirebaseAuth.getInstance()
+                .currentUser
+                ?.uid
+                .orEmpty()
 
             PostDetailScreen(
-                onBack = { navController.popBackStack() },
-                onOpenProfile = { userId: String ->
+                onBack = {
+                    navController.popBackStack()
+                },
+                onOpenProfile = { userId ->
                     if (userId == currentUserId) {
-                        navController.navigate(Routes.mainRoute(BottomTab.Perfil.route)) {
-                            popUpTo(Routes.MAIN) { inclusive = false }
+                        navController.navigate(
+                            Routes.mainRoute(BottomTab.Perfil.route)
+                        ) {
+                            popUpTo(Routes.MAIN) {
+                                inclusive = false
+                            }
                             launchSingleTop = true
                         }
                     } else {
-                        navController.navigate(userProfileRoute(userId))
+                        navController.navigate(
+                            userProfileRoute(userId)
+                        )
                     }
                 }
             )
         }
 
         composable(Routes.SELECT_PET_FOR_ALERT) { backStackEntry ->
-            val petAdded = backStackEntry.savedStateHandle.get<Boolean>("pet_added") == true
+            val petAdded = backStackEntry.savedStateHandle
+                .get<Boolean>("pet_added") == true
 
             SelectPetForAlertScreen(
-                onBack = { navController.popBackStack() },
-                onAddPetClick = { navController.navigate(Routes.ADD_PET) },
+                onBack = {
+                    navController.popBackStack()
+                },
+                onAddPetClick = {
+                    navController.navigate(Routes.ADD_PET)
+                },
                 onPetSelected = { petId ->
-                    navController.navigate(Routes.createAlertRoute(petId))
+                    navController.navigate(
+                        Routes.createAlertRoute(petId)
+                    )
                 },
                 petAdded = petAdded,
                 onPetAddedConsumed = {
@@ -319,11 +471,23 @@ fun PetscueNavHost(
             )
         }
 
-        composable(Routes.CREATE_ALERT) {
+        composable(
+            route = Routes.CREATE_ALERT,
+            arguments = listOf(
+                navArgument("petId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
             CreateAlertScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 onAlertSaved = {
-                    navController.popBackStack(Routes.MAIN, inclusive = false)
+                    navController.popBackStack(
+                        Routes.MAIN,
+                        inclusive = false
+                    )
                 }
             )
         }
@@ -337,7 +501,9 @@ fun PetscueNavHost(
             )
         ) {
             ChatScreen(
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    navController.popBackStack()
+                }
             )
         }
 
@@ -349,19 +515,27 @@ fun PetscueNavHost(
                 }
             )
         ) { backStackEntry ->
-            val petId = backStackEntry.arguments?.getString("petId").orEmpty()
+            val petId = backStackEntry.arguments
+                ?.getString("petId")
+                .orEmpty()
 
             AlertDetailScreen(
                 petId = petId,
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    navController.popBackStack()
+                }
             )
         }
 
         composable(Routes.MY_ALERTS) {
             MyAlertsScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 onOpenAlert = { petId ->
-                    navController.navigate(Routes.alertDetailRoute(petId))
+                    navController.navigate(
+                        Routes.alertDetailRoute(petId)
+                    )
                 }
             )
         }
@@ -375,24 +549,33 @@ fun PetscueNavHost(
             )
         ) {
             ProfileScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    navController.popBackStack()
+                },
                 isOwnProfile = false,
                 onAddPetClick = {},
                 onPetClick = { petId ->
-                    navController.navigate(Routes.petDetailRoute(petId))
+                    navController.navigate(
+                        Routes.petDetailRoute(petId)
+                    )
                 },
                 onAdoptionPetClick = { petId ->
-                    navController.navigate(Routes.adoptionDetailRoute(petId))
+                    navController.navigate(
+                        Routes.adoptionDetailRoute(petId)
+                    )
                 },
                 onOpenPostDetail = { postId ->
-                    navController.navigate(Routes.postDetailRoute(postId))
+                    navController.navigate(
+                        Routes.postDetailRoute(postId)
+                    )
                 },
-                onOpenProfile = { anotherUserId ->
-                    navController.navigate("user_profile/$anotherUserId")
+                onOpenProfile = { userId ->
+                    navController.navigate(
+                        userProfileRoute(userId)
+                    )
                 },
-                onMessageClick = { _ -> }
+                onMessageClick = {}
             )
         }
-
     }
 }
