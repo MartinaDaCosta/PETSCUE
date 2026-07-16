@@ -2,4 +2,12 @@
 <resources>
 
     <style name="Theme.PETSCUE" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.PETSCUE.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FF004787</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/adminicono</item>
+        <item name="windowSplashScreenIconBackgroundColor">#FF004787</item>
+        <item name="postSplashScreenTheme">@style/Theme.PETSCUE</item>
+    </style>
+
 </resources>
