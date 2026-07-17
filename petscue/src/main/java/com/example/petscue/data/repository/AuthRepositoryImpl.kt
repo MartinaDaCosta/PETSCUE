@@ -408,7 +408,8 @@ class AuthRepositoryImpl @Inject constructor(
             .whereEqualTo("approvalStatus", ApprovalStatus.PENDING.name)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 

@@ -7,7 +7,10 @@ import kotlinx.coroutines.flow.Flow
 interface MensajesRepository {
     fun observeConversations(userId: String): Flow<List<Conversation>>
     fun observeMessages(conversationId: String): Flow<List<ChatMessage>>
-
+    suspend fun hideConversation(
+        conversationId: String,
+        userId: String
+    )
     suspend fun sendMessage(
         conversationId: String,
         senderId: String,

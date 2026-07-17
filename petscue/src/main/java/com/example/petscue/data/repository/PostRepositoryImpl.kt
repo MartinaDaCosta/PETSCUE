@@ -26,7 +26,8 @@ class PostRepositoryImpl @Inject constructor(
             .orderBy("timestamp")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 

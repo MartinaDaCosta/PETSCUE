@@ -19,7 +19,8 @@ class ReplyRepositoryImpl @Inject constructor(
             .orderBy("timestamp")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 
@@ -55,4 +56,67 @@ class ReplyRepositoryImpl @Inject constructor(
             .delete()
             .await()
     }
+
+    override suspend fun toggleReplyLike(
+        postId: String,
+        replyId: String,
+        userId: String
+    ) {
+        val reference = firestore.collection("posts")
+            .document(postId)
+            .collection("replies")
+            .document(replyId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(reference)
+
+            val likedBy = snapshot.get("likedBy") as? List<String>
+                ?: emptyList()
+
+            val updatedLikedBy = if (userId in likedBy) {
+                likedBy - userId
+            } else {
+                likedBy + userId
+            }
+
+            transaction.update(
+                reference,
+                mapOf(
+                    "likedBy" to updatedLikedBy,
+                    "likes" to updatedLikedBy.size
+                )
+            )
+        }.await()
+    }
+
+    override suspend fun toggleReplyShare(
+        postId: String,
+        replyId: String,
+        userId: String
+    ) {
+        val reference = firestore.collection("posts")
+            .document(postId)
+            .collection("replies")
+            .document(replyId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(reference)
+
+            val sharedBy = snapshot.get("sharedBy") as? List<String>
+                ?: emptyList()
+
+            val updatedSharedBy = if (userId in sharedBy) {
+                sharedBy - userId
+            } else {
+                sharedBy + userId
+            }
+
+            transaction.update(
+                reference,
+                mapOf("sharedBy" to updatedSharedBy)
+            )
+        }.await()
+    }
+
+
 }

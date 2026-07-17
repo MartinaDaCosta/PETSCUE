@@ -44,7 +44,8 @@ class ProfileRepositoryImpl @Inject constructor(
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 
@@ -68,7 +69,8 @@ class ProfileRepositoryImpl @Inject constructor(
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 
@@ -165,6 +167,42 @@ class ProfileRepositoryImpl @Inject constructor(
             listener.remove()
         }
     }
+
+    override fun observeFollowersCount(userId: String): Flow<Int> = callbackFlow {
+        val listener = db.collection("follows")
+            .whereEqualTo("followedId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(0)
+                    close()
+                    return@addSnapshotListener
+                }
+
+                trySend(snapshot?.size() ?: 0)
+            }
+
+        awaitClose {
+            listener.remove()
+        }
+    }
+
+    override fun observeFollowingCount(userId: String): Flow<Int> = callbackFlow {
+        val listener = db.collection("follows")
+            .whereEqualTo("followerId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(0)
+                    close()
+                    return@addSnapshotListener
+                }
+
+                trySend(snapshot?.size() ?: 0)
+            }
+
+        awaitClose {
+            listener.remove()
+        }
+    }
     override fun getAdoptionPetsByProtectora(
         protectoraId: String
     ): Flow<List<Pet>> = callbackFlow {
@@ -182,6 +220,39 @@ class ProfileRepositoryImpl @Inject constructor(
                 }.orEmpty()
 
                 trySend(adoptionPets).isSuccess
+            }
+
+        awaitClose {
+            listener.remove()
+        }
+    }
+    override fun getLikedRepliesByUser(
+        userId: String
+    ): Flow<List<Reply>> = callbackFlow {
+        val listener = db
+            .collectionGroup("replies")
+            .whereArrayContains("likedBy", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(emptyList())
+                    close()
+                    return@addSnapshotListener
+                }
+
+                val replies = snapshot?.documents
+                    ?.mapNotNull { document ->
+                        document.toObject(Reply::class.java)
+                            ?.copy(
+                                id = document.id,
+                                postId = document.reference.parent.parent?.id.orEmpty()
+                            )
+                    }
+                    ?.sortedByDescending { reply ->
+                        reply.timestamp
+                    }
+                    .orEmpty()
+
+                trySend(replies)
             }
 
         awaitClose {

@@ -17,7 +17,8 @@ class AlertRepositoryImpl @Inject constructor(
     override fun getAllAlerts(): Flow<List<AvisoMapa>> = callbackFlow {
         val listener = alertsRef.addSnapshotListener { value, error ->
             if (error != null) {
-                close(error)
+                trySend(emptyList())
+                close()
                 return@addSnapshotListener
             }
 

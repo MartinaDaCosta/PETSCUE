@@ -27,5 +27,6 @@ data class ProfileUiState(
     val followingCount: Int = 0,
     val isFollowing: Boolean = false,
     val selectedTab: ProfileTab = ProfileTab.PETS_OR_ADOPTION,
-    val error: String? = null
+    val error: String? = null,
+    val likedReplies: List<Reply> = emptyList()
 )

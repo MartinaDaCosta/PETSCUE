@@ -19,7 +19,9 @@ interface ProfileRepository {
     fun getRepostedPostsByUser(userId: String): Flow<List<Post>>
     suspend fun getFollowersCount(userId: String): Int
     suspend fun getFollowingCount(userId: String): Int
-
+    fun observeFollowersCount(userId: String): Flow<Int>
+    fun getLikedRepliesByUser(userId: String): Flow<List<Reply>>
+    fun observeFollowingCount(userId: String): Flow<Int>
 
     suspend fun isFollowing(
         followerId: String,

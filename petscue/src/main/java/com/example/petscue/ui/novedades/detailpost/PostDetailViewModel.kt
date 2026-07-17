@@ -279,6 +279,64 @@ class PostDetailViewModel @Inject constructor(
             }
         }
     }
+
+    fun toggleReplyLike(reply: Reply) {
+        val userId = _uiState.value.currentUserId
+
+        if (
+            userId.isBlank() ||
+            reply.id.isBlank() ||
+            reply.postId.isBlank()
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                replyRepository.toggleReplyLike(
+                    postId = reply.postId,
+                    replyId = reply.id,
+                    userId = userId
+                )
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        error = error.message
+                            ?: "No se pudo actualizar el me gusta"
+                    )
+                }
+            }
+        }
+    }
+
+    fun toggleReplyShare(reply: Reply) {
+        val userId = _uiState.value.currentUserId
+
+        if (
+            userId.isBlank() ||
+            reply.id.isBlank() ||
+            reply.postId.isBlank()
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                replyRepository.toggleReplyShare(
+                    postId = reply.postId,
+                    replyId = reply.id,
+                    userId = userId
+                )
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        error = error.message
+                            ?: "No se pudo registrar que compartiste el comentario"
+                    )
+                }
+            }
+        }
+    }
     fun sendReply() {
         val state = _uiState.value
         val post = state.post ?: return
@@ -306,7 +364,9 @@ class PostDetailViewModel @Inject constructor(
                 userAvatar = currentUser.photoUrl,
                 mensaje = state.replyText.trim(),
                 timestamp = System.currentTimeMillis(),
-                likes = 0
+                likes = 0,
+                likedBy = emptyList(),
+                sharedBy = emptyList()
             )
 
             runCatching {

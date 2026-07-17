@@ -239,6 +239,12 @@ fun PostDetailScreen(
                                 onDeleteReply = { selectedReply ->
                                     viewModel.deleteReply(selectedReply)
                                 },
+                                onToggleLike = { selectedReply ->
+                                    viewModel.toggleReplyLike(selectedReply)
+                                },
+                                onShare = { selectedReply ->
+                                    viewModel.toggleReplyShare(selectedReply)
+                                },
                                 onOpenProfile = onOpenProfile
                             )
                         }

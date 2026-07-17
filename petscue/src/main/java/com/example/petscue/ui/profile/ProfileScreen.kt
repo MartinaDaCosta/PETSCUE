@@ -53,13 +53,29 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.tv.material3.OutlinedButtonDefaults
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material3.AlertDialog
 import coil.compose.AsyncImage
 import com.example.petscue.data.model.Pet
 import com.example.petscue.data.model.Post
 import com.example.petscue.data.model.Reply
 import com.example.petscue.data.model.UserRole
 import com.example.petscue.ui.novedades.PostCard
+import android.content.Intent
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+
 
 @Composable
 fun ProfileScreen(
@@ -204,8 +220,12 @@ fun ProfileScreen(
                     ProfileTab.REPLIES -> {
                         ProfileRepliesPanel(
                             replies = state.replies,
+                            currentUserId = state.currentUserId,
                             onOpenDetail = onOpenPostDetail,
-                            onOpenProfile = onOpenProfile
+                            onOpenProfile = onOpenProfile,
+                            onToggleLike = vm::toggleReplyLike,
+                            onShare = vm::toggleReplyShare,
+                            onDeleteReply = vm::deleteReply
                         )
                     }
 
@@ -223,15 +243,18 @@ fun ProfileScreen(
                     }
 
                     ProfileTab.LIKES -> {
-                        ProfilePostsPanel(
-                            posts = state.likedPosts,
-                            viewerUserId = state.currentUserId,
+                        ProfileLikedPanel(
+                            likedPosts = state.likedPosts,
+                            likedReplies = state.likedReplies,
+                            currentUserId = state.currentUserId,
                             onOpenDetail = onOpenPostDetail,
                             onOpenProfile = onOpenProfile,
-                            onDeletePost = {},
-                            onLikeClick = vm::toggleLike,
-                            onRepostClick = vm::toggleRepost,
-                            onShareClick = vm::toggleShare
+                            onLikePost = vm::toggleLike,
+                            onRepostPost = vm::toggleRepost,
+                            onSharePost = vm::toggleShare,
+                            onLikeReply = vm::toggleReplyLike,
+                            onShareReply = vm::toggleReplyShare,
+                            onDeleteReply = vm::deleteReply
                         )
                     }
                 }
@@ -980,12 +1003,88 @@ private fun ProfilePostsPanel(
         }
     }
 }
+@Composable
+private fun ProfileLikedPanel(
+    likedPosts: List<Post>,
+    likedReplies: List<Reply>,
+    currentUserId: String,
+    onOpenDetail: (String) -> Unit,
+    onOpenProfile: (String) -> Unit,
+    onLikePost: (Post) -> Unit,
+    onRepostPost: (Post) -> Unit,
+    onSharePost: (Post) -> Unit,
+    onLikeReply: (Reply) -> Unit,
+    onShareReply: (Reply) -> Unit,
+    onDeleteReply: (Reply) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
 
+        if (likedPosts.isEmpty() && likedReplies.isEmpty()) {
+            EmptyPanel(
+                message = "Todavía no has dado me gusta a ninguna publicación ni comentario."
+            )
+            return@Column
+        }
+
+        likedPosts.forEach { post ->
+            PostCard(
+                post = post,
+                isLiked = currentUserId in post.likedBy,
+                isReposted = currentUserId in post.repostedBy,
+                isOwner = post.userId == currentUserId,
+                onDeleteClick = {},
+                onCommentClick = {
+                    onOpenDetail(post.id)
+                },
+                onLikeClick = {
+                    onLikePost(post)
+                },
+                onRepostClick = {
+                    onRepostPost(post)
+                },
+                onShareClick = {
+                    onSharePost(post)
+                },
+                onOpenDetail = {
+                    onOpenDetail(post.id)
+                },
+                onOpenProfile = {
+                    if (post.userId.isNotBlank()) {
+                        onOpenProfile(post.userId)
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        likedReplies.forEach { reply ->
+            ReplyProfileCard(
+                reply = reply,
+                currentUserId = currentUserId,
+                onOpenDetail = onOpenDetail,
+                onOpenProfile = onOpenProfile,
+                onToggleLike = onLikeReply,
+                onShare = onShareReply,
+                onDeleteReply = onDeleteReply
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
 @Composable
 private fun ProfileRepliesPanel(
     replies: List<Reply>,
+    currentUserId: String,
     onOpenDetail: (String) -> Unit,
-    onOpenProfile: (String) -> Unit
+    onOpenProfile: (String) -> Unit,
+    onToggleLike: (Reply) -> Unit,
+    onShare: (Reply) -> Unit,
+    onDeleteReply: (Reply) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -998,8 +1097,12 @@ private fun ProfileRepliesPanel(
             replies.forEach { reply ->
                 ReplyProfileCard(
                     reply = reply,
+                    currentUserId = currentUserId,
                     onOpenDetail = onOpenDetail,
-                    onOpenProfile = onOpenProfile
+                    onOpenProfile = onOpenProfile,
+                    onToggleLike = onToggleLike,
+                    onShare = onShare,
+                    onDeleteReply = onDeleteReply
                 )
             }
         }
@@ -1009,9 +1112,57 @@ private fun ProfileRepliesPanel(
 @Composable
 private fun ReplyProfileCard(
     reply: Reply,
+    currentUserId: String,
     onOpenDetail: (String) -> Unit,
-    onOpenProfile: (String) -> Unit
+    onOpenProfile: (String) -> Unit,
+    onToggleLike: (Reply) -> Unit,
+    onShare: (Reply) -> Unit,
+    onDeleteReply: (Reply) -> Unit
 ) {
+    val context = LocalContext.current
+    val isLiked = currentUserId in reply.likedBy
+    val canDelete = reply.userId == currentUserId
+
+    var showDeleteDialog by rememberSaveable(reply.postId, reply.id) {
+        mutableStateOf(false)
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+            },
+            title = {
+                Text("Eliminar respuesta")
+            },
+            text = {
+                Text("¿Seguro que quieres eliminar esta respuesta?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteReply(reply)
+                    }
+                ) {
+                    Text(
+                        text = "Eliminar",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1036,33 +1187,27 @@ private fun ReplyProfileCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val profileModifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        enabled = reply.userId.isNotBlank()
+                    ) {
+                        onOpenProfile(reply.userId)
+                    }
+
                 if (reply.userAvatar.isNotBlank()) {
                     AsyncImage(
                         model = reply.userAvatar,
                         contentDescription = "Avatar de ${reply.userName}",
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                enabled = reply.userId.isNotBlank()
-                            ) {
-                                onOpenProfile(reply.userId)
-                            },
+                        modifier = profileModifier,
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(
-                                MaterialTheme.colorScheme.primaryContainer
-                            )
-                            .clickable(
-                                enabled = reply.userId.isNotBlank()
-                            ) {
-                                onOpenProfile(reply.userId)
-                            },
+                        modifier = profileModifier.background(
+                            MaterialTheme.colorScheme.primaryContainer
+                        ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -1100,6 +1245,20 @@ private fun ReplyProfileCard(
                         )
                     }
                 }
+
+                if (canDelete) {
+                    IconButton(
+                        onClick = {
+                            showDeleteDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Eliminar respuesta",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -1119,28 +1278,92 @@ private fun ReplyProfileCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.ChatBubbleOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                ReplyAction(
+                    icon = Icons.Default.ChatBubbleOutline,
+                    text = "Ver publicación",
+                    onClick = {
+                        if (reply.postId.isNotBlank()) {
+                            onOpenDetail(reply.postId)
+                        }
+                    }
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                ReplyAction(
+                    icon = if (isLiked) {
+                        Icons.Default.Favorite
+                    } else {
+                        Icons.Default.FavoriteBorder
+                    },
+                    text = reply.likes.toString(),
+                    selected = isLiked,
+                    onClick = {
+                        onToggleLike(reply)
+                    }
+                )
 
-                Text(
-                    text = "Ver publicación",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
+                ReplyAction(
+                    icon = Icons.Default.Share,
+                    text = "Compartir",
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "${reply.userName}: ${reply.mensaje}"
+                            )
+                        }
+
+                        context.startActivity(
+                            Intent.createChooser(
+                                intent,
+                                "Compartir comentario"
+                            )
+                        )
+
+                        onShare(reply)
+                    }
                 )
             }
         }
     }
 }
+@Composable
+private fun ReplyAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    selected: Boolean = false,
+    onClick: () -> Unit
+) {
+    val tint = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = tint
+        )
+    }
+}
 @Composable
 private fun EmptyPanel(
     message: String

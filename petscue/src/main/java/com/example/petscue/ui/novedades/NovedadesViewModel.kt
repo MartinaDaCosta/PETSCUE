@@ -305,7 +305,9 @@ class NovedadesViewModel @Inject constructor(
                 userAvatar = user.photoUrl,
                 mensaje = text,
                 timestamp = System.currentTimeMillis(),
-                likes = 0
+                likes = 0,
+                likedBy = emptyList(),
+                sharedBy = emptyList()
             )
 
             runCatching {

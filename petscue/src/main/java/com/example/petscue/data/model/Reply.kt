@@ -10,5 +10,7 @@ data class Reply(
     val userAvatar: String = "",
     val mensaje: String = "",
     val timestamp: Long = 0L,
-    val likes: Int = 0
+    val likes: Int = 0,
+    val likedBy: List<String> = emptyList(),
+    val sharedBy: List<String> = emptyList()
 )

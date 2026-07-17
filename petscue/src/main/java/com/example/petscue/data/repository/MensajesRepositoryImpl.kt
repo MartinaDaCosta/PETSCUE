@@ -5,6 +5,7 @@ import com.example.petscue.data.model.Conversation
 import com.example.petscue.data.model.ConversationType
 import com.example.petscue.data.model.User
 import com.example.petscue.data.model.UserRole
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -26,13 +27,20 @@ class MensajesRepositoryImpl @Inject constructor(
             .orderBy("updatedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 
-                val conversations = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Conversation::class.java)?.copy(id = doc.id)
-                }.orEmpty()
+                val conversations = snapshot?.documents
+                    ?.mapNotNull { doc ->
+                        doc.toObject(Conversation::class.java)
+                            ?.copy(id = doc.id)
+                    }
+                    ?.filter { conversation ->
+                        userId !in conversation.hiddenForUserIds
+                    }
+                    .orEmpty()
 
                 trySend(conversations).isSuccess
             }
@@ -47,13 +55,17 @@ class MensajesRepositoryImpl @Inject constructor(
             .orderBy("createdAt", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 
-                val messages = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(ChatMessage::class.java)?.copy(id = doc.id)
-                }.orEmpty()
+                val messages = snapshot?.documents
+                    ?.mapNotNull { doc ->
+                        doc.toObject(ChatMessage::class.java)
+                            ?.copy(id = doc.id)
+                    }
+                    .orEmpty()
 
                 trySend(messages).isSuccess
             }
@@ -109,7 +121,18 @@ class MensajesRepositoryImpl @Inject constructor(
             )
         ).await()
     }
-
+    override suspend fun hideConversation(
+        conversationId: String,
+        userId: String
+    ) {
+        conversationsRef
+            .document(conversationId)
+            .update(
+                "hiddenForUserIds",
+                FieldValue.arrayUnion(userId)
+            )
+            .await()
+    }
     override suspend fun createOrGetGeneralConversation(
         currentUserId: String,
         otherUserId: String,

@@ -298,7 +298,7 @@ internal fun LikeDetailAction(
     onClick: () -> Unit
 ) {
     val iconColor = if (isLiked) {
-        MaterialTheme.colorScheme.error
+        MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -347,16 +347,25 @@ fun ReplyThreadItem(
     currentUserId: String,
     onReplyClick: (Reply) -> Unit,
     onDeleteReply: (Reply) -> Unit,
+    onToggleLike: (Reply) -> Unit,
+    onShare: (Reply) -> Unit,
     onOpenProfile: (String) -> Unit
 ) {
     ReplyCard(
         reply = reply,
         canDelete = reply.userId == currentUserId,
+        isLiked = currentUserId in reply.likedBy,
         onReplyClick = {
             onReplyClick(reply)
         },
         onDeleteClick = {
             onDeleteReply(reply)
+        },
+        onLikeClick = {
+            onToggleLike(reply)
+        },
+        onShareClick = {
+            onShare(reply)
         },
         onOpenProfile = onOpenProfile,
         startPadding = 14.dp
@@ -366,11 +375,18 @@ fun ReplyThreadItem(
         ReplyCard(
             reply = child,
             canDelete = child.userId == currentUserId,
+            isLiked = currentUserId in child.likedBy,
             onReplyClick = {
                 onReplyClick(child)
             },
             onDeleteClick = {
                 onDeleteReply(child)
+            },
+            onLikeClick = {
+                onToggleLike(child)
+            },
+            onShareClick = {
+                onShare(child)
             },
             onOpenProfile = onOpenProfile,
             startPadding = 34.dp,
@@ -383,8 +399,11 @@ fun ReplyThreadItem(
 private fun ReplyCard(
     reply: Reply,
     canDelete: Boolean,
+    isLiked: Boolean,
     onReplyClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onLikeClick: () -> Unit,
+    onShareClick: () -> Unit,
     onOpenProfile: (String) -> Unit,
     startPadding: Dp = 0.dp,
     isChild: Boolean = false
@@ -517,15 +536,21 @@ private fun ReplyCard(
                     text = "Responder",
                     onClick = onReplyClick
                 )
-
                 DetailAction(
-                    icon = Icons.Default.FavoriteBorder,
-                    text = reply.likes.toString()
+                    icon = if (isLiked) {
+                        Icons.Default.Favorite
+                    } else {
+                        Icons.Default.FavoriteBorder
+                    },
+                    text = reply.likes.toString(),
+                    selected = isLiked,
+                    onClick = onLikeClick
                 )
 
                 DetailAction(
                     icon = Icons.Default.Share,
-                    text = "Compartir"
+                    text = "Compartir",
+                    onClick = onShareClick
                 )
             }
         }

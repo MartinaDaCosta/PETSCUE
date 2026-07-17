@@ -57,6 +57,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 
 @Composable
 fun MensajesScreen(
@@ -173,6 +177,9 @@ fun MensajesScreen(
                             currentUserId = uiState.currentUserId,
                             onClick = {
                                 onConversationClick(conversation.id)
+                            },
+                            onDeleteClick = {
+                                viewModel.deleteConversation(conversation.id)
                             }
                         )
                     }
@@ -336,12 +343,56 @@ private fun MessagesHeader(
 private fun ConversationCard(
     conversation: Conversation,
     currentUserId: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val unreadCount =
         conversation.unreadCountByUser[currentUserId] ?: 0
 
     val hasUnreadMessages = unreadCount > 0
+
+    var showDeleteDialog by rememberSaveable(conversation.id) {
+        mutableStateOf(false)
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+            },
+            title = {
+                Text("Eliminar conversación")
+            },
+            text = {
+                Text(
+                    "¿Seguro que quieres eliminar esta conversación? " +
+                            "Esta acción no se puede deshacer."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteClick()
+                    }
+                ) {
+                    Text(
+                        text = "Eliminar",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -373,9 +424,9 @@ private fun ConversationCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ConversationImage(
-                imageUrl = conversation.petImageUrl,
-                petName = conversation.petName
+            ConversationUserAvatar(
+                photoUrl = conversation.otherUserPreviewPhotoUrl,
+                userName = conversation.otherUserPreviewName
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -388,32 +439,22 @@ private fun ConversationCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = conversation.petName.ifBlank { "Animal" },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = PetscueBlueDark,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Text(
+                        text = conversation.otherUserPreviewName
+                            .ifBlank { "Usuario" },
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (hasUnreadMessages) {
+                            FontWeight.ExtraBold
+                        } else {
+                            FontWeight.Bold
+                        },
+                        color = PetscueBlueDark,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                        Text(
-                            text = conversation.otherUserPreviewName
-                                .ifBlank { "Usuario" },
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (hasUnreadMessages) {
-                                FontWeight.Bold
-                            } else {
-                                FontWeight.SemiBold
-                            },
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
                         text = formatRelativeTime(conversation.lastMessageAt),
@@ -446,12 +487,14 @@ private fun ConversationCard(
                 )
 
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     ConversationTypeChip(
                         conversation = conversation
                     )
+
+                    Spacer(modifier = Modifier.weight(1f))
 
                     if (hasUnreadMessages) {
                         Box(
@@ -469,12 +512,59 @@ private fun ConversationCard(
                             )
                         }
                     }
+
+                    IconButton(
+                        onClick = {
+                            showDeleteDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Eliminar conversación",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
     }
 }
-
+@Composable
+private fun ConversationUserAvatar(
+    photoUrl: String,
+    userName: String
+) {
+    if (photoUrl.isNotBlank()) {
+        AsyncImage(
+            model = photoUrl,
+            contentDescription = "Foto de perfil de $userName",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .width(64.dp)
+                .height(64.dp)
+                .clip(CircleShape)
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .width(64.dp)
+                .height(64.dp)
+                .clip(CircleShape)
+                .background(PetscueBlue.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = userName
+                    .firstOrNull()
+                    ?.uppercase()
+                    ?: "U",
+                style = MaterialTheme.typography.titleLarge,
+                color = PetscueBlue,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
 @Composable
 private fun ConversationImage(
     imageUrl: String,

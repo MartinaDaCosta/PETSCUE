@@ -17,12 +17,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
+import com.example.petscue.data.model.Reply
+import com.example.petscue.data.repository.ReplyRepository
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val repository: ProfileRepository,
     private val mensajesRepository: MensajesRepository,
     private val postRepository: PostRepository,
+    private val replyRepository: ReplyRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -38,6 +40,9 @@ class ProfileViewModel @Inject constructor(
     private var postsJob: Job? = null
     private var repliesJob: Job? = null
     private var repostedPostsJob: Job? = null
+    private var followersCountJob: Job? = null
+    private var followingCountJob: Job? = null
+    private var likedRepliesJob: Job? = null
     private var ownPosts: List<Post> = emptyList()
     private var repostedPosts: List<Post> = emptyList()
     private val _openChatEvent = MutableStateFlow<String?>(null)
@@ -150,9 +155,13 @@ class ProfileViewModel @Inject constructor(
                     )
                 }
 
+                observeFollowersCount(data.viewedUser.uid)
+                observeFollowingCount(data.viewedUser.uid)
+
                 observePosts(data.viewedUser.uid)
                 observeRepostedPosts(data.viewedUser.uid)
-                observeLikedPosts(data.viewedUser.uid)
+                observeLikedPosts(data.currentUserId)
+                observeLikedReplies(data.currentUserId)
                 observePets(data.viewedUser.uid, data.viewedUser.role)
                 observeReplies(data.viewedUser.uid)
             }.onFailure { error ->
@@ -163,6 +172,36 @@ class ProfileViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun observeFollowersCount(userId: String) {
+        followersCountJob?.cancel()
+
+        followersCountJob = viewModelScope.launch {
+            repository.observeFollowersCount(userId)
+                .collectLatest { followersCount ->
+                    _uiState.update {
+                        it.copy(
+                            followersCount = followersCount
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun observeFollowingCount(userId: String) {
+        followingCountJob?.cancel()
+
+        followingCountJob = viewModelScope.launch {
+            repository.observeFollowingCount(userId)
+                .collectLatest { followingCount ->
+                    _uiState.update {
+                        it.copy(
+                            followingCount = followingCount
+                        )
+                    }
+                }
         }
     }
     private fun observeReplies(userId: String) {
@@ -226,6 +265,24 @@ class ProfileViewModel @Inject constructor(
                             likedPosts = likedPosts.sortedByDescending { post ->
                                 post.timestamp
                             }
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun observeLikedReplies(userId: String) {
+        likedRepliesJob?.cancel()
+
+        likedRepliesJob = viewModelScope.launch {
+            repository.getLikedRepliesByUser(userId)
+                .collectLatest { replies ->
+                    _uiState.update { current ->
+                        current.copy(
+                            likedReplies = replies.sortedByDescending { reply ->
+                                reply.timestamp
+                            },
+                            error = null
                         )
                     }
                 }
@@ -370,7 +427,99 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
+    fun toggleReplyLike(reply: Reply) {
+        val currentUserId = _uiState.value.currentUserId
 
+        if (
+            currentUserId.isBlank() ||
+            reply.id.isBlank() ||
+            reply.postId.isBlank()
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                replyRepository.toggleReplyLike(
+                    postId = reply.postId,
+                    replyId = reply.id,
+                    userId = currentUserId
+                )
+            }.onFailure { error ->
+                _uiState.update { current ->
+                    current.copy(
+                        error = error.message
+                            ?: "No se pudo actualizar el me gusta"
+                    )
+                }
+            }
+        }
+    }
+
+    fun toggleReplyShare(reply: Reply) {
+        val currentUserId = _uiState.value.currentUserId
+
+        if (
+            currentUserId.isBlank() ||
+            reply.id.isBlank() ||
+            reply.postId.isBlank()
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                replyRepository.toggleReplyShare(
+                    postId = reply.postId,
+                    replyId = reply.id,
+                    userId = currentUserId
+                )
+            }.onFailure { error ->
+                _uiState.update { current ->
+                    current.copy(
+                        error = error.message
+                            ?: "No se pudo registrar que compartiste el comentario"
+                    )
+                }
+            }
+        }
+    }
+    fun deleteReply(reply: Reply) {
+        val currentUserId = _uiState.value.currentUserId
+
+        if (
+            currentUserId.isBlank() ||
+            reply.id.isBlank() ||
+            reply.postId.isBlank() ||
+            reply.userId != currentUserId
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                replyRepository.deleteReply(
+                    postId = reply.postId,
+                    replyId = reply.id
+                )
+            }.onSuccess {
+                _uiState.update { current ->
+                    current.copy(
+                        replies = current.replies.filterNot {
+                            it.id == reply.id && it.postId == reply.postId
+                        }
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update { current ->
+                    current.copy(
+                        error = error.message
+                            ?: "No se pudo eliminar la respuesta"
+                    )
+                }
+            }
+        }
+    }
     private fun applyOptimisticPostUpdate(
         originalPost: Post,
         updatedPost: Post,
@@ -441,8 +590,10 @@ class ProfileViewModel @Inject constructor(
                 return@launch
             }
 
+            val wasFollowing = state.isFollowing
+
             runCatching {
-                if (state.isFollowing) {
+                if (wasFollowing) {
                     repository.unfollowUser(
                         followerId = currentUserId,
                         followedId = profileUserId
@@ -456,12 +607,7 @@ class ProfileViewModel @Inject constructor(
             }.onSuccess {
                 _uiState.update { current ->
                     current.copy(
-                        isFollowing = !state.isFollowing,
-                        followersCount = if (state.isFollowing) {
-                            (current.followersCount - 1).coerceAtLeast(0)
-                        } else {
-                            current.followersCount + 1
-                        }
+                        isFollowing = !wasFollowing
                     )
                 }
             }.onFailure { error ->
@@ -496,6 +642,9 @@ class ProfileViewModel @Inject constructor(
         postsJob?.cancel()
         repliesJob?.cancel()
         repostedPostsJob?.cancel()
+        followersCountJob?.cancel()
+        followingCountJob?.cancel()
+        likedRepliesJob?.cancel()
         super.onCleared()
     }
 }

@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class MensajesViewModel @Inject constructor(
@@ -19,7 +21,20 @@ class MensajesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val currentUserId = auth.currentUser?.uid.orEmpty()
+    fun deleteConversation(conversationId: String) {
+        if (conversationId.isBlank() || currentUserId.isBlank()) {
+            return
+        }
 
+        viewModelScope.launch {
+            runCatching {
+                mensajesRepository.hideConversation(
+                    conversationId = conversationId,
+                    userId = currentUserId
+                )
+            }
+        }
+    }
     val uiState: StateFlow<MensajesUiState> =
         mensajesRepository.observeConversations(currentUserId)
             .map { conversations ->
@@ -41,6 +56,8 @@ class MensajesViewModel @Inject constructor(
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = MensajesUiState(currentUserId = currentUserId)
+                initialValue = MensajesUiState(
+                    currentUserId = currentUserId
+                )
             )
 }

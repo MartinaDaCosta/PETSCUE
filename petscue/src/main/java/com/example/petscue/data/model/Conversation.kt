@@ -38,5 +38,8 @@ data class Conversation(
     val adoptionFormStatus: String? = null,
 
     val otherUserPreviewName: String = "",
-    val otherUserPreviewPhotoUrl: String = ""
+    val otherUserPreviewPhotoUrl: String = "",
+    val hiddenForUserIds: List<String> = emptyList()
+
+
 )

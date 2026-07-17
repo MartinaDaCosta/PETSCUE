@@ -21,7 +21,8 @@ class AdminRepositoryImpl @Inject constructor(
             .whereEqualTo("approvalStatus", "PENDING")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
+                    close()
                     return@addSnapshotListener
                 }
 
