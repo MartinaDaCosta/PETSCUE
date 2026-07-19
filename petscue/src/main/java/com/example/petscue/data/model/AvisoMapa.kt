@@ -17,5 +17,8 @@ data class AvisoMapa(
     val lat: Double = 0.0,
     val lng: Double = 0.0,
     val radioMetros: Double = 1500.0,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val descripcion: String = "",
+    val userPhotoUrl: String = "",
+    val alertaActiva: Boolean = true
 )

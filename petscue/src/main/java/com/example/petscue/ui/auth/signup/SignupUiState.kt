@@ -51,5 +51,6 @@ data class SignupUiState(
     val passwordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val acceptedPrivacyPolicy: Boolean = false
 )

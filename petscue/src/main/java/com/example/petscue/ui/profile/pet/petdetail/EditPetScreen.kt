@@ -238,13 +238,6 @@ fun EditPetScreen(
                         )
 
                         AppTextField(
-                            value = state.estado,
-                            onValueChange = vm::onEstadoChange,
-                            label = "Estado",
-                            singleLine = true
-                        )
-
-                        AppTextField(
                             value = state.descripcion,
                             onValueChange = vm::onDescripcionChange,
                             label = "Descripción",

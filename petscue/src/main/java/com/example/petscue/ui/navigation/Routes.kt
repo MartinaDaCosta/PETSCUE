@@ -26,6 +26,11 @@ object Routes {
     const val MAIN_WITH_TAB = "main?tab={tab}"
     const val EDIT_PROFILE = "edit_profile"
 
+    const val EDIT_ALERT = "edit_alert/{alertId}"
+    const val PRIVACY_POLICY = "privacy_policy"
+
+    fun privacyPolicyRoute(): String = PRIVACY_POLICY
+    fun editAlertRoute(alertId: String): String = "edit_alert/$alertId"
     fun mainRoute(tab: String) = "main?tab=$tab"
     fun adoptionRequestRoute(petId: String) = "adoption_request/$petId"
     fun createAlertRoute(petId: String) = "create_alert/$petId"

@@ -62,9 +62,6 @@ class AddPetViewModel @Inject constructor(
         _uiState.update { it.copy(ubicacion = value, error = null) }
     }
 
-    fun onEstadoChange(value: String) {
-        _uiState.update { it.copy(estado = value, error = null) }
-    }
 
     fun onPhotosSelected(uris: List<Uri>) {
         _uiState.update { current ->
@@ -141,9 +138,10 @@ class AddPetViewModel @Inject constructor(
                         }
                     }.trim(),
                     userAvatar = user.photoUrl,
-                    estado = state.estado.trim().ifBlank { "propia" },
+                    estado = "en casa",
                     timestamp = System.currentTimeMillis()
                 )
+
 
                 petRepository.insert(pet)
             }.onSuccess {

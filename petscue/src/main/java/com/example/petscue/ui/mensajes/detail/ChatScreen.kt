@@ -472,6 +472,7 @@ private fun MessageInputBar(
                     }
                 }
             }
+
         }
     }
 }

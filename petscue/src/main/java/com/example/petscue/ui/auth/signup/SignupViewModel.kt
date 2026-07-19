@@ -54,7 +54,7 @@ class SignupViewModel @Inject constructor(
     fun onFacebookChange(v: String) = _uiState.update { it.copy(facebook = v, errorMessage = null) }
     fun onInstagramChange(v: String) = _uiState.update { it.copy(instagram = v, errorMessage = null) }
     fun onRoleSelected(role: UserRole) = _uiState.update { it.copy(selectedRole = role, errorMessage = null) }
-
+    fun onAcceptedPrivacyPolicyChange(value: Boolean) = _uiState.update { it.copy(acceptedPrivacyPolicy = value) }
     // Alterna la visibilidad de la contraseña
     fun onTogglePasswordVisibility() {
         _uiState.update {

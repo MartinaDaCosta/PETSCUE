@@ -11,7 +11,7 @@ data class AddPetUiState(
     val peso: String = "",
     val descripcion: String = "",
     val ubicacion: String = "",
-    val estado: String = "propia",
+    val estado: String = "en casa",
     val photoUris: List<Uri> = emptyList(),
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,

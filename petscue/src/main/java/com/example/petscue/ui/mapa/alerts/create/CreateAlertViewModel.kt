@@ -47,6 +47,7 @@ class CreateAlertViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         pet = pet,
+                        petId = pet?.id.orEmpty(),
                         isLoading = false,
                         error = if (pet == null) "No se encontró la mascota" else null
                     )
@@ -73,6 +74,10 @@ class CreateAlertViewModel @Inject constructor(
 
     fun onRadiusChanged(value: Double) {
         _uiState.update { it.copy(radiusMeters = value) }
+    }
+
+    fun onDescripcionChange(value: String) {
+        _uiState.update { it.copy(descripcion = value) }
     }
 
     fun saveAlert() {
@@ -118,6 +123,7 @@ class CreateAlertViewModel @Inject constructor(
                         }
                     }.trim(),
                     userAvatar = user.photoUrl,
+                    userPhotoUrl = user.photoUrl,
                     nombreMascota = pet.nombre,
                     fotoUrl = pet.fotos.firstOrNull().orEmpty(),
                     direccionAviso = state.selectedLocation.address,
@@ -129,10 +135,13 @@ class CreateAlertViewModel @Inject constructor(
                     sexo = pet.genero,
                     raza = pet.raza,
                     edad = pet.edad,
+                    caracteristicas = pet.descripcion,
                     lat = state.selectedLocation.lat,
                     lng = state.selectedLocation.lng,
                     radioMetros = state.radiusMeters,
-                    createdAt = System.currentTimeMillis()
+                    createdAt = System.currentTimeMillis(),
+                    descripcion = state.descripcion.trim(),
+                    alertaActiva = true
                 )
 
                 alertRepository.upsertAlert(alert)

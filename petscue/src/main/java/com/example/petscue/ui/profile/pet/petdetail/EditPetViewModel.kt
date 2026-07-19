@@ -25,7 +25,7 @@ data class EditPetUiState(
     val peso: String = "",
     val descripcion: String = "",
     val ubicacion: String = "",
-    val estado: String = "propia",
+    val estado: String = "en casa",
     val currentPhotoUrls: List<String> = emptyList(),
     val newPhotoUris: List<Uri> = emptyList(),
     val isLoading: Boolean = true,

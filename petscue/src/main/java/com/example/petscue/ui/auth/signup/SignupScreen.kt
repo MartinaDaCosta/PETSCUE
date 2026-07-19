@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -38,14 +37,16 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -62,7 +63,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -76,6 +76,11 @@ import coil.compose.AsyncImage
 import com.example.petscue.BuildConfig
 import com.example.petscue.data.model.UserRole
 import com.example.petscue.domain.usecase.getCurrentLocation
+import com.example.petscue.ui.theme.AuthCardShape
+import com.example.petscue.ui.theme.AuthScreenContainer
+import com.example.petscue.ui.theme.AuthTextFieldShape
+import com.example.petscue.ui.theme.authFieldColors
+import com.example.petscue.ui.theme.authPrimaryButtonColors
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -89,9 +94,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.Locale
 import kotlin.coroutines.resume
 
-private val SignupBlueDark = Color(0xFF1565C0)
-private val SignupBlueLight = Color(0xFF64B5F6)
-
 private data class ResolvedAddressData(
     val fullAddress: String,
     val provincia: String,
@@ -104,6 +106,7 @@ private data class ResolvedAddressData(
 fun SignupScreen(
     onSignupSuccess: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
+    onOpenPrivacyPolicy: () -> Unit = {},
     vm: SignupViewModel = hiltViewModel()
 ) {
     val state by vm.uiState.collectAsState()
@@ -148,6 +151,7 @@ fun SignupScreen(
             } else {
                 "Cuenta creada correctamente. Revisa tu correo para verificar la cuenta."
             }
+
             snackbarHostState.showSnackbar(message = message)
             delay(1500)
             onSignupSuccess()
@@ -157,315 +161,46 @@ fun SignupScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(SignupBlueLight, SignupBlueDark)
-                    )
-                )
-                .verticalScroll(rememberScrollState())
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Crear Cuenta",
-                color = Color.White,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 28.sp
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "¡Únete a Petscue!",
-                color = Color.White.copy(alpha = 0.85f)
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            ProfileImagePicker(
-                imageUri = state.selectedImageUri,
-                onPickImage = {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                        )
-                    )
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Tipo de cuenta",
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        AuthScreenContainer {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                FilterChip(
-                    selected = state.selectedRole == UserRole.USER,
-                    onClick = { vm.onRoleSelected(UserRole.USER) },
-                    label = { Text("Usuario") }
-                )
-
-                FilterChip(
-                    selected = state.selectedRole == UserRole.PROTECTORA,
-                    onClick = { vm.onRoleSelected(UserRole.PROTECTORA) },
-                    label = { Text("Protectora") }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            AppField(
-                value = state.nombre,
-                onValueChange = vm::onNombreChange,
-                label = "Nombre *"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            AppField(
-                value = state.apellido,
-                onValueChange = vm::onApellidoChange,
-                label = "Apellido *"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            AppField(
-                value = state.username,
-                onValueChange = vm::onUsernameChange,
-                label = "Nombre de usuario *"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            AppField(
-                value = state.email,
-                onValueChange = vm::onEmailChange,
-                label = "Email *"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            PasswordField(
-                value = state.password,
-                onValueChange = vm::onPasswordChange,
-                visible = state.passwordVisible,
-                onToggleVisibility = vm::onTogglePasswordVisibility
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            AppField(
-                value = state.telefono,
-                onValueChange = vm::onTelefonoChange,
-                label = "Teléfono"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            AddressAutocompleteSection(
-                query = state.addressQuery,
-                suggestions = state.addressSuggestions,
-                onQueryChange = { query ->
-                    vm.onAddressQueryChange(query)
-
-                    if (query.length >= 2 && Places.isInitialized()) {
-                        val placesClient = Places.createClient(context)
-                        val request = FindAutocompletePredictionsRequest.builder()
-                            .setQuery(query)
-                            .build()
-
-                        placesClient.findAutocompletePredictions(request)
-                            .addOnSuccessListener { response ->
-                                val items = response.autocompletePredictions.map {
-                                    AddressSuggestion(
-                                        id = it.placeId,
-                                        title = it.getPrimaryText(null).toString(),
-                                        subtitle = it.getSecondaryText(null).toString(),
-                                        fullAddress = it.getFullText(null).toString()
-                                    )
-                                }
-                                vm.onAddressSuggestionsLoaded(items)
-                            }
-                            .addOnFailureListener {
-                                vm.onAddressSuggestionsLoaded(emptyList())
-                            }
-                    } else {
-                        vm.onAddressSuggestionsLoaded(emptyList())
-                    }
-                },
-                onSuggestionSelected = { suggestion ->
-                    val placesClient = Places.createClient(context)
-
-                    val request = FetchPlaceRequest.builder(
-                        suggestion.id,
-                        listOf(
-                            Place.Field.ID,
-                            Place.Field.NAME,
-                            Place.Field.ADDRESS,
-                            Place.Field.LAT_LNG
-                        )
-                    ).build()
-
-                    placesClient.fetchPlace(request)
-                        .addOnSuccessListener { response ->
-                            val place = response.place
-                            val latLng = place.latLng
-
-                            scope.launch {
-                                val resolved = if (latLng != null) {
-                                    getResolvedAddressData(
-                                        context = context,
-                                        lat = latLng.latitude,
-                                        lng = latLng.longitude
-                                    )
-                                } else {
-                                    null
-                                }
-
-                                val finalAddress = place.address
-                                    ?: resolved?.fullAddress
-                                    ?: suggestion.fullAddress
-
-                                vm.onResolvedLocationData(
-                                    direccion = finalAddress,
-                                    provincia = resolved?.provincia.orEmpty(),
-                                    ciudad = resolved?.ciudad.orEmpty(),
-                                    lat = latLng?.latitude,
-                                    lng = latLng?.longitude
-                                )
-                            }
-                        }
-                        .addOnFailureListener {
-                            vm.onAddressSuggestionSelected(suggestion)
-                        }
-                },
-                onUseCurrentLocation = {
-                    if (locationPermissionState.status.isGranted) {
-                        scope.launch {
-                            fetchingLocation = true
-
-                            val loc = getCurrentLocation(context)
-
-                            if (loc != null) {
-                                val resolved = getResolvedAddressData(
-                                    context = context,
-                                    lat = loc.lat,
-                                    lng = loc.lng
-                                )
-
-                                val textoFinal = resolved?.fullAddress
-                                    .takeUnless { it.isNullOrBlank() }
-                                    ?: loc.direccion.takeIf { it.isNotBlank() }
-                                    ?: "Ubicación actual"
-
-                                vm.onResolvedLocationData(
-                                    direccion = textoFinal,
-                                    provincia = resolved?.provincia.orEmpty(),
-                                    ciudad = resolved?.ciudad.orEmpty(),
-                                    lat = loc.lat,
-                                    lng = loc.lng
-                                )
-                            } else {
-                                snackbarHostState.showSnackbar("No se pudo obtener tu ubicación actual")
-                            }
-
-                            fetchingLocation = false
-                        }
-                    } else {
-                        locationPermissionState.launchPermissionRequest()
-                    }
-                },
-                loadingCurrentLocation = fetchingLocation
-            )
-
-            if (state.selectedRole == UserRole.PROTECTORA) {
-                Spacer(modifier = Modifier.height(20.dp))
-
                 Text(
-                    text = "Datos de la protectora",
+                    text = "Crear Cuenta",
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    modifier = Modifier.fillMaxWidth()
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 28.sp
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AppField(
-                    value = state.nombreProtectora,
-                    onValueChange = vm::onNombreProtectoraChange,
-                    label = "Nombre de la protectora *"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AppField(
-                    value = state.provincia,
-                    onValueChange = vm::onProvinciaChange,
-                    label = "Provincia *"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AppField(
-                    value = state.ciudad,
-                    onValueChange = vm::onCiudadChange,
-                    label = "Ciudad *"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = state.descripcionProtectora,
-                    onValueChange = vm::onDescripcionProtectoraChange,
-                    label = { Text("Descripción", color = Color.White) },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                    colors = fieldColors()
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AppField(
-                    value = state.web,
-                    onValueChange = vm::onWebChange,
-                    label = "Web"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AppField(
-                    value = state.facebook,
-                    onValueChange = vm::onFacebookChange,
-                    label = "Facebook"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AppField(
-                    value = state.instagram,
-                    onValueChange = vm::onInstagramChange,
-                    label = "Instagram"
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Documentos de verificación *",
+                    text = "¡Únete a Petscue!",
+                    color = Color.White.copy(alpha = 0.85f)
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                ProfileImagePicker(
+                    imageUri = state.selectedImageUri,
+                    onPickImage = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Tipo de cuenta",
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.fillMaxWidth()
@@ -473,150 +208,431 @@ fun SignupScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedButton(
-                    onClick = {
-                        verificationDocsLauncher.launch(
-                            arrayOf("application/pdf", "image/*")
-                        )
-                    },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.White
-                    )
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = null
+                    FilterChip(
+                        selected = state.selectedRole == UserRole.USER,
+                        onClick = { vm.onRoleSelected(UserRole.USER) },
+                        label = { Text("Usuario") }
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Adjuntar uno o varios documentos")
+
+                    FilterChip(
+                        selected = state.selectedRole == UserRole.PROTECTORA,
+                        onClick = { vm.onRoleSelected(UserRole.PROTECTORA) },
+                        label = { Text("Protectora") }
+                    )
                 }
 
-                if (state.verificationDocuments.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        state.verificationDocuments.forEach { uri ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Description,
-                                    contentDescription = null,
-                                    tint = Color.White
-                                )
+                AppField(
+                    value = state.nombre,
+                    onValueChange = vm::onNombreChange,
+                    label = "Nombre *"
+                )
 
-                                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                                Text(
-                                    text = uri.lastPathSegment ?: "Documento adjunto",
-                                    color = Color.White,
-                                    modifier = Modifier.weight(1f)
-                                )
+                AppField(
+                    value = state.apellido,
+                    onValueChange = vm::onApellidoChange,
+                    label = "Apellido *"
+                )
 
-                                IconButton(onClick = { vm.removeVerificationDocument(uri) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Eliminar documento",
-                                        tint = Color.White
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AppField(
+                    value = state.username,
+                    onValueChange = vm::onUsernameChange,
+                    label = "Nombre de usuario *"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AppField(
+                    value = state.email,
+                    onValueChange = vm::onEmailChange,
+                    label = "Email *"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                PasswordField(
+                    value = state.password,
+                    onValueChange = vm::onPasswordChange,
+                    visible = state.passwordVisible,
+                    onToggleVisibility = vm::onTogglePasswordVisibility
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AppField(
+                    value = state.telefono,
+                    onValueChange = vm::onTelefonoChange,
+                    label = "Teléfono"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AddressAutocompleteSection(
+                    query = state.addressQuery,
+                    suggestions = state.addressSuggestions,
+                    onQueryChange = { query ->
+                        vm.onAddressQueryChange(query)
+
+                        if (query.length >= 2 && Places.isInitialized()) {
+                            val placesClient = Places.createClient(context)
+                            val request = FindAutocompletePredictionsRequest.builder()
+                                .setQuery(query)
+                                .build()
+
+                            placesClient.findAutocompletePredictions(request)
+                                .addOnSuccessListener { response ->
+                                    val items = response.autocompletePredictions.map {
+                                        AddressSuggestion(
+                                            id = it.placeId,
+                                            title = it.getPrimaryText(null).toString(),
+                                            subtitle = it.getSecondaryText(null).toString(),
+                                            fullAddress = it.getFullText(null).toString()
+                                        )
+                                    }
+                                    vm.onAddressSuggestionsLoaded(items)
+                                }
+                                .addOnFailureListener {
+                                    vm.onAddressSuggestionsLoaded(emptyList())
+                                }
+                        } else {
+                            vm.onAddressSuggestionsLoaded(emptyList())
+                        }
+                    },
+                    onSuggestionSelected = { suggestion ->
+                        val placesClient = Places.createClient(context)
+
+                        val request = FetchPlaceRequest.builder(
+                            suggestion.id,
+                            listOf(
+                                Place.Field.ID,
+                                Place.Field.NAME,
+                                Place.Field.ADDRESS,
+                                Place.Field.LAT_LNG
+                            )
+                        ).build()
+
+                        placesClient.fetchPlace(request)
+                            .addOnSuccessListener { response ->
+                                val place = response.place
+                                val latLng = place.latLng
+
+                                scope.launch {
+                                    val resolved = if (latLng != null) {
+                                        getResolvedAddressData(
+                                            context = context,
+                                            lat = latLng.latitude,
+                                            lng = latLng.longitude
+                                        )
+                                    } else {
+                                        null
+                                    }
+
+                                    val finalAddress = place.address
+                                        ?: resolved?.fullAddress
+                                        ?: suggestion.fullAddress
+
+                                    vm.onResolvedLocationData(
+                                        direccion = finalAddress,
+                                        provincia = resolved?.provincia.orEmpty(),
+                                        ciudad = resolved?.ciudad.orEmpty(),
+                                        lat = latLng?.latitude,
+                                        lng = latLng?.longitude
                                     )
                                 }
                             }
+                            .addOnFailureListener {
+                                vm.onAddressSuggestionSelected(suggestion)
+                            }
+                    },
+                    onUseCurrentLocation = {
+                        if (locationPermissionState.status.isGranted) {
+                            scope.launch {
+                                fetchingLocation = true
+
+                                val loc = getCurrentLocation(context)
+
+                                if (loc != null) {
+                                    val resolved = getResolvedAddressData(
+                                        context = context,
+                                        lat = loc.lat,
+                                        lng = loc.lng
+                                    )
+
+                                    val textoFinal = resolved?.fullAddress
+                                        .takeUnless { it.isNullOrBlank() }
+                                        ?: loc.direccion.takeIf { it.isNotBlank() }
+                                        ?: "Ubicación actual"
+
+                                    vm.onResolvedLocationData(
+                                        direccion = textoFinal,
+                                        provincia = resolved?.provincia.orEmpty(),
+                                        ciudad = resolved?.ciudad.orEmpty(),
+                                        lat = loc.lat,
+                                        lng = loc.lng
+                                    )
+                                } else {
+                                    snackbarHostState.showSnackbar(
+                                        "No se pudo obtener tu ubicación actual"
+                                    )
+                                }
+
+                                fetchingLocation = false
+                            }
+                        } else {
+                            locationPermissionState.launchPermissionRequest()
                         }
+                    },
+                    loadingCurrentLocation = fetchingLocation
+                )
+
+                if (state.selectedRole == UserRole.PROTECTORA) {
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Datos de la protectora",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AppField(
+                        value = state.nombreProtectora,
+                        onValueChange = vm::onNombreProtectoraChange,
+                        label = "Nombre de la protectora *"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AppField(
+                        value = state.provincia,
+                        onValueChange = vm::onProvinciaChange,
+                        label = "Provincia *"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AppField(
+                        value = state.ciudad,
+                        onValueChange = vm::onCiudadChange,
+                        label = "Ciudad *"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = state.descripcionProtectora,
+                        onValueChange = vm::onDescripcionProtectoraChange,
+                        label = { Text("Descripción", color = Color.White) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                        shape = AuthTextFieldShape,
+                        colors = authFieldColors()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AppField(
+                        value = state.web,
+                        onValueChange = vm::onWebChange,
+                        label = "Web"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AppField(
+                        value = state.facebook,
+                        onValueChange = vm::onFacebookChange,
+                        label = "Facebook"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AppField(
+                        value = state.instagram,
+                        onValueChange = vm::onInstagramChange,
+                        label = "Instagram"
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Documentos de verificación *",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            verificationDocsLauncher.launch(
+                                arrayOf("application/pdf", "image/*")
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = AuthCardShape,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text("Adjuntar uno o varios documentos")
+                    }
+
+                    if (state.verificationDocuments.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            state.verificationDocuments.forEach { uri ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = Color.White
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Text(
+                                        text = uri.lastPathSegment ?: "Documento adjunto",
+                                        color = Color.White,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    IconButton(
+                                        onClick = { vm.removeVerificationDocument(uri) }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Eliminar documento",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = state.verificationNotes,
+                        onValueChange = vm::onVerificationNotesChange,
+                        label = {
+                            Text("Notas para la verificación", color = Color.White)
+                        },
+                        placeholder = {
+                            Text(
+                                "Ej.: CIF, número de registro, web oficial, persona de contacto...",
+                                color = Color.White.copy(alpha = 0.70f)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                        shape = AuthTextFieldShape,
+                        colors = authFieldColors()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                state.errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = Color(0xFFFFCDD2),
+                        fontSize = 14.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                Text(
+                    text = "* campo obligatorio",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                PrivacyPolicyAcceptance(
+                    accepted = state.acceptedPrivacyPolicy,
+                    onAcceptedChange = vm::onAcceptedPrivacyPolicyChange,
+                    onOpenPrivacyPolicy = onOpenPrivacyPolicy
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { vm.onRegisterClick() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    enabled = !state.isLoading && state.acceptedPrivacyPolicy,
+                    colors = authPrimaryButtonColors(),
+                    shape = AuthCardShape
+                ) {
+                    if (state.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Text(
+                            text = "Crear Cuenta",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = state.verificationNotes,
-                    onValueChange = vm::onVerificationNotesChange,
-                    label = { Text("Notas para la verificación", color = Color.White) },
-                    placeholder = {
-                        Text(
-                            "Ej.: CIF, número de registro, web oficial, persona de contacto...",
-                            color = Color.White.copy(alpha = 0.70f)
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                    colors = fieldColors()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            state.errorMessage?.let { message ->
-                Text(
-                    text = message,
-                    color = Color(0xFFFFCDD2),
-                    fontSize = 14.sp,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            Text(
-                text = "* campo obligatorio",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { vm.onRegisterClick() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                enabled = !state.isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = SignupBlueDark
-                ),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = SignupBlueDark
-                    )
-                } else {
+                TextButton(onClick = onNavigateToLogin) {
                     Text(
-                        text = "Crear Cuenta",
-                        fontWeight = FontWeight.Bold
+                        text = "¿Ya tienes cuenta? Inicia sesión",
+                        color = Color.White
                     )
                 }
+
+                if (state.selectedRole == UserRole.PROTECTORA) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Las cuentas de protectora requieren validación previa por parte del administrador.",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TextButton(onClick = onNavigateToLogin) {
-                Text(
-                    text = "¿Ya tienes cuenta? Inicia sesión",
-                    color = Color.White
-                )
-            }
-
-            if (state.selectedRole == UserRole.PROTECTORA) {
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Las cuentas de protectora requieren validación previa por parte del administrador.",
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 12.sp,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -642,7 +658,9 @@ private fun AddressAutocompleteSection(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text("Buscar dirección", color = Color.White.copy(alpha = 0.70f)) },
+        placeholder = {
+            Text("Buscar dirección", color = Color.White.copy(alpha = 0.70f))
+        },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
@@ -652,8 +670,8 @@ private fun AddressAutocompleteSection(
         },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        shape = RoundedCornerShape(20.dp),
-        colors = fieldColors()
+        shape = AuthTextFieldShape,
+        colors = authFieldColors()
     )
 
     if (suggestions.isNotEmpty()) {
@@ -664,7 +682,7 @@ private fun AddressAutocompleteSection(
                 .fillMaxWidth()
                 .background(
                     color = Color.White.copy(alpha = 0.14f),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = AuthCardShape
                 )
                 .padding(vertical = 6.dp)
         ) {
@@ -693,6 +711,7 @@ private fun AddressAutocompleteSection(
 
                         if (item.subtitle.isNotBlank()) {
                             Spacer(modifier = Modifier.height(2.dp))
+
                             Text(
                                 text = item.subtitle,
                                 color = Color.White.copy(alpha = 0.82f),
@@ -714,7 +733,7 @@ private fun AddressAutocompleteSection(
     OutlinedButton(
         onClick = onUseCurrentLocation,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = AuthCardShape,
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = Color.White
         )
@@ -730,7 +749,9 @@ private fun AddressAutocompleteSection(
                 imageVector = Icons.Default.MyLocation,
                 contentDescription = null
             )
+
             Spacer(modifier = Modifier.width(8.dp))
+
             Text("Usar ubicación actual")
         }
     }
@@ -748,7 +769,8 @@ private fun AppField(
         label = { Text(label, color = Color.White) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        colors = fieldColors()
+        shape = AuthTextFieldShape,
+        colors = authFieldColors()
     )
 }
 
@@ -765,17 +787,26 @@ private fun PasswordField(
         label = { Text("Contraseña *", color = Color.White) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        shape = AuthTextFieldShape,
+        visualTransformation = if (visible) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
         trailingIcon = {
             IconButton(onClick = onToggleVisibility) {
                 Icon(
-                    imageVector = if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    imageVector = if (visible) {
+                        Icons.Default.VisibilityOff
+                    } else {
+                        Icons.Default.Visibility
+                    },
                     contentDescription = "Mostrar u ocultar contraseña",
                     tint = Color.White
                 )
             }
         },
-        colors = fieldColors()
+        colors = authFieldColors()
     )
 }
 
@@ -817,7 +848,7 @@ private fun ProfileImagePicker(
 
         OutlinedButton(
             onClick = onPickImage,
-            shape = RoundedCornerShape(12.dp),
+            shape = AuthCardShape,
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = Color.White
             )
@@ -826,21 +857,6 @@ private fun ProfileImagePicker(
         }
     }
 }
-
-@Composable
-private fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Color.White,
-    unfocusedBorderColor = Color.White.copy(alpha = 0.6f),
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White,
-    cursorColor = Color.White,
-    focusedLabelColor = Color.White,
-    unfocusedLabelColor = Color.White.copy(alpha = 0.85f),
-    focusedContainerColor = Color.Transparent,
-    unfocusedContainerColor = Color.Transparent,
-    focusedPrefixColor = Color.White,
-    unfocusedPrefixColor = Color.White.copy(alpha = 0.85f)
-)
 
 private suspend fun getResolvedAddressData(
     context: Context,
@@ -896,4 +912,56 @@ private fun Address?.toReadableText(): String? {
         .replace("\\s+".toRegex(), " ")
         .trim()
         .ifBlank { getAddressLine(0) }
+}
+
+@Composable
+private fun PrivacyPolicyAcceptance(
+    accepted: Boolean,
+    onAcceptedChange: (Boolean) -> Unit,
+    onOpenPrivacyPolicy: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = accepted,
+                onCheckedChange = onAcceptedChange,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = Color.White,
+                    uncheckedColor = Color.White,
+                    checkmarkColor = MaterialTheme.colorScheme.primary
+                )
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Acepta las políticas de privacidad *",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = "Debes aceptarlas para completar el registro.",
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 13.sp
+                )
+            }
+        }
+
+        TextButton(
+            onClick = onOpenPrivacyPolicy,
+            modifier = Modifier.align(Alignment.Start)
+        ) {
+            Text(
+                text = "Ver política de privacidad",
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
 }

@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -105,9 +106,12 @@ fun MainScreen(
     onLogout: () -> Unit = {}
 ) {
     var currentTabRoute by rememberSaveable {
-        mutableStateOf(initialTabRoute)
+        mutableStateOf(BottomTab.Novedades.route)
     }
 
+    LaunchedEffect(initialTabRoute) {
+        currentTabRoute = initialTabRoute
+    }
     val currentTab = tabs.firstOrNull {
         it.route == currentTabRoute
     } ?: BottomTab.Novedades

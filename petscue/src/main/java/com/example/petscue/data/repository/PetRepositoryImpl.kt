@@ -116,7 +116,9 @@ class PetRepositoryImpl @Inject constructor(
         val currentUser = userSnapshot.toObject(User::class.java)
             ?: error("No se pudo cargar el usuario.")
 
-        val targetCollection = if (currentUser.role == UserRole.PROTECTORA) {
+        val isProtectora = currentUser.role == UserRole.PROTECTORA
+
+        val targetCollection = if (isProtectora) {
             adoptionPetsRef
         } else {
             petsRef
@@ -128,9 +130,16 @@ class PetRepositoryImpl @Inject constructor(
             targetCollection.document(pet.id)
         }
 
+        val normalizedEstado = when {
+            isProtectora -> "en protectora"
+            pet.estado.isBlank() || pet.estado.equals("propia", ignoreCase = true) -> "en casa"
+            else -> pet.estado
+        }
+
         val petToSave = pet.copy(
             id = docRef.id,
-            userId = uid
+            userId = uid,
+            estado = normalizedEstado
         )
 
         docRef.set(petToSave).await()
@@ -176,6 +185,12 @@ class PetRepositoryImpl @Inject constructor(
             error("No tienes permisos para editar esta mascota.")
         }
 
+        val normalizedEstado = when {
+            pet.estado.isBlank() -> "en protectora"
+            pet.estado.equals("propia", ignoreCase = true) -> "en protectora"
+            else -> pet.estado
+        }
+
         val data = mapOf(
             "nombre" to pet.nombre,
             "especie" to pet.especie,
@@ -185,7 +200,7 @@ class PetRepositoryImpl @Inject constructor(
             "peso" to pet.peso,
             "descripcion" to pet.descripcion,
             "ubicacion" to pet.ubicacion,
-            "estado" to pet.estado,
+            "estado" to normalizedEstado,
             "fotos" to pet.fotos,
             "userId" to pet.userId
         )

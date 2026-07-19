@@ -16,6 +16,6 @@ data class Pet(
     val userId: String = "",
     val userName: String = "",
     val userAvatar: String = "",
-    val estado: String = "perdido",
+    val estado: String = "",
     val timestamp: Long = 0L
 )

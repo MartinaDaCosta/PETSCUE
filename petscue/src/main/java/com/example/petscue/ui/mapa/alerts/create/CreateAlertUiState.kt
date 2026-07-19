@@ -9,6 +9,7 @@ data class CreateAlertUiState(
     val alertType: AlertType = AlertType.LOST,
     val selectedLocation: SelectedLocation? = null,
     val radiusMeters: Double = 1500.0,
+    val descripcion: String = "",
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,

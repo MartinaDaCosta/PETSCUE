@@ -13,10 +13,12 @@ import com.example.petscue.ui.admin.AdminApprovalScreen
 import com.example.petscue.ui.auth.AuthScreen
 import com.example.petscue.ui.auth.login.LoginScreen
 import com.example.petscue.ui.auth.pending.PendingApprovalScreen
+import com.example.petscue.ui.auth.privacy.PrivacyPolicyScreen
 import com.example.petscue.ui.auth.signup.SignupScreen
 import com.example.petscue.ui.mapa.AlertDetailScreen
 import com.example.petscue.ui.mapa.MyAlertsScreen
 import com.example.petscue.ui.mapa.alerts.create.CreateAlertScreen
+import com.example.petscue.ui.mapa.alerts.edit.EditAlertScreen
 import com.example.petscue.ui.mapa.alerts.selectPet.SelectPetForAlertScreen
 import com.example.petscue.ui.mensajes.detail.ChatScreen
 import com.example.petscue.ui.novedades.NovedadesScreen
@@ -217,10 +219,17 @@ fun PetscueNavHost(
                     navController.navigate(Routes.LOGIN) {
                         launchSingleTop = true
                     }
+                },
+                onOpenPrivacyPolicy = {
+                    navController.navigate(Routes.PRIVACY_POLICY)
                 }
             )
         }
-
+        composable(Routes.PRIVACY_POLICY) {
+            PrivacyPolicyScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable(Routes.PENDING_APPROVAL) {
             PendingApprovalScreen(
                 onApproved = {
@@ -537,10 +546,50 @@ fun PetscueNavHost(
                 petId = petId,
                 onBack = {
                     navController.popBackStack()
+                },
+                onOpenProfile = { userId ->
+                    navController.navigate(userProfileRoute(userId))
+                },
+                onOpenMyProfile = {
+                    navController.navigate(
+                        Routes.mainRoute(BottomTab.Perfil.route)
+                    ) {
+                        popUpTo(Routes.MAIN) {
+                            inclusive = false
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onMessageClick = { conversationId ->
+                    navController.navigate(
+                        Routes.chatDetailRoute(conversationId)
+                    )
+                },
+                onEditAlert = { alertId ->
+                    navController.navigate(
+                        Routes.editAlertRoute(alertId)
+                    )
                 }
             )
         }
-
+        composable(
+            route = Routes.EDIT_ALERT,
+            arguments = listOf(
+                navArgument("alertId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            EditAlertScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onAlertUpdated = {
+                    navController.popBackStack()
+                }
+            )
+        }
         composable(Routes.MY_ALERTS) {
             MyAlertsScreen(
                 onBack = {

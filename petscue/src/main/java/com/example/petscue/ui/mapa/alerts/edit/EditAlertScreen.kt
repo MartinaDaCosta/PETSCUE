@@ -1,4 +1,4 @@
-package com.example.petscue.ui.mapa.alerts.create
+package com.example.petscue.ui.mapa.alerts.edit
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -60,7 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -68,12 +67,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.petscue.BuildConfig
-import com.example.petscue.data.model.Pet
 import com.example.petscue.ui.novedades.location.SelectedLocation
 import com.example.petscue.ui.theme.AuthCardShape
 import com.example.petscue.ui.theme.AuthTextFieldShape
-import com.example.petscue.ui.theme.PetscueError
-import com.example.petscue.ui.theme.PetscueSuccess
 import com.example.petscue.ui.theme.authPrimaryButtonColors
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
@@ -90,16 +86,15 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
-fun CreateAlertScreen(
+fun EditAlertScreen(
     onBack: () -> Unit,
-    onAlertSaved: () -> Unit,
-    vm: CreateAlertViewModel = hiltViewModel()
+    onAlertUpdated: () -> Unit,
+    vm: EditAlertViewModel = hiltViewModel()
 ) {
     val uiState by vm.uiState.collectAsState()
     val context = LocalContext.current
@@ -119,26 +114,25 @@ fun CreateAlertScreen(
         }
     }
 
-    LaunchedEffect(uiState.isSaved) {
-        if (uiState.isSaved) onAlertSaved()
+    LaunchedEffect(uiState.direccionAviso) {
+        if (uiState.direccionAviso.isNotBlank() && query != uiState.direccionAviso) {
+            query = uiState.direccionAviso
+        }
     }
 
-    LaunchedEffect(uiState.selectedLocation?.address) {
-        val address = uiState.selectedLocation?.address.orEmpty()
-        if (address.isNotBlank() && query != address) {
-            query = address
+    LaunchedEffect(uiState.success) {
+        if (uiState.success) {
+            onAlertUpdated()
         }
     }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { granted: Boolean ->
+    ) { granted ->
         if (granted) {
             fetchCurrentLocation(
                 context = context,
-                onLoading = { isLoading ->
-                    loadingCurrentLocation = isLoading
-                },
+                onLoading = { loadingCurrentLocation = it },
                 onResult = { location ->
                     vm.onLocationSelected(location)
                     query = location.address
@@ -153,7 +147,6 @@ fun CreateAlertScreen(
     ) {
         when {
             uiState.isLoading -> LoadingState()
-            uiState.pet == null -> ErrorState(uiState.error ?: "No se encontró la mascota")
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -165,13 +158,13 @@ fun CreateAlertScreen(
                     }
 
                     item {
-                        AlertPetCard(pet = uiState.pet!!)
-                    }
-
-                    item {
-                        AlertTypeSection(
-                            selectedType = uiState.alertType,
-                            onTypeSelected = vm::onAlertTypeSelected
+                        EditAlertPetCard(
+                            nombreMascota = uiState.nombreMascota,
+                            tipoAviso = uiState.tipoAviso,
+                            sexo = uiState.sexo,
+                            raza = uiState.raza,
+                            edad = uiState.edad,
+                            fotoUrl = uiState.fotoUrl
                         )
                     }
 
@@ -185,9 +178,7 @@ fun CreateAlertScreen(
                                     loadPredictions(
                                         context = context,
                                         query = newQuery,
-                                        onResult = { locations ->
-                                            suggestions = locations
-                                        }
+                                        onResult = { suggestions = it }
                                     )
                                 } else {
                                     suggestions = emptyList()
@@ -260,15 +251,15 @@ fun CreateAlertScreen(
                     }
 
 
-                    uiState.error?.let { errorMessage ->
+                    uiState.errorMessage?.let { message ->
                         item {
-                            ErrorMessageCard(errorMessage)
+                            ErrorMessageCard(message)
                         }
                     }
 
                     item {
                         Button(
-                            onClick = vm::saveAlert,
+                            onClick = vm::save,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
@@ -285,7 +276,7 @@ fun CreateAlertScreen(
                                 )
                             } else {
                                 Text(
-                                    text = "Guardar aviso",
+                                    text = "Guardar cambios",
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -298,62 +289,14 @@ fun CreateAlertScreen(
 }
 
 @Composable
-private fun LoadingState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-    }
-}
-
-@Composable
-private fun ErrorState(message: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.bodyLarge
-        )
-    }
-}
-
-@Composable
-private fun Header(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Volver",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column {
-            Text(
-                text = "Nuevo aviso",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Define el tipo, la ubicación y el rango",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun AlertPetCard(pet: Pet) {
+private fun EditAlertPetCard(
+    nombreMascota: String,
+    tipoAviso: String,
+    sexo: String,
+    raza: String,
+    edad: String,
+    fotoUrl: String
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -369,12 +312,10 @@ private fun AlertPetCard(pet: Pet) {
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            val image = pet.fotos.firstOrNull()
-
-            if (!image.isNullOrBlank()) {
+            if (fotoUrl.isNotBlank()) {
                 AsyncImage(
-                    model = image,
-                    contentDescription = pet.nombre,
+                    model = fotoUrl,
+                    contentDescription = nombreMascota,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -400,38 +341,30 @@ private fun AlertPetCard(pet: Pet) {
             }
 
             Text(
-                text = pet.nombre.ifBlank { "Mascota" },
+                text = nombreMascota.ifBlank { "Mascota" },
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
-                text = "${pet.especie.ifBlank { "-" }} · ${pet.raza.ifBlank { "-" }}",
+                text = tipoAviso.ifBlank { "AVISO" },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary
             )
 
             Text(
-                text = "${pet.genero.ifBlank { "-" }} · ${pet.edad.ifBlank { "-" }} · ${pet.peso.ifBlank { "-" }}",
+                text = "${sexo.ifBlank { "-" }} · ${raza.ifBlank { "-" }} · ${edad.ifBlank { "-" }}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            if (pet.descripcion.isNotBlank()) {
-                Text(
-                    text = pet.descripcion,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun AlertTypeSection(
-    selectedType: AlertType,
-    onTypeSelected: (AlertType) -> Unit
+private fun DescriptionCard(
+    descripcion: String,
+    onDescripcionChange: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -446,76 +379,85 @@ private fun AlertTypeSection(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Tipo de aviso",
+                text = "Descripción del aviso",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Row(
+            OutlinedTextField(
+                value = descripcion,
+                onValueChange = onDescripcionChange,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                AlertTypeChip(
-                    text = "Perdido",
-                    color = PetscueError,
-                    selected = selectedType == AlertType.LOST,
-                    onClick = { onTypeSelected(AlertType.LOST) },
-                    modifier = Modifier.weight(1f)
-                )
-                AlertTypeChip(
-                    text = "Encontrado",
-                    color = PetscueSuccess,
-                    selected = selectedType == AlertType.FOUND,
-                    onClick = { onTypeSelected(AlertType.FOUND) },
-                    modifier = Modifier.weight(1f)
-                )
-                AlertTypeChip(
-                    text = "Visto",
-                    color = MaterialTheme.colorScheme.primary,
-                    selected = selectedType == AlertType.SEEN,
-                    onClick = { onTypeSelected(AlertType.SEEN) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                shape = AuthTextFieldShape,
+                minLines = 4,
+                placeholder = {
+                    Text("Añade detalles útiles sobre la mascota o el aviso")
+                }
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun Header(onBack: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Volver",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column {
+            Text(
+                text = "Editar aviso",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Actualiza ubicación, rango y detalles",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
-private fun AlertTypeChip(
-    text: String,
-    color: Color,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun LoadingState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun ErrorMessageCard(message: String) {
     Card(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) color.copy(alpha = 0.16f)
-            else MaterialTheme.colorScheme.surface
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (selected) color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+            containerColor = MaterialTheme.colorScheme.errorContainer
         )
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = color,
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(14.dp)
+        )
     }
 }
 
@@ -757,64 +699,6 @@ private fun RadiusCard(
     }
 }
 
-@Composable
-private fun DescriptionCard(
-    descripcion: String,
-    onDescripcionChange: (String) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = "Descripción del aviso",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            OutlinedTextField(
-                value = descripcion,
-                onValueChange = onDescripcionChange,
-                modifier = Modifier.fillMaxWidth(),
-                shape = AuthTextFieldShape,
-                minLines = 4,
-                placeholder = {
-                    Text("Añade detalles útiles sobre la mascota o el aviso")
-                }
-            )
-        }
-    }
-}
-
-@Composable
-private fun ErrorMessageCard(message: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
-    ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.onErrorContainer,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(14.dp)
-        )
-    }
-}
-
 @SuppressLint("MissingPermission")
 private fun fetchCurrentLocation(
     context: Context,
@@ -969,6 +853,7 @@ private fun getAddressFromLatLng(
         onResult("${latLng.latitude}, ${latLng.longitude}")
     }
 }
+
 private fun formatDistance(meters: Double): String {
     return if (meters < 1000) {
         "${meters.roundToInt()} m"
