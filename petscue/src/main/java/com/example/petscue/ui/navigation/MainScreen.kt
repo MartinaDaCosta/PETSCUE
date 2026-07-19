@@ -128,6 +128,11 @@ fun MainScreen(
                     navController.navigate(
                         Routes.alertDetailRoute(petId)
                     )
+                },
+                onOpenChat = { conversationId ->
+                    navController.navigate(
+                        Routes.chatDetailRoute(conversationId)
+                    )
                 }
             )
         },
@@ -261,7 +266,8 @@ fun MainScreen(
 @Composable
 fun PetscueTopBar(
     onLogout: () -> Unit = {},
-    onOpenAlert: (String) -> Unit
+    onOpenAlert: (String) -> Unit,
+    onOpenChat: (String) -> Unit
 ) {
     var showSettingsMenu by rememberSaveable {
         mutableStateOf(false)
@@ -285,7 +291,8 @@ fun PetscueTopBar(
         },
         navigationIcon = {
             NotificationsScreen(
-                onOpenAlert = onOpenAlert
+                onOpenAlert = onOpenAlert,
+                onOpenChat = onOpenChat
             )
         },
         actions = {

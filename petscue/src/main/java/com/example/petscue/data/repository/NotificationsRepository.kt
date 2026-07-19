@@ -38,6 +38,7 @@ class NotificationsRepository @Inject constructor(
                         petId = doc.getString("petId").orEmpty(),
                         senderId = doc.getString("senderId").orEmpty(),
                         isRead = doc.getBoolean("isRead") ?: false,
+                        conversationId = doc.getString("conversationId").orEmpty(),
                         createdAt = doc.getTimestamp("createdAt")?.toDate()?.time ?: 0L
                     )
                 }

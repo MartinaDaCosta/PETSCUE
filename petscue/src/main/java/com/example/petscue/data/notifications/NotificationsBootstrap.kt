@@ -37,7 +37,7 @@ fun NotificationsBootstrap() {
         if (needsPermission) {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            fetchAndStoreToken()
+            saveCurrentFcmToken()
         }
     }
 }

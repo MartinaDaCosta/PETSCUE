@@ -51,8 +51,9 @@ import java.util.Locale
 @Composable
 fun NotificationsScreen(
     onOpenAlert: (String) -> Unit,
+    onOpenChat: (String) -> Unit,
     vm: NotificationsViewModel = hiltViewModel()
-) {
+){
     val uiState by vm.uiState.collectAsStateWithLifecycle()
 
     var expanded by remember {
@@ -109,8 +110,14 @@ fun NotificationsScreen(
                     vm.markAsRead(item.id)
                     expanded = false
 
-                    if (item.petId.isNotBlank()) {
-                        onOpenAlert(item.petId)
+                    when {
+                        item.type == "CHAT_MESSAGE" && item.conversationId.isNotBlank() -> {
+                            onOpenChat(item.conversationId)
+                        }
+
+                        item.petId.isNotBlank() -> {
+                            onOpenAlert(item.petId)
+                        }
                     }
                 },
                 onEmptyClick = {

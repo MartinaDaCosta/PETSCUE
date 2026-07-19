@@ -7,6 +7,7 @@ data class AppNotification(
     val type: String = "",
     val alertId: String = "",
     val petId: String = "",
+    val conversationId: String = "",
     val senderId: String = "",
     val isRead: Boolean = false,
     val createdAt: Long = 0L
