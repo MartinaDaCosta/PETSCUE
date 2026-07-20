@@ -349,21 +349,6 @@ private fun AlertDetailContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = onSendMessage,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(18.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MailOutline,
-                            contentDescription = null
-                        )
-                        Text(
-                            text = "Enviar mensaje",
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
-
                     OutlinedButton(
                         onClick = onOpenProfile,
                         modifier = Modifier.weight(1f),
